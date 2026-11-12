@@ -1,3 +1,14 @@
+import type { AccountViewV1, OrganizationViewV1 } from "../../shared/api/client";
+
+export function usesApiOnlyLayout(account: Pick<AccountViewV1, "initial_connection_purpose" | "has_active_subscription_resource"> | undefined): boolean {
+  return account?.initial_connection_purpose === "api" && account.has_active_subscription_resource !== true;
+}
+
+export function accountOrganizationName(id: string | null, organizations: readonly Pick<OrganizationViewV1, "organization_id" | "name">[]): string {
+  if (id === null) return "Ungrouped";
+  return organizations.find(item => item.organization_id === id)?.name ?? "Organization unavailable";
+}
+
 export function providerDisplayName(providerKey: string): string {
   if (providerKey === "claude") return "Claude";
   if (providerKey === "codex") return "Codex";

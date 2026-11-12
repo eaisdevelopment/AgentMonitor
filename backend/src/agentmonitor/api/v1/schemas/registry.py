@@ -55,6 +55,7 @@ class AccountViewV1(_ClosedV1):
     updated_at: datetime
     archived_at: datetime | None
     initial_connection_purpose: Literal["api"] | None = None
+    has_active_subscription_resource: bool | None = None
 
 
 class AccountPageV1(_ClosedV1):

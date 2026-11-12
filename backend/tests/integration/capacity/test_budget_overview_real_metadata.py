@@ -96,3 +96,25 @@ def test_subscription_only_inventory_does_not_open_financial_current_queries(
     assert calls == expected_calls, (
         "subscription_only_financial_queries_are_unnecessary"
     )
+
+
+def test_account_read_publishes_actual_subscription_resource_presence(
+    tmp_path: Path,
+) -> None:
+    reference = _private_real_copy(tmp_path)
+    registry = SqliteRegistryRepositoryV1(reference)
+    accounts = registry.list_accounts(page_size=200)
+    assert accounts, "genuine_registry_required"
+    positives = 0
+    for account in accounts:
+        resources = registry.list_account_resources(account.account_id)
+        assert len(resources) < 100, "resource_comparison_requires_complete_list"
+        expected = any(
+            r.kind == "subscription_pool" and r.lifecycle == "active" for r in resources
+        )
+        assert getattr(account, "has_active_subscription_resource", None) is expected
+        selected = registry.get_account(account.account_id)
+        assert selected is not None
+        assert getattr(selected, "has_active_subscription_resource", None) is expected
+        positives += expected
+    assert positives > 0, "genuine_subscription_resource_required"

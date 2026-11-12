@@ -318,6 +318,14 @@ def _organization(row: RowMapping) -> OrganizationViewV1:
     )
 
 
+_ACCOUNT_SELECT = (
+    "SELECT a.*, s.registry_revision, EXISTS(SELECT 1 FROM reg_account_resource r "
+    "WHERE r.account_id=a.account_id AND r.kind='subscription_pool' "
+    "AND r.lifecycle='active') AS has_active_subscription_resource "
+    "FROM reg_account a CROSS JOIN reg_registry_state s WHERE s.singleton_key=1 "
+)
+
+
 def _account(row: RowMapping) -> AccountViewV1:
     identity_state = row["identity_state"]
     preference = row["monitoring_preference"]
@@ -340,6 +348,7 @@ def _account(row: RowMapping) -> AccountViewV1:
         is_effective_monitoring_enabled=monitoring.is_enabled,
         effective_monitoring_reason=monitoring.reason_code,
         initial_connection_purpose=row["initial_connection_purpose"],
+        has_active_subscription_resource=bool(row["has_active_subscription_resource"]),
         identity_state=identity_state,
         masked_identity=MaskedRegistryFieldV1(
             "withheld", None, "identity_privacy_minimized"
@@ -3088,9 +3097,7 @@ class SqliteRegistryRepositoryV1:
     def _account_by_id(connection: Connection, account_id: str) -> AccountViewV1:
         row = (
             connection.exec_driver_sql(
-                "SELECT a.*, s.registry_revision FROM reg_account a "
-                "CROSS JOIN reg_registry_state s WHERE s.singleton_key=1 "
-                "AND a.account_id=?",
+                _ACCOUNT_SELECT + "AND a.account_id=?",
                 (account_id,),
             )
             .mappings()
@@ -3106,9 +3113,7 @@ class SqliteRegistryRepositoryV1:
                 with handle.connect() as connection:
                     row = (
                         connection.exec_driver_sql(
-                            "SELECT a.*, s.registry_revision FROM reg_account a "
-                            "CROSS JOIN reg_registry_state s WHERE s.singleton_key=1 "
-                            "AND a.account_id=?",
+                            _ACCOUNT_SELECT + "AND a.account_id=?",
                             (account_id.value,),
                         )
                         .mappings()
@@ -3124,10 +3129,7 @@ class SqliteRegistryRepositoryV1:
         page_size: int = 100,
         after_key: str | None = None,
     ) -> tuple[AccountViewV1, ...]:
-        query = (
-            "SELECT a.*, s.registry_revision FROM reg_account a "
-            "CROSS JOIN reg_registry_state s WHERE s.singleton_key=1"
-        )
+        query = _ACCOUNT_SELECT
         parameters: tuple[object, ...] = ()
         if provider_key is not None:
             query += " AND a.provider_key=?"

@@ -17,6 +17,42 @@ This re-review and its validation are recorded in the
 The [post-scheduling clarification](../../evidence/m7-delivery-plan-clarification-2026-11-12.md)
 records the immediate reliability priority and corrections to stale instructions.
 
+## Read this first: next result and finish line
+
+The next independent result is **correct account detail for API-only and mixed
+accounts**, including the real organization label (T002/T011). A local draft
+exists, but it is not installed or accepted. Finish its contract, meaningful
+Red/Green and built-browser evidence before calling it delivered. Do not restart
+the already-delivered concurrent Overview correction.
+
+The first genuine monetary report takes priority as soon as its source is
+accessible: one account/resource, one complete interval, the same exact amount
+in storage, Overview and detail (T005 plus T006 or T008, T010–T012/T014).
+Ollama counts and balances are useful delivered results, but are not this
+monetary demonstration. Do not wait for every category, chart or forecast to
+show that first amount.
+
+The eight batches below are the remaining sequence inside the existing sixteen
+tickets. They have three owner-visible checkpoints, not three new gates:
+
+| Checkpoint | What the owner can use | What still follows |
+|---|---|---|
+| Working money journey | Owner setup, collection, exact amount/period/scope, Overview → detail → retained history | Remaining provider mappings, lifecycle cases and analysis |
+| Complete M7 screens | All frozen provider lanes, truthful totals/states, source lifecycle, chart, supported breakdown and qualified forecast or its real unavailable reason | Final recovery/continuity and candidate reconciliation |
+| Released M7 | Full existing exit passes for the installed candidate; GitHub revision verified; demonstrated scope accepted | Deferred enhancements only |
+
+A ticket's dependency list governs **closure**, not permission to start every
+step. For example, T013 pure forecast work can proceed while a provider awaits
+access; it cannot close without its required integrated evidence. T003 adds the
+existing check selector with each feature. A missing selector is engineering
+work, not a new owner prerequisite. The catalog remains the only status tracker.
+
+For each increment, report the visible change, ticket IDs, exact verification,
+local/installed/public state, remaining failed boundary and next visible result.
+An implementation draft, passing policy tests or an HTTP 200 alone is not a
+working monetary dashboard. No repeated owner attestation or fresh approval is
+introduced by these checkpoints.
+
 ## 1. Verified starting point
 
 | Boundary | Recorded result | What it does not prove |
@@ -63,21 +99,19 @@ integrate the first real monetary report as soon as it does.
 **Delivered reliability packet: T010/T012 concurrent Overview reads.** The
 query correction at `cd4f566` passed the exact-revision concurrent browser check;
 see [evidence](../../evidence/m7-overview-query-reliability-2026-11-12.md). Retain
-this reproduction as regression coverage before further UI expansion: concurrent authenticated Overview,
-account-detail and setup reads while ordinary collection continues. Measure
-query time and repeated metadata access; make the smallest measured correction.
-Preserve complete inventory, pool attribution and final registry revision checks.
-Verify real rows and totals within the existing ten-second HTTP deadline,
-same-context retained values on failure and usable subscription rows. Serial
-reruns are diagnostic evidence, not resolution. No larger timeout, suppressed
-failure, reduced inventory, global cache or new worker is the default solution.
-T003 incorporates this reproduction into the existing Overview/browser scope;
-serial ownership of temporary tool links does not prohibit concurrent app reads.
-This is an existing acceptance defect, not a ninth delivery batch.
+this regression while expanding the financial assertions. Investigate another
+performance correction only if the real regression fails; do not rebuild the
+fix from historical Red evidence. Preserve complete inventory, pool attribution,
+registry consistency and the existing HTTP deadline. Full monetary acceptance
+remains unfinished. Serial tool-environment ownership does not prohibit
+concurrent app reads.
 
-Next independent implementation packet: T002/T011 capability-based mixed-account
-routing. The first genuine monetary report remains the priority whenever owner
-billing access becomes available; no repeated setup request is needed.
+Next independent packet: finish verification, integration and installation of
+the **local, uncommitted** T002/T011 mixed-account routing draft. Existing routing
+remains installed; the API-origin → active-subscription transition does not yet
+have installed acceptance. The first genuine monetary report remains the
+priority whenever owner billing access becomes available; no repeated setup
+request is needed.
 
 | Order / existing tickets | Smallest remaining result and owner | Required demonstration before moving the result to delivered |
 |---|---|---|
@@ -227,8 +261,9 @@ may proceed while a provider's required access is unavailable.
   bind sort/metadata revision into the cursor. Root synchronizes API/client;
   P02 renders server order. No fetch-all workaround or currency sorting engine.
 - T007 selected collection: retain installed billing context/status/cooldown
-  contracts (CTR-COL-002 2.4.0); synchronize the remaining cloud manual and
-  category/dimension handoffs before enabling their controls. Capture
+  contracts (CTR-COL-002 2.6.0, including the installed cloud manual and
+  fair scheduling increment); synchronize remaining category/dimension handoffs
+  before enabling their controls. Capture
   once; restart and midnight cannot reconstruct a different request. Existing
   run/status/receipt and one worker remain the implementation boundary.
 - T010 history: retain installed authorized paging of immutable daily facts.
@@ -341,7 +376,7 @@ runner has partial executable `pure`, `mutation`, `registry_metadata`,
 `persistence_schema`, technical `collection_guards`/`budget_http_guards`, browser
 `owner_pool_controls`, and revision-bound operational activation selections.
 Installed setup/Overview probes and billing collection controls also have
-bounded evidence under CTR-COL-002 2.4.0. None replaces the full
+bounded evidence, with the later fair scheduling handoff at CTR-COL-002 2.6.0. None replaces the full
 technical/live/browser/deploy/exit commands; unfinished named checks remain
 Not Run. T003 integrates them as each feature arrives, not as another framework.
 Run commands that own temporary tool links serially; overlapping canonical runs

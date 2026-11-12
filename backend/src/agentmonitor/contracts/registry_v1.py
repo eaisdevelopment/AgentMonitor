@@ -275,6 +275,7 @@ class IdentityCorrelationDecisionV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class AccountViewV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-REG-002"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M02"
 
     account_id: OpaqueIdV1
@@ -293,12 +294,17 @@ class AccountViewV1(TechnicalValueV1):
     updated_at: datetime
     archived_at: datetime | None
     initial_connection_purpose: Literal["api"] | None = None
+    has_active_subscription_resource: bool | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
         _positive_version(self.record_version, self.registry_revision)
         if (
             self.initial_connection_purpose not in {None, "api"}
+            or (
+                self.has_active_subscription_resource is not None
+                and type(self.has_active_subscription_resource) is not bool
+            )
             or not _bounded(self.provider_key, maximum=64)
             or not _bounded(self.friendly_name)
             or type(self.is_effective_monitoring_enabled) is not bool

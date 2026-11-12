@@ -24,6 +24,27 @@ Do not build new alert policies, a forecast event stream, persistent forecast
 state, parent/child collection jobs, general analytics engine or FX accounting.
 Existing quota/history/event consumers remain compatible. No local Ollama work.
 
+### T002/T011 account-section handoff (12 November)
+
+Within approved focused plan 1.1.0, root integrates M02 CTR-REG-002 1.1.0's
+additive nullable `has_active_subscription_resource` on AccountViewV1 and the
+existing account HTTP response. M02 computes it using a bounded indexed EXISTS
+in the same account SQL read, including list/mutation responses; no new table,
+endpoint or extra per-account connection. True means an active subscription
+resource exists, not identity verification, authentication or monitoring health.
+Null is compatibility/unknown; creation intent remains the pending fallback.
+P01 generates the additive client field; P02 shows subscription sections for true
+even when initial purpose was API. Existing consumers may ignore the field.
+Resource changes use the registry revision; account-version mutation guards
+retain their meaning. Test actual retained resources and no-resource creation
+over SQLite/HTTP, pure mixed-purpose rendering policy and real built pages.
+No provider profile read, owner configuration mutation, dependency or migration.
+P02 also completes the existing paginated organization selector through the
+published registry page API. Unloaded assigned names say Organization unavailable;
+loading later options must retain the assignment, never implicitly choose
+Ungrouped. Failed or inconsistent continuation retains loaded choices. These
+are T002/T011 account-organization cases, not a new settings screen or endpoint.
+
 ## 2. Actual source inventory and hazards
 
 - `capacity_v1.py` has a four-field reserved BudgetViewV1; preserve it and add

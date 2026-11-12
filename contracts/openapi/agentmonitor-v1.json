@@ -399,6 +399,17 @@
             "title": "Friendly Name",
             "type": "string"
           },
+          "has_active_subscription_resource": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Active Subscription Resource"
+          },
           "identity_state": {
             "enum": [
               "matched",
@@ -33044,7 +33055,7 @@
     "generator_sha256": "720bb0bd3914edd1fec56d0cf2dfaf5ed38fa9d73e95b80719d4e685a5f2a4ca",
     "generator_version": "2.0.13",
     "openapi_version": "3.1.0",
-    "schema_sha256": "366239b359ebde54ff9fea541d5a79cfdb5cec33b96846982dec7e77c916f903",
-    "source_sha256": "cf873094d05bf083130a6cc6c714270aff033a12948c7adee22ead4b5ffd59b9"
+    "schema_sha256": "6a3150aba33591198322acbc9161e9f5eb4f9b215b101fc687de36ea47a2369a",
+    "source_sha256": "6019c8386f82c04bcd963b993cd391eb50ed9729fb207697c6ccf9ff843a2d19"
   }
 }

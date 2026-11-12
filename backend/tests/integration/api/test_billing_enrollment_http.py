@@ -58,6 +58,7 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
             account_id = account["account_id"]
             assert isinstance(account_id, str) and account_id
             assert account["initial_connection_purpose"] == "api"
+            assert account.get("has_active_subscription_resource") is False
             assert account["monitoring_preference"] == "disabled"
             assert account["is_effective_monitoring_enabled"] is False
             assert account["identity_state"] == "unresolved"

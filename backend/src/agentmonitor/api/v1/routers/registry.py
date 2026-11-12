@@ -113,6 +113,7 @@ def _account(item: SourceAccountViewV1) -> AccountViewV1:
         updated_at=item.updated_at,
         archived_at=item.archived_at,
         initial_connection_purpose=item.initial_connection_purpose,
+        has_active_subscription_resource=item.has_active_subscription_resource,
     )
 
 

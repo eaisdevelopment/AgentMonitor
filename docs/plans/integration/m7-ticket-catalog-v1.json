@@ -107,7 +107,8 @@
         "docs/evidence/m7-billing-credential-operator-2026-11-11.md",
         "docs/evidence/m7-billing-authority-2026-11-11.md",
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
-        "docs/evidence/m7-financial-pools-2026-11-12.md"
+        "docs/evidence/m7-financial-pools-2026-11-12.md",
+        "docs/evidence/m7-account-resource-layout-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -161,7 +162,8 @@
         "docs/evidence/m7-canonical-financial-checks-2026-11-11.md",
         "docs/evidence/m7-overview-sorting-2026-11-12.md",
         "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
-        "docs/evidence/m7-overview-query-reliability-2026-11-12.md"
+        "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
+        "docs/evidence/m7-account-resource-layout-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -558,7 +560,7 @@
         "Prove one registry snapshot for full-filter compatible summaries, canonical-pool primary attribution, exclusions and deterministic server sort/cursors. Select the contributing authorized report tuple before group filtering; primary-only, secondary-only and combined filters count once.",
         "Keep reporting cutoff, read as_of and live run status separate. A completed matching action advances the read snapshot only, replacing report/total/history together. Compact list DTOs omit report bodies; bounded history retains exact facts and units.",
         "Use first genuine monetary report for real IAM/HTTP/receipt/source reconciliation; do not wait for all-provider T007 closure. Forecast/breakdown and their additional typed choices remain T013. Follow UI/calculation documents for exact cases and integrate scoped checks with T003.",
-        "With T012, reproduce concurrent authenticated Overview/detail/setup reads while normal collection continues; profile real metadata/query cost and make the smallest measured correction. Preserve complete inventory, shared-pool evidence from secondary groups and final registry consistency checks. Do not increase the existing HTTP deadline or omit valid rows to make the check pass."
+        "Retain the concurrent-read correction delivered at cd4f566 and its real regression. Extend existing authenticated concurrent probes with genuine monetary row/context assertions when available; preserve complete inventory, canonical pool evidence and final registry consistency. A passing serial read is not concurrency proof; do not raise the HTTP deadline or omit rows."
       ]
     },
     {
@@ -603,7 +605,8 @@
         "docs/evidence/m7-bounded-history-2026-11-12.md",
         "docs/evidence/m7-window-navigation-2026-11-12.md",
         "docs/evidence/m7-manual-collection-2026-11-12.md",
-        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md"
+        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
+        "docs/evidence/m7-account-resource-layout-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -613,7 +616,7 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Retain installed API-only/mixed routing, billing controls, server-paged history, window navigation and allowlisted URL handling. Demonstrate remaining behavior failures in the real built candidate before production changes.",
+        "Retain existing account views, billing controls, server-paged history, window navigation and allowlisted URL handling. Resource-presence routing and paginated organization assignment have local verification; use linked account-resource-layout evidence for installed status. Retain these regressions while finishing lifecycle/history cases; do not treat bounded routing evidence as complete T011.",
         "Financial links on mixed accounts bring the selected financial heading into view; ordinary account entry preserves subscription layout. Put scope/period/state/spend/funds first with a compact connection line and expandable source details.",
         "Complete source lifecycle and authorized old-scope selection: immutable historical scope remains in the heading; current connection scope and funds have separate labels/times. Funds-only links preserve interval/read cutoff without invented report IDs.",
         "Keep original same-context values during refresh and failed replacement; replace report/amount/history atomically on success. Clear current values for changed account/resource/scope/period/unresolved lineage. Complete counts-only coverage displays Cost not reported, not false Partial or zero.",
@@ -669,7 +672,7 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Immediate known defect: reproduce the recorded concurrent Overview HTTP 504 with real authenticated concurrent Overview/detail/setup reads under ordinary collection. Verify correct API/DOM rows within the existing deadline after the minimal measured correction; serial success is not concurrency proof. Preserve same-context values with visible refresh failure and independent quota rows; integrate into the existing T003 browser scope.",
+        "Retain the concurrent Overview HTTP 504 correction delivered at cd4f566 and its revision-bound concurrent browser evidence. Use the existing T003 overview selection as regression; full monetary Overview still remains Not Run until genuine monetary rows/totals are reconciled. Preserve same-context values on failed refresh and independent quota rows.",
         "Retain compact Overview, shared organization/provider/resource filters, full-inventory server sorting and canonical pool controls. Red tests target remaining monetary and interaction gaps, not replacement of installed views.",
         "Render backend full-filter summaries by currency/period/cost basis, exact low decisions, excluded counts and one canonical-pool attribution. When no compatible eligible inputs exist, show totals unavailable, never zero; counts-only and complete-empty semantics are not inferred money. No monetary-sort feature.",
         "Keep funds-only and pending/disabled resources discoverable; API-only accounts do not become empty quota rows. Distinct context subrows and real report links retain authorized contributing account/resource/report and original selected interval.",

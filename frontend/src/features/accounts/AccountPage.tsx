@@ -8,7 +8,7 @@ import { BudgetAccountPanel } from "./BudgetAccountPanel";
 import { ProviderConnectionPanel } from "./ClaudeConnectionPanel";
 import { OllamaCloudConnectionView } from "./OllamaCloudConnectionView";
 import { LiveProviderProcesses } from "./LiveClaudeProcesses";
-import { billingProviderDisplayName, providerDisplayName } from "./providerPresentation";
+import { accountOrganizationName, billingProviderDisplayName, providerDisplayName, usesApiOnlyLayout } from "./providerPresentation";
 import { selectedFinancialReport } from "./financialReadPresentation";
 import {
   CsrfUnavailableError,
@@ -50,8 +50,12 @@ export function AccountPage({
   const [creationPurpose, setCreationPurpose] = useState<"api" | null>(null);
   const [accountName, setAccountName] = useState("");
   const [organizationId, setOrganizationId] = useState("");
+  const [assignmentSelection, setAssignmentSelection] = useState<Readonly<{ accountId: string; recordVersion: number; organizationId: string }> | null>(null);
   const [busy, setBusy] = useState(false);
   const [paginationBusy, setPaginationBusy] = useState(false);
+  const [organizationPageBusy, setOrganizationPageBusy] = useState(false);
+  const [organizationPageMessage, setOrganizationPageMessage] = useState<string | null>(null);
+  const loadGeneration = useRef(0);
   const [paginationMessage, setPaginationMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [financialReadRevision, setFinancialReadRevision] = useState(0);
@@ -76,6 +80,9 @@ export function AccountPage({
   const titleId = displayMode === "page" ? "page-title" : "accounts-panel-title";
 
   const load = useCallback(async (signal?: AbortSignal) => {
+    loadGeneration.current += 1;
+    setOrganizationPageBusy(false);
+    setOrganizationPageMessage(null);
     setState((current) => current.kind === "ready" ? current : { kind: "loading" });
     try {
       const [result, organizations, detail] = await Promise.all([
@@ -114,7 +121,7 @@ export function AccountPage({
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
-    return () => controller.abort();
+    return () => { loadGeneration.current += 1; controller.abort(); };
   }, [load]);
 
   useEffect(() => {
@@ -230,6 +237,45 @@ export function AccountPage({
     }
   }
 
+  async function loadMoreOrganizations(): Promise<void> {
+    if (organizationPageBusy || state.kind !== "ready") return;
+    const previous = state.organizations;
+    const cursor = previous.page.next_cursor;
+    if (!previous.page.has_more || !cursor) return;
+    const generation = loadGeneration.current;
+    setOrganizationPageBusy(true);
+    setOrganizationPageMessage(null);
+    try {
+      const result = await registry.organizations(undefined, cursor);
+      if (generation !== loadGeneration.current) return;
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") onExpired();
+        else setOrganizationPageMessage("More organizations could not be loaded. Refresh accounts if the organization list changed.");
+        return;
+      }
+      const seen = new Set(previous.items.map(item => item.organization_id));
+      const revision = previous.items[0]?.registry_revision;
+      const invalid = result.data.items.some(item => {
+        if (seen.has(item.organization_id) || (revision !== undefined && item.registry_revision !== revision)) return true;
+        seen.add(item.organization_id);
+        return false;
+      });
+      if (invalid || result.data.availability.state !== "available" ||
+          (result.data.page.has_more && (!result.data.page.next_cursor || result.data.page.next_cursor === cursor))) {
+        setOrganizationPageMessage("The organization list changed or its continuation was unavailable. Refresh accounts before continuing.");
+        return;
+      }
+      setState(current => current.kind === "ready" && current.organizations === previous ? {
+        ...current,
+        organizations: { ...result.data, items: [...previous.items, ...result.data.items] },
+      } : current);
+    } catch {
+      if (generation === loadGeneration.current) setOrganizationPageMessage("The local organization registry is unavailable. Loaded choices are retained.");
+    } finally {
+      if (generation === loadGeneration.current) setOrganizationPageBusy(false);
+    }
+  }
+
   const Heading = displayMode === "page" ? "h1" : "h2";
   if (state.kind === "loading") return (
     <section className="telemetry-panel" aria-labelledby={titleId} aria-busy="true">
@@ -245,7 +291,14 @@ export function AccountPage({
   );
 
   const selected = accountId === undefined ? undefined : state.selected ?? undefined;
-  const apiOnly = selected?.initial_connection_purpose === "api";
+  const organizationPagination = <>
+    {state.organizations.page.has_more && state.organizations.page.next_cursor && <button type="button" className="quiet-button" disabled={organizationPageBusy} onClick={() => { void loadMoreOrganizations(); }}>{organizationPageBusy ? "Loading more organizations…" : "Load more organizations"}</button>}
+    {state.organizations.page.has_more && !state.organizations.page.next_cursor && <p role="alert">More organizations are reported, but their continuation is unavailable. Loaded choices are retained.</p>}
+    {organizationPageMessage && <p role="status">{organizationPageMessage}</p>}
+  </>;
+  const assignedOrganizationId = selected && assignmentSelection?.accountId === selected.account_id && assignmentSelection.recordVersion === selected.record_version
+    ? assignmentSelection.organizationId : selected?.organization_id ?? "";
+  const apiOnly = usesApiOnlyLayout(selected);
   if (accountId !== undefined && selected === undefined) return (
     <section className="telemetry-panel" aria-labelledby={titleId}>
       <p className="panel-code">REGISTRY / ACCOUNT</p><h1 id={titleId} tabIndex={-1}>Account unavailable</h1>
@@ -261,7 +314,7 @@ export function AccountPage({
     <div className="feature-page account-page">
       <header className="account-page-heading" aria-labelledby={titleId}>
         <div>
-          <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
+          <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{accountOrganizationName(selected.organization_id, state.organizations.items)}</span></nav>
           <h1 id={titleId} tabIndex={-1}>{apiOnly ? selected.friendly_name : observedEmail ?? selected.friendly_name}</h1>
           {!apiOnly && observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · {providerDisplayName(selected.provider_key)} currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
           <p className="account-subtitle"><span className="provider-name">{apiOnly ? billingProviderDisplayName(selected.provider_key) : selected.provider_key}</span><span aria-hidden="true">·</span><span>{apiOnly ? "API billing" : selected.provider_key === "ollama" ? (selected.is_effective_monitoring_enabled ? "Monitoring requested" : "Monitoring is off") : (selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off")}</span></p>
@@ -278,7 +331,7 @@ export function AccountPage({
       {selected.provider_key === "ollama" && selected.lifecycle !== "archived" && <OllamaCloudConnectionView key={`ollama-cloud-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       {!apiOnly && <>
       {["claude", "codex"].includes(selected.provider_key) && selected.lifecycle !== "archived" && <ProviderConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
-      <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
+      <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={accountOrganizationName(selected.organization_id, state.organizations.items)} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
       {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={detailAccounts} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
       {!financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} /></div>}
@@ -312,12 +365,16 @@ export function AccountPage({
           if (typeof value === "string") void mutate(() => registry.assignAccount(selected, value || null), "Account organization saved.");
         }}>
           <label htmlFor="assign-account-organization">Organization</label>
-          <select id="assign-account-organization" name="organization_id" defaultValue={selected.organization_id ?? ""} disabled={selected.lifecycle === "archived"}>
+          <select id="assign-account-organization" name="organization_id" value={assignedOrganizationId} onChange={event => setAssignmentSelection({ accountId: selected.account_id, recordVersion: selected.record_version, organizationId: event.target.value })} disabled={selected.lifecycle === "archived"}>
             <option value="">Ungrouped</option>
+            {selected.organization_id !== null && !state.organizations.items.some((item) => item.organization_id === selected.organization_id && item.lifecycle === "active") && (
+              <option value={selected.organization_id} disabled>{accountOrganizationName(selected.organization_id, state.organizations.items)} (current assignment)</option>
+            )}
             {state.organizations.items.filter((item) => item.lifecycle === "active").map((item) => (
               <option key={item.organization_id} value={item.organization_id}>{item.name}</option>
             ))}
           </select>
+          {organizationPagination}
           <button type="submit" disabled={busy || selected.lifecycle === "archived"}>Save organization</button>
         </form>
         <div className="account-settings-actions">
@@ -341,7 +398,7 @@ export function AccountPage({
         <div className="panel-heading"><div><p className="panel-code">IDENTITY</p><h2 id="identity-title">Account identity</h2></div><span className="state-chip state-unavailable">{selected.masked_identity.state.replaceAll("_", " ")}</span></div>
         <dl className="telemetry-readouts">
           <div><dt>Provider</dt><dd>{selected.provider_key}</dd></div>
-          <div><dt>Organization</dt><dd>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</dd></div>
+          <div><dt>Organization</dt><dd>{accountOrganizationName(selected.organization_id, state.organizations.items)}</dd></div>
           <div><dt>Identity</dt><dd>{selected.masked_identity.state === "withheld" ? "Withheld from dashboard" : selected.masked_identity.masked_value ?? selected.masked_identity.reason_code.replaceAll("_", " ")}</dd></div>
           <div><dt>Registry updated</dt><dd>{new Date(selected.updated_at).toLocaleString()}</dd></div>
         </dl>
@@ -382,6 +439,7 @@ export function AccountPage({
               <option key={item.organization_id} value={item.organization_id}>{item.name}</option>
             ))}
           </select>
+          {organizationPagination}
           <button type="submit" disabled={busy || !providerKey.trim() || !accountName.trim()}>{creationPurpose === "api" ? "Create API billing account" : "Add account"}</button>
         </form>
       </section>}
@@ -394,7 +452,7 @@ export function AccountPage({
         <div className="record-grid">{state.data.items.map((account) => (
           <article className="record-card" key={account.account_id}>
             <div><span className={`provider-light ${account.is_effective_monitoring_enabled ? "active" : ""}`} aria-hidden="true" /><strong>{account.friendly_name}</strong></div>
-            <p>{account.initial_connection_purpose === "api" ? billingProviderDisplayName(account.provider_key) : account.provider_key} · {state.organizations.items.find((item) => item.organization_id === account.organization_id)?.name ?? "Ungrouped"}</p>
+            <p>{usesApiOnlyLayout(account) ? billingProviderDisplayName(account.provider_key) : account.provider_key} · {accountOrganizationName(account.organization_id, state.organizations.items)}</p>
             <p className="record-meta">{account.lifecycle} · {account.initial_connection_purpose === "api" ? "API billing" : `monitoring ${account.is_effective_monitoring_enabled ? "enabled" : "disabled"}`}</p>
             {account.initial_connection_purpose !== "api" && ["claude", "codex"].includes(account.provider_key) && account.lifecycle === "pending" && <button type="button" onClick={() => onOpenAccount(account.account_id)}>Connect {providerDisplayName(account.provider_key)}</button>}
             <button type="button" className="quiet-button" onClick={() => onOpenAccount(account.account_id)}>Open account</button>

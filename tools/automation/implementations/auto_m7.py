@@ -101,6 +101,7 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )
 PRESENTATION_TARGETS = (
+    "frontend/tests/pure/account-resource-layout.mjs",
     "frontend/tests/pure/cloud-usage-collect-presentation.mjs",
     "frontend/tests/pure/billing-collect-presentation.mjs",
     "frontend/tests/pure/billing-check-presentation.mjs",

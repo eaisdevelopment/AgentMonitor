@@ -124,3 +124,53 @@ Earlier references here to local-only planning describe their historical pass.
 The prior refactor was subsequently published with `bb43b67`; the evidence/probe
 successor is `50462c0`. This final clarification remains a documentation change
 until separately committed. Planning validation is separate from M7 acceptance.
+
+
+## Final owner-facing sequence and stale-step reconciliation
+
+Planning-only follow-up against committed baseline `92b6f64` and the existing
+uncommitted T002/T011 implementation draft. The draft was preserved; this
+follow-up did not implement, install or publish it. Requirements remain
+FR-BUDGET-001..006, FR-ORG-003, the existing account/UI requirements and
+M7-A01..A10. No ticket status or approval changed.
+
+- The worksheet now leads with the next visible result and three checkpoints:
+  working monetary journey, complete M7 screens, released M7. These summarize
+  the eight existing delivery batches; they are not new tickets or gates.
+- T010/T012 and the UI plan now retain the delivered `cd4f566` concurrent-read
+  correction as regression evidence instead of instructing another repair.
+- T011 distinguishes installed account views from the local API-origin to
+  subscription-resource draft. Finish its evidence and installation; do not
+  count a local field/client change as a working owner journey.
+- The worksheet points at the delivered CTR-COL-002 2.6.0 scheduling handoff;
+  historical 2.4.0 evidence remains history, not a new pending cloud action.
+- Ticket dependencies constrain closure without preventing independent work.
+  Required provider success and the fixed monetary acceptance remain required;
+  natural populated examples and numerical forecast evidence keep their
+  existing conditional disposition. No fabricated reports or new owner ceremony.
+
+The calculation review retained the existing exact decimal, coverage,
+whole-report correction, compatible subtotal, fund-component, UTC interval,
+source-time and conditional forecast decisions. Their scenarios remain
+M7-MATH-01..16; no new accounting or forecast framework is justified. The UI
+review retained compact existing pages, independent subscription/API controls,
+owner configuration, explicit unavailable states and pinned navigation.
+A bounded independent P02 review confirmed the delivered-504 and local-routing
+contradictions; both were reconciled in the worksheet, UI plan and catalog.
+
+Changed in this pass: delivery worksheet, UI plan, ticket catalog and this
+record. No public contract publication, migration, dependency, license,
+credential or runtime change. Existing production/client/test modifications in
+the checkout predate this planning follow-up. Validation below concerns the
+planning artifacts only, not M7 implementation or live acceptance.
+
+Validation for this follow-up:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed; sixteen tickets,
+  five stories and ten acceptance items traced.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed; 391 Markdown files.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed; synchronized baseline.
+- `git diff --check`: Passed.
+
+Result: planning clarification saved locally. No ticket is newly complete, no
+new live test is claimed and no installed/public revision changed in this pass.

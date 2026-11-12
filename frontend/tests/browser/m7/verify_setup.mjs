@@ -3,7 +3,7 @@
 // Installed setup surface only. Never submit configuration or inspect credentials.
 const origin = "http://127.0.0.1:43110";
 const expectedRevision = /^[a-f0-9]{40}$/.test(process.argv[2] ?? "") ? process.argv[2] : null;
-const checks = { authentication: "not_run", revision: "not_run", overview: "not_run", setup_form: "not_run", continuity: "not_run", read_only: "not_run" };
+const checks = { authentication: "not_run", revision: "not_run", overview: "not_run", setup_form: "not_run", account_layout: "not_run", continuity: "not_run", read_only: "not_run" };
 let page;
 let status = "blocked";
 let reasonCode = "browser_unavailable";
@@ -97,6 +97,23 @@ try {
   await noOverflow();
   checks.setup_form = "passed";
 
+  stage = "account_layout";
+  requestsObserved += 1;
+  const inventory = await page.request.get(`${origin}/api/v1/accounts?limit=200`, {
+    headers: { Origin: origin }, timeout: 10000, failOnStatusCode: false,
+  });
+  requireEvidence(inventory.status() === 200, "account_inventory_unavailable");
+  const accountPage = await inventory.json();
+  requireEvidence(accountPage.items.length > 0 && accountPage.items.every(item => typeof item.has_active_subscription_resource === "boolean"), "account_resource_classification_missing");
+  const subscription = accountPage.items.find(item => item.has_active_subscription_resource && ["claude", "codex"].includes(item.provider_key));
+  requireEvidence(subscription !== undefined, "genuine_subscription_account_required");
+  await page.goto(`${origin}/accounts/${encodeURIComponent(subscription.account_id)}`);
+  await page.getByRole("heading", { name: "Account activity", exact: true }).waitFor();
+  await page.locator("details[data-billing-connection] summary").waitFor();
+  requireEvidence(await page.locator("details.account-settings summary").textContent().then(text => text.includes("monitoring")), "subscription_settings_missing");
+  await noOverflow();
+  checks.account_layout = "passed";
+
   stage = "continuity";
   const overview = page.getByRole("button", { name: "Overview", exact: true });
   requireEvidence(await overview.getAttribute("type") === "button", "overview_navigation_not_safe");
@@ -120,7 +137,7 @@ try {
       tooling: "browser_tooling_unavailable", browser: "browser_unavailable",
       authentication: "dashboard_unavailable", revision: "revision_unavailable",
       overview: "overview_unavailable", setup_form: "setup_form_unavailable",
-      continuity: "continuity_unavailable",
+      continuity: "continuity_unavailable", account_layout: "account_layout_unavailable",
     }[stage];
   }
   if (checks[stage] === "not_run") checks[stage] = status;

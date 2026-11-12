@@ -229,10 +229,12 @@ label on detail. It does not make all accounts call their providers.
 Detail offers the separate **Collect now** action with
 server cooldown. One failed API budget request must leave quota rows usable.
 
-T010/T012 must resolve the observed concurrent Overview HTTP 504 as the next
-reliability packet, before expanding these views. Existing authenticated browser
-checks must also run concurrent Overview/detail/setup reads under ordinary
-collection, assert complete real rows and their matching context, and surface
+T010/T012 retain the concurrent Overview correction delivered at `cd4f566`;
+its [real concurrent-read evidence](../../evidence/m7-overview-query-reliability-2026-11-12.md)
+is a regression boundary, not remaining implementation. Reuse that authenticated
+concurrent Overview/setup/cloud probe during subsequent relevant changes. Add
+monetary row/context assertions when genuine monetary reports become available;
+the bounded current pass does not prove monetary Overview acceptance. Surface
 any failed request. Retained same-context data is labelled with original times;
 it is not a successful refresh. Keep the existing HTTP deadline. Serial reruns
 and a healthy landing page cannot replace this proof. Reuse the existing browser
@@ -477,9 +479,10 @@ Pure presentation rules can test label decisions; no fake network responses.
 
 Specifically verify an account created for API billing that later has an active
 subscription resource: both sections and their independent controls must appear.
-The inspected `AccountPage.tsx` still decides `apiOnly` from creation intent;
-that remaining T002/T011 correction cannot be covered by a generic claim that
-routing is installed. Use authoritative published resource/capability state,
+The installed creation-intent routing does not establish this transition.
+The local T002/T011 draft adds a derived resource-presence field, but has no
+installed acceptance yet; a generic claim that routing is installed cannot
+close this remaining case. Use authoritative published resource/capability state,
 with creation intent only for the pending fallback. If a minimal additive API
 classification is needed, synchronize M02/P01 before its P02 consumer. Exercise
 metadata transitions on an isolated genuine registry copy; do not enroll or
