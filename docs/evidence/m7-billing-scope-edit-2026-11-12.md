@@ -1,8 +1,8 @@
 # M7 billing scope editing
 
-Status: local T002/T010/T011 increment under approved focused plan 1.1.0.
-Local verification passed; installation/publication remain pending until
-recorded below. M7 remains open; this increment does not close these
+Status: bounded T002/T010/T011 increment installed and published at `71185cf`
+under approved focused plan 1.1.0. Local and installed verification passed
+within the explicit scopes below. M7 remains open; this increment does not close these
 broader tickets. Owners: M02 registry, P01 transport, P02 rendering; root integrates.
 
 Requirements: FR-ACC-001/002/004/006, FR-BUDGET-001/006, FR-ORG-003;
@@ -128,3 +128,25 @@ passes that bounded metadata/UI selection, not the unavailable populated
 historical-money journey. Final focused integration: 38 passed. Canonical pure:
 737 backend tests plus twelve presentation suites passed. Planning, documentation,
 synchronized baseline and git diff/preflight checks passed.
+
+
+## Installed and public result
+
+Revision `71185cf77cbf758ecff6fd8d0ef2f96c6e93d0c3` was installed with the existing
+same-schema selected updater. It reported local candidate readiness and restored
+the original restart policy. Service is active; dashboard HTTP is 200.
+At 06:27:00 UTC the exact-revision concurrent probe passed all three genuine
+read-only checks: Overview API/DOM/navigation, installed setup including the new
+scope contract, and existing cloud collection controls. No mutation requests.
+The previous installed `billing_scope_contract_missing` Red is now Green.
+GitHub main was pushed and independently read back at that full implementation
+revision. No live owner account, credential or provider profile was changed.
+
+The secret scan reported two generated OpenAPI artifact SHA256 literals, each
+verified against the corresponding actual old/staged contract bytes; no unresolved
+secret finding. No scanner suppression was introduced. The following docs-only
+record updates installed/public evidence without altering that runtime.
+
+Next work: authorized prior-scope report discovery and remaining connection
+lifecycle, plus genuine monetary source-to-dashboard evidence when owner billing
+configuration exists. M7 and broader T002/T010/T011 acceptance remain open.

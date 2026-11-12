@@ -15,12 +15,12 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Next independent delivery:** finish source-scope/lifecycle controls and
-original-scope history (T002/T010/T011). The scope editor is currently a local
-implementation with real HTTP/registry and built-browser Green; installation
-and publication remain pending. Its [evidence](../../evidence/m7-billing-scope-edit-2026-11-12.md)
-separates these checks from unverified populated monetary history. Preserve and finish
-that work; do not rebuild installed resource routing or concurrent-read fixes.
+**Next independent delivery:** authorized original-scope history discovery and
+remaining rotation/disconnect/archive lifecycle (T002/T010/T011). Scope editing
+is installed and published at `71185cf`; its [evidence](../../evidence/m7-billing-scope-edit-2026-11-12.md)
+records real HTTP/registry/built-browser Green and installed read-only checks.
+Retain that increment, including pool refresh and the historical-selection
+collection guard; do not restart scope editing, routing or concurrent-read fixes.
 
 **Highest-priority demonstration when access exists:** one genuine monetary
 report, with identical scope, period, currency, cost basis and exact amount in
@@ -43,8 +43,8 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `edbe2fc`, schema `v1_0734`; resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
-| Public code | GitHub implementation `edbe2fc`; documentation successor `23fd185` | The uncommitted scope-editor draft is neither installed nor published |
+| Installed implementation | `71185cf`, schema `v1_0734`; scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
+| Public code | GitHub implementation `71185cf`, independently verified | Later documentation-only receipts do not change installed code |
 | Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Seven-day manual success remained rate-limited before POST; monetary reports and remaining provider matrix |
 | Browser reliability | Actual installed concurrent Overview/setup/cloud reads passed; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Monetary totals, full accessibility and final acceptance |
 | Source access | Latest recorded inventory has no Anthropic/OpenAI administrative billing connection | Subscription logins do not prove billing access; absence is not a provider denial |
@@ -72,7 +72,7 @@ Red/Green, actual check wiring and visible installed result where applicable.
 |---|---|---|
 | 1 — T007/T009/T011 | Finish seven-day manual cloud proof when eligible and original-request/context recovery | Actual action/run/report linkage, reload and no duplicate request; retain installed 30-day proof, balance and shared cooldown. No owner setup repetition |
 | 2 — T005/T006 or T008/T010–T012/T014 | First monetary source through exact storage, Overview, detail and history | One complete genuine report survives commit/retry/reopen and matches authenticated API/DOM at the same context. Needs actual admitted billing access, not completion of every provider ticket |
-| 3 — T002/T010/T011 | Scope editing, remaining rotation/disconnect/archive, retained original-scope discovery | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history evidence |
+| 3 — T002/T010/T011 | Retain installed scope editing; finish rotation/disconnect/archive and original-scope discovery | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history evidence |
 | 4 — T006/T007/T008/T009 | Finish frozen endpoints, both ranges, supported dimensions and bounded fairness/recovery | Each mapping has its native unit/coverage and actual source result. Unsupported, denied, unimplemented and genuine empty success remain distinct. No new provider API additions |
 | 5 — T004/T010/T011/T012 | Finish totals, navigation, refresh failure and accessibility | Compatible full-filter subtotal, one shared pool, no false zero, source/API/DOM exactness, keyboard/zoom/widths, preserved quota rows on financial error; retain delivered server sorting/concurrent-read fix |
 | 6 — T013 | Same-fact daily chart, one supported dimension at a time, observed-rate/conditional exhaustion and retention | Uses existing history, backend math and existing retention scheduler. No generic analytics engine. Missing funds can prevent a date without hiding a valid observed rate |
@@ -140,8 +140,8 @@ Commands owning temporary tool links run serially; app reads remain concurrent.
 
 Retain installed CTR-COL-002 2.6.0 collection context/status, CTR-CAP-006 2.7.0
 Overview and 2.8.0 history, CTR-REG-014 1.5.0 pool/monitoring metadata and
-CTR-REG-002 1.1.0 resource presence. The local scope-edit draft targets
-CTR-REG-014 1.6.0; it is not installed evidence. Remaining additive handoffs:
+CTR-REG-002 1.1.0 resource presence. Scope editing is installed under
+CTR-REG-014 1.6.0; its evidence is linked above. Remaining additive handoffs:
 
 - M02/P01/P02: scope/lifecycle controls invalidate old current authority without
   rewriting original reports; M05/P01 provides authorized prior-scope discovery.
