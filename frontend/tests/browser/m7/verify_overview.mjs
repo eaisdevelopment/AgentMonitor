@@ -3,6 +3,7 @@
 // Reads the actual authenticated dashboard. No provider collection, account
 // mutation, credentials, screenshots, or financial values in probe output.
 const origin = "http://127.0.0.1:43110";
+const requireMoney = process.argv.includes("--require-money");
 let page;
 let status = "blocked";
 let reason = "browser_unavailable";
@@ -16,7 +17,7 @@ let entryDiagnostic = null;
 let availabilityDiagnostic = null;
 const overviewResponseStatuses = [];
 const renderedReadPaths = [];
-const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", source_history: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
+const checks = { monetary: "not_run", authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", source_history: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
 function requireEvidence(condition, code) { if (!condition) stop("failed", code); }
 try {
@@ -182,7 +183,10 @@ try {
     rowsVerified = Math.max(rowsVerified, expected.items.length);
     return expected;
   }
+  const monetaryContext = row => row.contexts.find(context => context.spend !== null && context.currency !== null && context.completeness === "complete");
   let expected = await reconcile();
+  const monetaryRow = expected.items.find(row => monetaryContext(row) !== undefined);
+  if (requireMoney && monetaryRow === undefined) stop("blocked", "genuine_complete_monetary_report_required");
   const allFinancialRows = expected.items;
   if (!expected.items.some(row => row.funds.length > 0 || row.contexts.length > 0)) stop("blocked", "real_financial_readings_required");
   checks.overview = "passed";
@@ -197,7 +201,7 @@ try {
   requireEvidence(await provider.count() === 1 && await orgControls.count() === 1, "shared_filters_duplicated");
   for (const organization of organizations.items) requireEvidence(await orgControls.getByRole("button", { name: organization.name, exact: true }).count() > 0, "organization_option_omitted");
   for (const key of new Set(registry.items.filter(row => row.lifecycle !== "archived").map(row => row.provider_key))) requireEvidence(await provider.locator(`option[value="${key}"]`).count() === 1, "provider_option_omitted");
-  const chosenProvider = expected.items.find(row => row.funds.length > 0 || row.contexts.length > 0).account.provider_key;
+  const chosenProvider = (requireMoney ? monetaryRow : expected.items.find(row => row.funds.length > 0 || row.contexts.length > 0)).account.provider_key;
   const providerRead = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/budgets");
   await provider.selectOption(chosenProvider);
   requireEvidence((await providerRead).status() === 200, "provider_filter_read_failed");
@@ -208,7 +212,7 @@ try {
   await resources.selectOption("subscriptions");
   requireEvidence(!(await financial.isVisible()), "resource_subscription_filter_mismatch");
   await resources.selectOption("all");
-  const organizationId = expected.items.find(row => row.account.organization_id !== null)?.account.organization_id;
+  const organizationId = requireMoney ? monetaryRow.primary_organization_id ?? monetaryRow.account.organization_id ?? undefined : expected.items.find(row => row.account.organization_id !== null)?.account.organization_id;
   if (organizationId !== undefined) {
     const organization = organizations.items.find(item => item.organization_id === organizationId);
     requireEvidence(organization !== undefined, "financial_organization_lookup_missing");
@@ -221,17 +225,20 @@ try {
   await resources.selectOption("api");
   checks.filters = "passed";
   const mixedRows = expected.items.filter(item => registry.items.some(account => account.account_id === (item.contexts[0]?.report_account_id ?? item.account.account_id) && account.initial_connection_purpose !== "api"));
-  const row = mixedRows.find(item => item.contexts.length > 0) ?? mixedRows.find(item => item.funds.length > 0);
-  if (row === undefined) stop("blocked", "mixed_financial_account_required");
+  const row = requireMoney ? expected.items.find(item => item.row_id === monetaryRow.row_id && monetaryContext(item) !== undefined)
+    : mixedRows.find(item => item.contexts.length > 0) ?? mixedRows.find(item => item.funds.length > 0);
+  if (row === undefined) stop("blocked", requireMoney ? "monetary_selection_unavailable" : "mixed_financial_account_required");
+  const selectedContext = requireMoney ? monetaryContext(row) : row.contexts[0];
   const before = new URL(page.url());
   const dom = financial.locator(await selector("data-financial-row", row.row_id));
-  const reportAccount = row.contexts[0]?.report_account_id ?? row.account.account_id;
-  const reportResource = row.contexts[0]?.report_resource_id ?? row.resource_id;
-  await dom.getByRole("button").first().click();
+  const reportAccount = selectedContext?.report_account_id ?? row.account.account_id;
+  const reportResource = selectedContext?.report_resource_id ?? row.resource_id;
+  if (requireMoney) await dom.locator(await selector("data-overview-report", selectedContext.report_id)).getByRole("button", { name: "View report", exact: true }).click();
+  else await dom.getByRole("button").first().click();
   await page.waitForURL(url => url.pathname === `/accounts/${encodeURIComponent(reportAccount)}`);
   const detail = new URL(page.url());
   requireEvidence(detail.searchParams.get("budget_resource") === reportResource, "detail_resource_selector_lost");
-  requireEvidence(detail.searchParams.get("budget_report") === (row.contexts[0]?.report_id ?? null), "detail_report_selector_lost");
+  requireEvidence(detail.searchParams.get("budget_report") === (selectedContext?.report_id ?? null), "detail_report_selector_lost");
   requireEvidence(microseconds(detail.searchParams.get("budget_start")) === microseconds(expected.period.start) && microseconds(detail.searchParams.get("budget_end")) === microseconds(expected.period.end), "detail_period_lost");
   requireEvidence(microseconds(detail.searchParams.get("budget_as_of")) === microseconds(expected.as_of), "detail_cutoff_lost");
   async function financialEntry() {
@@ -250,21 +257,37 @@ try {
     });
     // scrollIntoView rounds to device pixels; allow the same one-CSS-pixel
     // tolerance used by the overflow checks, without relaxing focus/order.
-    requireEvidence(entryDiagnostic.top >= -1 && entryDiagnostic.bottom <= entryDiagnostic.height + 1 && entryDiagnostic.before_activity && entryDiagnostic.before_quota, "financial_entry_not_visible_before_subscription");
+    requireEvidence(entryDiagnostic.top >= -1 && entryDiagnostic.bottom <= entryDiagnostic.height + 1 && (requireMoney ? (!entryDiagnostic.activity_present || entryDiagnostic.before_activity) && (!entryDiagnostic.quota_present || entryDiagnostic.before_quota) : entryDiagnostic.before_activity && entryDiagnostic.before_quota), "financial_entry_not_visible_before_subscription");
   }
   stage = "financial_entry";
   await financialEntry();
+  const selectedHadQuota = entryDiagnostic.quota_present;
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("region", { name: "API usage & spend", exact: true }).waitFor();
   await financialEntry();
+  requireEvidence(!selectedHadQuota || entryDiagnostic.quota_present, "quota_section_lost_on_reload");
   requireEvidence(new URL(page.url()).search === detail.search, "detail_selectors_lost_on_reload");
-  if (row.contexts[0] !== undefined) {
-    const context = row.contexts[0];
+  if (selectedContext !== undefined) {
+    const context = selectedContext;
     const query = new URLSearchParams({ account_id: reportAccount, report_id: context.report_id, period_start: detail.searchParams.get("budget_start"), period_end: detail.searchParams.get("budget_end"), as_of: detail.searchParams.get("budget_as_of") });
     const selected = await read(`/api/v1/budgets/${encodeURIComponent(reportResource)}?${query}`);
     requireEvidence(selected.report.report_id === context.report_id && selected.report.account_id === reportAccount && selected.report.resource_id === reportResource && microseconds(selected.as_of) === microseconds(expected.as_of), "selected_report_context_mismatch");
     requireEvidence(JSON.stringify(selected.reported_spend.total) === JSON.stringify(context.spend), "overview_detail_spend_mismatch");
+    if (requireMoney) {
+      const report = selected.report;
+      requireEvidence(report.cost_buckets.length > 0 && report.completeness === "complete" && report.grouping.length === 0 && report.currency !== null, "monetary_source_context_invalid");
+      for (const key of ["scope_id", "scope_generation", "scope_evidence", "source_id", "source_category", "cost_basis", "currency", "source_data_through", "collected_at"]) requireEvidence(report[key] === context[key], "monetary_source_identity_mismatch");
+      for (const period of [report.requested_period, report.covered_period]) requireEvidence(period !== null && microseconds(period.start) === microseconds(expected.period.start) && microseconds(period.end) === microseconds(expected.period.end), "monetary_coverage_mismatch");
+      const atoms = value => {
+        requireEvidence(value !== null && value.currency === report.currency && Number.isInteger(value.scale) && value.scale >= 0 && value.scale <= 18 && /^-?\d+$/.test(value.coefficient), "monetary_value_invalid");
+        return BigInt(value.coefficient) * 10n ** BigInt(18 - value.scale);
+      };
+      // Test-local exact integer arithmetic, independent of the application's
+      // aggregation and formatting helpers. Usage and balance never contribute.
+      const total = report.cost_buckets.reduce((sum, bucket) => sum + atoms(bucket.amount), 0n);
+      requireEvidence(total === atoms(context.spend) && total === atoms(selected.reported_spend.total), "monetary_bucket_sum_mismatch");
+    }
     const section = page.locator(await selector("data-report-id", context.report_id));
     await section.waitFor();
     await section.locator('[data-budget-history][aria-busy="false"]').waitFor();
@@ -363,6 +386,7 @@ try {
       }
     }
   }
+  if (requireMoney) checks.monetary = "passed";
   const accountBudget = page.getByRole("region", { name: "API usage & spend", exact: true });
   stage = "retained_refresh";
   const retainedPanel = await accountBudget.elementHandle();
@@ -440,19 +464,21 @@ try {
   stage = "ordinary_account_entry";
   await page.goto(`${origin}/accounts/${encodeURIComponent(reportAccount)}`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "API usage & spend", exact: true }).waitFor();
+  if (!requireMoney || selectedHadQuota) requireEvidence(await page.locator("#quota-title").count() === 1, "ordinary_account_quota_missing");
   requireEvidence(await page.evaluate(() => {
     const heading = document.getElementById("budget-account-title");
     const quota = document.getElementById("quota-title");
-    return quota !== null && document.activeElement !== heading && Boolean(quota.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return document.activeElement !== heading && (quota === null || Boolean(quota.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING));
   }), "ordinary_account_entry_reordered");
   const ordinaryPanel = await accountBudget.elementHandle();
   const ordinaryRefresh = page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/accounts/${encodeURIComponent(reportAccount)}/budgets`);
   await accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click();
   requireEvidence((await ordinaryRefresh).ok(), "ordinary_refresh_request_failed");
   await page.locator('.telemetry-panel[aria-labelledby="budget-account-title"][aria-busy="false"]').waitFor();
+  if (!requireMoney || selectedHadQuota) requireEvidence(await page.locator("#quota-title").count() === 1, "ordinary_refresh_quota_missing");
   requireEvidence(await ordinaryPanel.evaluate(node => node.isConnected), "ordinary_refresh_remounted_panel");
   requireEvidence(await page.evaluate(() => document.activeElement?.id !== "budget-account-title" &&
-    Boolean(document.getElementById("quota-title").compareDocumentPosition(document.getElementById("budget-account-title")) & Node.DOCUMENT_POSITION_FOLLOWING)), "ordinary_refresh_reordered_or_refocused");
+    (document.getElementById("quota-title") === null || Boolean(document.getElementById("quota-title").compareDocumentPosition(document.getElementById("budget-account-title")) & Node.DOCUMENT_POSITION_FOLLOWING))), "ordinary_refresh_reordered_or_refocused");
   await page.goBack({ waitUntil: "domcontentloaded" });
   await financialEntry();
   checks.financial_entry = "passed";
@@ -497,7 +523,8 @@ try {
   checks.pool_controls = "passed";
   requireEvidence(mutations === 0, "unexpected_mutation_request");
   status = "passed";
-  reason = "real_overview_api_dom_navigation_verified";
+  requireEvidence(!requireMoney || checks.monetary === "passed", "monetary_journey_not_verified");
+  reason = requireMoney ? "real_monetary_overview_detail_history_verified" : "real_overview_api_dom_navigation_verified";
 } catch (error) {
   errorKind = error?.name === "TimeoutError" ? "timeout" : "assertion_or_error";
   if (error?.message !== "probe_stopped" && checks.authentication === "passed") { status = "failed"; reason = "overview_probe_boundary_failed"; }

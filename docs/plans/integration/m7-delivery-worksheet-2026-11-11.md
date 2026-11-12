@@ -15,6 +15,15 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
+**Monetary display path verified:** genuine retained Ollama money now agrees
+across normalized storage/reopen, exact HTTP totals, installed Overview, pinned
+detail and history. The [monetary evidence](../../evidence/m7-monetary-journey-2026-11-12.md)
+records the strict installed journey at 09:46:42 UTC on `e0ecf92`. This adds
+verification, not a new application deployment. Fresh commit/retry with original
+live authority, provider-display reconciliation and full filtered shared-pool
+totals remain separate open work. **Next integrate the prepared daily/rate
+packet**, while continuing those remaining monetary boundaries.
+
 **Installed Overview repair:** `e0ecf92` keeps financial cutoffs separate from
 current registry metadata. Back/reload now passes; the latest concurrent
 Overview/setup/cloud check passed at 09:26:50 UTC. Its preceding run still had
@@ -27,8 +36,8 @@ too: the original expired seven-day run remains a failed collection, not success
 `c59d068`, with fourteen genuine API/table/chart entries verified. Its
 [evidence](../../evidence/m7-history-chart-2026-11-12.md) includes the installed
 series-label correction and another exact-revision pass at `e0ecf92`.
-This is not daily aggregation or completed T013. Reconcile the available
-monetary journey below, then integrate daily aggregation/observed rate;
+This is not daily aggregation or completed T013. Retain the monetary display
+proof above, then integrate daily aggregation/observed rate;
 conditional exhaustion follows the same financial contract. Retain the
 delivered chart rather than restart it.
 Billing disconnect/local cleanup and status-to-financial
@@ -51,12 +60,13 @@ records real HTTP/registry/built-browser Green and installed read-only checks.
 Retain that increment, including pool refresh and the historical-selection
 collection guard; do not restart scope editing, routing or concurrent-read fixes.
 
-**Next integration packet — first monetary demonstration:** one genuine monetary
-report, with identical scope, period, currency, cost basis and exact amount in
-storage, API, installed Overview and account detail. Ollama counts/balances do
-not replace that proof. All remaining categories, charts and forecasts must not
-delay this first monetary journey. The existing Anthropic/OpenAI setup request
-remains pending; missing access pauses those provider assertions only.
+**Remaining monetary boundaries:** fresh commit/retry with original live
+authority, interrupted-receipt recovery, reconciliation with the matching
+provider source/display, and full filtered shared-pool totals. The retained
+storage/API/Overview/detail journey above is already verified; do not repeat it
+as an unfinished first-delivery task. Recheck affected assertions when code or
+financial meaning changes. Anthropic/OpenAI setup remains a prerequisite only
+for their own mandatory live provider assertions.
 
 The 09:09 UTC current-source check now finds seven real USD cost entries in the
 Ollama report as well as usage. Use these genuine facts for monetary storage/
@@ -98,8 +108,9 @@ These are bounded historical results, not a fresh runtime check or full M7 pass.
 
 Retain the following eight batches inside the existing tickets. Their numbers
 identify work, not strict serial prerequisites. The batch 3 maintenance candidate
-is installed; retain its evidence. **Execute batch 2 now using the available
-Ollama money, then batch 6's prepared daily/rate packet.** Advance available
+is installed; retain its evidence. Batch 2's retained monetary display path is
+verified; continue its fresh-commit/source-comparison boundaries and **integrate
+batch 6's prepared daily/rate packet next**. Advance available
 batch 1/4 provider work independently; absent Anthropic/OpenAI access affects
 only their live evidence. Batch 5
 travels with every visible increment, not a late UI cleanup phase. Complete
@@ -205,8 +216,10 @@ The
 built-browser discovery in isolation; full monetary/detail-history acceptance
 remains separate.
 `--lane browser --check overview --expected-revision=<installed-40SHA>` runs
-bounded genuine metadata/concurrent installed reads but exits nonzero while
-full monetary Overview remains Not Run. Other names above are **planned
+genuine metadata/concurrent installed reads and the strict retained-money
+journey. It still exits nonzero with `m7_full_filtered_totals_required` until
+full filtered shared-pool totals pass; a passed monetary subcheck is not a full
+Overview pass. Other names above are **planned
 selectors**, not runnable commands. Existing AUTO-M7-TEST/LIVE/BROWSER/DEPLOY/EXIT
 entry points remain fail-closed. T003 extends them; no second runner/registry.
 Commands owning temporary tool links run serially; app reads remain concurrent.
@@ -220,11 +233,11 @@ not that a displayed command already proves the result.
 
 | Packet / existing ticket | Existing test or implementation seam | Missing assertion / check wiring |
 |---|---|---|
-| Monetary stored reads — T005/T010/T012 | `backend/tests/live/ollama/test_budget_overview_live.py`, `test_budget_history_http_live.py`, `test_budget_daily_history_live.py` | Explicitly select a genuine cost-bearing report; exact report/scope/period/currency/basis/amount across repository, HTTP and filtered summary. Existing tests may select counts-only reports. Extend planned `persistence`/`budget_http` checks; a stored copy is not fresh-provider evidence |
-| Monetary dashboard — T011/T012/T014 | `frontend/tests/browser/m7/verify_overview.mjs`, `run_budget_account.py`, `history_chart.mjs` | Actual Overview → detail → table/chart selection, exact monetary reconciliation, Back/reload and same-revision concurrency. Finish existing `overview`/planned `detail_history`; chart geometry alone does not close these |
+| Monetary stored reads — T005/T010/T012 | `backend/tests/live/ollama/test_budget_overview_live.py`, `test_budget_history_http_live.py`, `test_budget_daily_history_live.py` | Retain the passed explicit monetary HTTP case and `test_budget_monetary_persistence.py` reopen/receipt assertions. Extend full filtered shared-pool totals and planned `persistence`/`budget_http` checks; a stored copy is not fresh-provider evidence |
+| Monetary dashboard — T011/T012/T014 | `frontend/tests/browser/m7/verify_overview.mjs`, `run_budget_account.py`, `history_chart.mjs` | Retain passed `verify_overview.mjs --require-money` for Overview → detail → exact history, Back/reload and monetary identity. Finish full-filter totals and planned `detail_history`; chart geometry and a monetary subcheck alone do not close these |
 | Monetary commit — T005/T007 | `backend/src/agentmonitor/adapters/persistence/capacity/sqlite/budget_repository.py`, existing real budget schema/commit suites | Planned genuine monetary commit/retry/reopen and interrupted-receipt recovery test in the existing capacity/collection integration families. Use an actual admitted collection result; never replay a saved raw provider response as a fresh request. Wire planned `persistence`/`collection` |
 | Daily rate — T013 | Prepared `budget_daily_costs.py`/`budget_forecast.py` and their pure tests in the isolated analysis worktree; integration target is M05 capacity domain | Review and integrate the prepared packet, then publish source semantics and public DTOs before HTTP/UI consumers. Extend `PURE_TARGETS` and existing mutation suite; isolated files are not delivered code |
-| Rate on screen — T010/T011/T013 | `modules/capacity/application/budget_selected.py`, `api/v1/schemas/budget_overview.py`, existing financial detail/history components | Exact rate, sample bounds, input lineage and separate date-unavailability reason from the same genuine monetary selection. Extend existing HTTP/detail-history checks; no fabricated funds/date or second calculation in React |
+| Rate on screen — T010/T011/T013 | M05 bounded report reader and planned `GetBudgetForecastV1`, planned compact `GET /budgets/{budget_id}/forecast`, generated client and existing financial detail/history components | Same pinned report/as_of, exact rate/sample/lineage and separate date reason. Page-size independence, stale-response rejection and analysis-error isolation. Extend HTTP/detail-history checks; no whole-report UI fetch, fabricated funds/date or React financial calculation |
 | Setup failure — T011/T014 | `frontend/tests/browser/m7/verify_setup.mjs`, `verify_overview_concurrency.mjs`; registry-time evidence linked above | Preserve sanitized child-stage diagnostics through the wrapper, establish whether the failure is in UI or probe, and fix that boundary with a regression. Do not retry until green, reset owner configuration, or invent a required repetition count |
 
 The first packet ends with a recorded installed monetary journey and a specific

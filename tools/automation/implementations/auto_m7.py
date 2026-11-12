@@ -9,6 +9,7 @@ No ticket flag, owner-entered result or historical receipt can make them pass.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -319,6 +320,7 @@ def execute_pool_browser(name: str = "owner_pool_controls") -> LaneResult:
                             "tools.automation.pytest_no_skip",
                             "backend/tests/integration/api/test_budget_report_discovery_http.py",
                             "backend/tests/live/ollama/test_budget_history_http_live.py",
+                            "backend/tests/live/ollama/test_budget_monetary_persistence.py",
                             "backend/tests/live/ollama/test_source_history_browser.py",
                         ]
                     ),
@@ -406,14 +408,99 @@ def execute_lane(lane: str) -> LaneResult:
     return evaluate_lane(lane, tuple(checks))
 
 
+def monetary_probe_result(
+    returncode: int, payload: object, expected: str
+) -> CheckResult:
+    """Admit the exact monetary journey, not a generic funds/counts-only pass."""
+    failed = CheckResult("monetary_journey", "failed", "m7_monetary_probe_failed")
+    if (
+        not isinstance(payload, dict)
+        or payload.get("record_type") != "agentmonitor.m7_overview_probe.v1"
+        or payload.get("source_revision") != expected
+        or type(payload.get("unsafe_requests")) is not int
+        or payload["unsafe_requests"] != 0
+    ):
+        return failed
+    if returncode == 3 and payload.get("status") == "blocked":
+        reason = payload.get("reason_code")
+        return CheckResult(
+            "monetary_journey",
+            "blocked",
+            reason
+            if reason
+            in {
+                "genuine_complete_monetary_report_required",
+                "monetary_selection_unavailable",
+                "authentication_required",
+                "comparison_source_unavailable",
+            }
+            else "m7_monetary_probe_unavailable",
+        )
+    checks = payload.get("checks")
+    required = (
+        "monetary",
+        "authentication",
+        "overview",
+        "filters",
+        "navigation",
+        "financial_entry",
+        "source_history",
+        "history_windows",
+        "responsive",
+        "pool_controls",
+        "read_only",
+    )
+    if (
+        returncode != 0
+        or payload.get("status") != "passed"
+        or payload.get("reason_code")
+        != "real_monetary_overview_detail_history_verified"
+        or not isinstance(checks, dict)
+        or any(checks.get(name) != "passed" for name in required)
+    ):
+        return failed
+    return CheckResult("monetary_journey", "passed")
+
+
+def execute_monetary_browser(expected: str) -> CheckResult:
+    """Read actual installed money; retain failure without emitting raw output."""
+    try:
+        result = subprocess.run(
+            [
+                "node",
+                "frontend/tests/browser/m7/verify_overview.mjs",
+                "--require-money",
+            ],
+            cwd=ROOT,
+            timeout=200,
+            capture_output=True,
+            check=False,
+        )
+        if result.stderr or len(result.stdout) > 16384:
+            return CheckResult("monetary_journey", "failed", "m7_probe_output_invalid")
+        return monetary_probe_result(
+            result.returncode, json.loads(result.stdout), expected
+        )
+    except (ValueError, UnicodeError):
+        return CheckResult("monetary_journey", "failed", "m7_probe_output_invalid")
+    except subprocess.TimeoutExpired:
+        return CheckResult("monetary_journey", "failed", "m7_browser_timeout")
+    except OSError:
+        return CheckResult(
+            "monetary_journey", "blocked", "m7_browser_toolchain_unavailable"
+        )
+
+
 def execute_overview_browser(expected: str) -> LaneResult:
-    """Run current metadata/concurrency proof; monetary acceptance stays separate."""
+    """Verify money and concurrency; full grouped-total acceptance stays separate."""
     metadata = _run_pytest(
         "overview_metadata",
         (
             "backend/tests/integration/capacity/test_budget_overview_real_metadata.py",
             "backend/tests/live/ollama/test_budget_overview_live.py",
             "backend/tests/live/ollama/test_budget_overview_history_snapshot.py",
+            "backend/tests/live/ollama/test_budget_history_http_live.py",
+            "backend/tests/live/ollama/test_budget_monetary_persistence.py",
         ),
     )
     if metadata.status != "passed":
@@ -438,15 +525,27 @@ def execute_overview_browser(expected: str) -> LaneResult:
     except OSError:
         pass
     concurrent = CheckResult("overview_concurrency", status, reason)
-    # These real reads can run on counts-only cloud data. They cannot certify
-    # the mandatory genuine monetary totals in the full Overview acceptance.
-    full = CheckResult("overview", "not_run", "m7_monetary_overview_required")
+    monetary = execute_monetary_browser(expected)
+    # Exact source-entry totals do not yet prove every shared-pool/full-filter
+    # summary boundary. Keep that wider acceptance explicit rather than promote
+    # a verified single monetary journey to completion of T012.
+    full = CheckResult("overview", "not_run", "m7_full_filtered_totals_required")
     print(f"M7 CHECK overview_concurrency: {status.upper()}", flush=True)
-    print("M7 CHECK overview: NOT_RUN (m7_monetary_overview_required)", flush=True)
+    print(
+        f"M7 CHECK monetary_journey: {monetary.status.upper()}"
+        + (f" ({monetary.reason_code})" if monetary.reason_code else ""),
+        flush=True,
+    )
+    print("M7 CHECK overview: NOT_RUN (m7_full_filtered_totals_required)", flush=True)
+    outcomes = (status, monetary.status)
     return LaneResult(
         "browser/overview",
-        "not_run" if status == "passed" else status,
-        (metadata, concurrent, full),
+        "failed"
+        if "failed" in outcomes
+        else "blocked"
+        if "blocked" in outcomes
+        else "not_run",
+        (metadata, concurrent, monetary, full),
     )
 
 
@@ -798,14 +897,16 @@ def main(argv: list[str] | None = None) -> int:
         )
     elif args.check == "source_history":
         scope = (
-            "genuine retained report metadata, built-browser navigation "
-            "and source-entry chart; "
-            "no monetary reconciliation or full detail_history acceptance"
+            "genuine retained monetary persistence/HTTP, report metadata, "
+            "built-browser navigation and source-entry chart; "
+            "no fresh commit, provider-display comparison "
+            "or full detail_history acceptance"
         )
     elif args.check == "overview":
         scope = (
-            "real metadata and concurrent installed Overview/setup/cloud reads; "
-            "full monetary Overview acceptance remains Not Run"
+            "real stored money, installed monetary journey "
+            "and concurrent Overview/setup/cloud reads; "
+            "full filtered-total Overview acceptance remains Not Run"
         )
     elif args.check in GUARD_SCOPES:
         scope = GUARD_SCOPES[args.check]

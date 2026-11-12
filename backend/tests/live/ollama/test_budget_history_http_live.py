@@ -9,6 +9,8 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from backend.tests.integration.api.test_iam_http import (
     _installation,
     _request,
@@ -16,8 +18,10 @@ from backend.tests.integration.api.test_iam_http import (
 )
 
 
+@pytest.mark.parametrize("require_money", (False, True), ids=("history", "money"))
 def test_genuine_history_pages_and_compact_summary_over_real_http(
     tmp_path: Path,
+    require_money: bool,
 ) -> None:
     """Read genuine stored facts through production ports and an isolated IAM server."""
     from dataclasses import replace
@@ -93,9 +97,20 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
         if (
             report is not None
             and len(report.report.cost_buckets) + len(report.report.usage_buckets) > 1
+            and (
+                not require_money
+                or report.report.cost_buckets
+                and report.report.completeness == "complete"
+                and report.report.currency is not None
+                and not report.report.grouping
+            )
         ):
             genuine.append(report)
-    assert genuine, "genuine_stored_report_with_daily_facts_required"
+    assert genuine, (
+        "genuine_stored_complete_monetary_report_required"
+        if require_money
+        else "genuine_stored_report_with_daily_facts_required"
+    )
     stored = min(genuine, key=lambda item: (item.stored_at, item.report_id.value))
 
     def active_binding(account_id: OpaqueIdV1) -> ActiveCredentialBindingRefV1 | None:
@@ -165,6 +180,40 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
             assert full[0] == 200
             full_payload = json.loads(full[2])
             report = full_payload["report"]
+            if require_money:
+                # Independent integer arithmetic over genuine stored facts; no
+                # production total/formatting helper supplies the expectation.
+                source = stored.report
+                assert source.cost_buckets
+                assert report["currency"] == source.currency
+                assert report["source_id"] == source.source_id
+                assert report["source_category"] == source.source_category
+                assert report["cost_basis"] == source.cost_basis
+                assert report["scope_generation"] == source.scope_generation
+                expected_atoms = sum(
+                    int(bucket.amount.amount.coefficient)
+                    * 10 ** (18 - bucket.amount.amount.scale)
+                    for bucket in source.cost_buckets
+                )
+                total = full_payload["reported_spend"]["total"]
+                assert total is not None, "genuine_cost_total_missing"
+                assert total["currency"] == source.currency
+                assert (
+                    int(total["coefficient"]) * 10 ** (18 - total["scale"])
+                    == expected_atoms
+                ), "genuine_cost_total_inexact"
+                assert all(
+                    bucket.amount.currency == source.currency
+                    for bucket in source.cost_buckets
+                )
+                by_key = {bucket.bucket_key: bucket for bucket in source.cost_buckets}
+                for wire in report["cost_buckets"]:
+                    original_cost = by_key[wire["bucket_key"]]
+                    assert wire["amount"] == {
+                        "coefficient": original_cost.amount.amount.coefficient,
+                        "scale": original_cost.amount.amount.scale,
+                        "currency": original_cost.amount.currency,
+                    }
             expected_metadata = {
                 key: value
                 for key, value in report.items()

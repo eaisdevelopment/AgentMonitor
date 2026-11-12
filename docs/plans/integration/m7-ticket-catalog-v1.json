@@ -170,7 +170,8 @@
         "docs/evidence/m7-account-resource-layout-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
         "docs/evidence/m7-overview-registry-time-2026-11-12.md",
-        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md",
+        "docs/evidence/m7-monetary-journey-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -181,7 +182,7 @@
       ],
       "steps": [
         "Retain existing pure/mutation/metadata/schema, guard, pool-browser and historical activation evidence; a narrow pass does not close its broader lane.",
-        "For each worksheet batch, wire its existing named checks in auto_m7 alongside the feature. Start with the exact monetary HTTP/browser and commit/reopen test seams listed in worksheet section2; existing generic history tests can select counts-only reports. Add explicit monetary selection/assertions, not a second runner. Full monetary Overview acceptance remains Not Run until those assertions execute.",
+        "Retain source_history monetary persistence/HTTP and revision-bound overview strict-money result wiring. Its exact installed monetary journey is separate from full shared-pool/filter totals, provider-display comparison and fresh commit/retry, which remain unfinished. Finish remaining named checks alongside their behavior using worksheet section2 test seams; no second runner.",
         "Keep real populated persistence/collection/HTTP/provider outcomes separate from schema/empty/guard checks. Required missing evidence fails closed; natural conditional cases retain their actual disposition.",
         "Extend the existing final runner/result with clean checkout revision, installed revision/schema, named outcomes/times and sanitized evidence references; reject mismatched or missing mandatory evidence. No new runner, short-lived owner attestation or manual codes.",
         "Route final deployment verification through existing same-schema update/recovery helpers; do not replay setup0731 or pool0734 migrations. Complete candidate/backup_recovery/installed_revision/continuity with T014.",
@@ -278,7 +279,8 @@
         "docs/evidence/m7-budget-storage-foundation-2026-11-11.md",
         "docs/evidence/m7-budget-current-query-2026-11-11.md",
         "docs/evidence/m7-cloud-usage-authority-2026-11-11.md",
-        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md",
+        "docs/evidence/m7-monetary-journey-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -290,7 +292,7 @@
       "steps": [
         "Publish the additive commit/query receipt contracts before parallel M04/M05 work; root owns shared types and migration catalog.",
         "Retain delivered real SQLite migration/schema evidence through v1_0734; exercise only a newly changed storage boundary. No replay of historical activation or invented financial rows.",
-        "Use an admitted genuine monetary collection result, including existing Ollama cloud cost support, for atomic coverage/fact commit. Reuse the retained Ollama USD report immediately for stored-read comparisons; it does not by itself prove fresh commit/retry/reopen. Do not wait for Anthropic/OpenAI enrollment or a complete provider ticket.",
+        "Retained genuine Ollama money now passes exact normalized-fact/receipt/reopen and HTTP comparisons (see monetary-journey evidence). Keep this proof; next use an actual monetary collection result with original live M04/rate authority for commit/retry/recovery. A succeeded stored run does not authorize replay or a fabricated lease. Other provider enrollment is not a prerequisite.",
         "Retry that same in-memory commit, reopen storage and verify the actual receipt, exact query output and generation fences. Preserve genuine correction history and report unavailable natural cases separately.",
         "Hand the actual report/query ports to P01/P02; do not hold the first usable table for chart, forecast or all-category completion.",
         "Separate current-report selection, report-revision history and daily financial buckets. Search compatible revisions within context/byte limits; latest failure without a report comes from M04. Genuine monetary commit/retry/reopen is required. Natural correction and empty-report observations are conditional; always verify pure replacement/empty policies and report unobserved live cases separately."
@@ -555,7 +557,8 @@
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
         "docs/evidence/m7-billing-reconnect-2026-11-12.md",
         "docs/evidence/m7-billing-maintenance-2026-11-12.md",
-        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md",
+        "docs/evidence/m7-monetary-journey-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -623,7 +626,8 @@
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
         "docs/evidence/m7-billing-reconnect-2026-11-12.md",
         "docs/evidence/m7-billing-maintenance-2026-11-12.md",
-        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md",
+        "docs/evidence/m7-monetary-journey-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -681,7 +685,8 @@
         "docs/evidence/m7-fair-financial-scheduling-2026-11-12.md",
         "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
         "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
-        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md",
+        "docs/evidence/m7-monetary-journey-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -749,7 +754,7 @@
         "Start independent pure math and first-history chart work from existing immutable-history contracts after the current integration packet, without waiting for inaccessible providers. depends_on constrains ticket closure, not the start of this independent packet. Final coverage still includes the finite supported matrix. Red tests cover wrong signs/units/coverage, missing inputs and forecast anchoring.",
         "Publish admitted source/category plus one supported dimension and native unit through versioned adapter/P01 surfaces; P02 does not hardcode provider support. Selection reads stored data; explicit collection uses T007 exact context. No Cartesian query builder.",
         "Ship the first source-entry chart from the same loaded immutable facts as its table; do not call separate entries daily totals or require rate completion for this packet. Label unloaded pages as More history available, not zero/source gaps. Failed pages preserve both. M05 aggregates only proven-disjoint facts once per UTC day; three model rows from one day are not three days of rate history, and total-plus-components are not added. Reconcile matching complete breakdown totals/reported remainder without inventing Other or agent attribution. Balance series uses separate genuine capacity-history observations per fund component, with exact amounts, identity and original times; version only missing safe snapshot/selector fields before its consumer. Do not manufacture history from current funds. The first cost/usage chart does not wait for balance-series integration.",
-        "Implement only budget-observed-rate-v1/1.0.0 as specified in calculation section6: bounded contiguous exact monetary history, separate rate/date availability, input IDs and source/funds freshness. Query-time only; no forecast persistence/events or price estimation. Independent history-page size does not change financial identity: pin selected scope/epoch/currency/basis, state actual sample bounds and reject incompatible new-scope funds for an old-scope forecast. Unresolved corrections means ambiguity in selected replacement/adjustment semantics, not possible future provider revisions. A complete replacement changes the newly selected rate; an explicitly selected older report retains its own rate. Show rate per currency/day with actual sample dates in one compact detail row, separate from exhaustion availability and existing balances.",
+        "Implement only budget-observed-rate-v1/1.0.0 as specified in calculation section6: bounded contiguous exact monetary history, separate rate/date availability, input IDs and source/funds freshness. Query-time only; no forecast persistence/events or price estimation. Independent history-page size does not change financial identity: pin selected scope/epoch/currency/basis, state actual sample bounds and reject incompatible new-scope funds for an old-scope forecast. Unresolved corrections means ambiguity in selected replacement/adjustment semantics, not possible future provider revisions. A complete replacement changes the newly selected rate; an explicitly selected older report retains its own rate at the same pinned as_of and source-evidence context. Explicit snapshot advancement can change sample eligibility and must show the resulting sample bounds. Use the allocated compact GET /budgets/{budget_id}/forecast with pinned account/resource/report/interval/as_of; keep bucket bodies out of it and summaries. Generated-client UI reads once per selected context, discards late old-context responses and preserves spend/history on analysis failure. History pagination does not refetch analysis; no whole-report UI read. Show rate per currency/day with actual sample dates in one compact detail row, separate from exhaustion availability and existing balances. USD/day is half-even two-decimal display with a positive sub-cent label and exact rational details under the existing precision policy.",
         "Run M7-MATH-03/09/10/15/16 and associated component cases: signed adjustments/gaps/zero/expiry/renewal/unknown allocation, at least three complete consecutive daily buckets, eligible funds cutoff or rate-only as_of fallback for absent/stale/incompatible funds, seven-day horizon and unchanged-input reload. Three days with two disjoint 1 USD rows each produce 2 USD/day; one day with three rows remains insufficient. Real absent inputs show a reason; numeric live evidence is conditional.",
         "M05 implements bounded 365-day report/fact retention with referenced-fact preservation; M08 invokes its public participant using existing scheduler. Verify genuine report expiry/cursor expiry with explicit future cutoff on isolated SQLite; no seeded old telemetry or host clock change.",
         "Integrate detail_history/persistence/HTTP/pure/mutation checks with T003 and recheck installed retention invocation in T014/T015. Charts, supported breakdowns and conditional forecast remain required M7 scope; no analytics framework."
@@ -804,7 +809,8 @@
         "docs/evidence/m7-window-navigation-2026-11-12.md",
         "docs/evidence/m7-manual-collection-2026-11-12.md",
         "docs/evidence/m7-overview-registry-time-2026-11-12.md",
-        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md",
+        "docs/evidence/m7-monetary-journey-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",

@@ -303,8 +303,10 @@ corrections. Here **unresolved corrections** means ambiguity in the selected
 report's replacement/adjustment semantics, not the possibility that the provider
 may revise a complete report later. The adapter supplies the source semantics;
 M05 selects one immutable compatible report. A complete replacement can yield a
-new rate while the explicitly selected older report retains its original rate;
-never combine their revisions or wait for a financial-finality guarantee.
+new rate while the explicitly selected older report retains its original rate
+at the same pinned `as_of` and source-evidence context. An explicit snapshot
+advance may change the eligible sample or its availability; disclose the new
+sample bounds. Never combine their revisions or wait for a financial-finality guarantee.
 Explicit adjustment entries still make that sample ineligible.
 M05 first selects compatible report coverage and aggregates only
 proven-disjoint cost facts within each day. Count each day and its duration once:
@@ -511,12 +513,13 @@ Additional cases within the same IDs (no new acceptance inventory):
 | Existing IDs | Pure input | Required result |
 |---|---|---|
 | M7-MATH-03/15/16 | Three complete days at 2 USD/day; no balance/limit | Rate 2 USD/day with sample bounds; no exhaustion date; Remaining funds not reported |
+| M7-MATH-14/16 | Three complete days total 1 USD, or total 0.01 USD | Exact rates 1/3 and 1/300 USD/day remain rational in details; display 0.33 USD/day and <0.01 USD/day respectively, never false zero |
 | M7-MATH-07/08/15/16 | Included credits 10 USD, purchased 30 USD; whole-pool rate 2 USD/day; allocation unknown | Show components and rate separately; no component date, assumed combined balance or account-stop claim |
 | M7-MATH-15/16 | Same complete costs fetched twice; source watermark unknown | Later retrieval alone cannot enable an exhaustion date or move a previously pinned estimate |
 | M7-MATH-03/10/15 | Three model cost rows in one complete day | One daily bucket; insufficient history for a rate, regardless of row count |
 | M7-MATH-03/10/15 | Three consecutive complete days; two proven-disjoint rows of 1 USD each per day | Total 6 USD over three days; rate 2 USD/day, with each day's duration counted once |
 | M7-MATH-03/15/16 | Three recent qualifying days at 2 USD/day; selected funds stale or from another scope | Rate 2 USD/day in the selected cost scope with sample dates; no exhaustion date; stale/unrelated funds do not move the rate-only sample backward |
-| M7-MATH-03/04/05/09/15 | Complete three-day report at 2 USD/day, later replaced by complete three-day report at 1 USD/day, with declared replacement semantics and no adjustment entries | Old explicit selection stays 2 USD/day; replacement selection is 1 USD/day; no sum of revisions and no requirement to prove that future corrections are impossible |
+| M7-MATH-03/04/05/09/15 | Complete three-day report at 2 USD/day, later replaced by complete three-day report at 1 USD/day, with declared replacement semantics and no adjustment entries | At the same pinned as_of/evidence context, old explicit selection stays 2 USD/day and replacement selection is 1 USD/day; advancing the snapshot recomputes eligibility with explicit sample bounds; no sum of revisions and no requirement to prove that future corrections are impossible |
 
 Existing test families also cover native-range alignment and DST boundaries
 (M7-MATH-15), no eligible subtotal versus a genuine zero (M7-MATH-12), scope-epoch

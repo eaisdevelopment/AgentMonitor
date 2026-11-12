@@ -242,8 +242,9 @@ T010/T012 retain the concurrent Overview correction delivered at `cd4f566`;
 its [real concurrent-read evidence](../../evidence/m7-overview-query-reliability-2026-11-12.md)
 is a regression boundary, not remaining implementation. Reuse that authenticated
 concurrent Overview/setup/cloud probe during subsequent relevant changes. Add
-monetary row/context assertions when genuine monetary reports become available;
-the bounded current pass does not prove monetary Overview acceptance. Surface
+full filtered shared-pool assertions alongside the now verified retained-money
+journey in the [monetary evidence](../../evidence/m7-monetary-journey-2026-11-12.md).
+That journey proves its exact report selection, not full Overview acceptance. Surface
 any failed request. Retained same-context data is labelled with original times;
 it is not a successful refresh. Keep the existing HTTP deadline. Serial reruns
 and a healthy landing page cannot replace this proof. Reuse the existing browser
@@ -416,8 +417,18 @@ date, say **Estimate unavailable — [actual reason]**, not Remaining funds not
 reported. Keep the real balances visible. Expand calculation details for exact
 numerator/duration, inputs and method; no new banner or separate analysis page.
 When rate itself is unavailable, keep spend/history useful and show its reason
-in that same row. T013/M7-MATH-03/15/16 and the existing detail-history browser
-check cover this presentation; no new feature or metric is introduced.
+in that same row. Read the compact planned `/budgets/{budget_id}/forecast`
+response for the same authorized report/interval/pinned `as_of`, as specified in
+[M05 section 8](../modules/m05-capacity/m7-budget-increment-2026-11-11.md#8-forecast-and-history-design).
+No whole-report request or fetch-all history loop is needed. History pagination
+does not change or reload the rate. Selection changes discard old-context
+responses; an analysis error keeps spend/funds/history usable and retries only
+that stored query. USD/day uses half-even two-decimal display with
+`<0.01 USD/day` for positive sub-cent rates and exact numerator/duration in
+details. At the same pinned snapshot, reload reproduces the sample; explicit
+snapshot advancement may change eligibility and must show its new bounds.
+T013/M7-MATH-03/15/16 and the existing detail-history browser check cover this
+presentation; no new feature or metric is introduced.
 
 ## 5. Complete state/action table
 

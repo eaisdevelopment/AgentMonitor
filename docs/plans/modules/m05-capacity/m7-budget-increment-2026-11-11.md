@@ -434,6 +434,30 @@ Counts-only evidence is not monetary verification or retention acceptance.
 
 GetBudgetForecastV1 queries bounded immutable facts and computes the documented
 observed-rate method; no stored forecast generation or new event consumer.
+T013 implements the already allocated `GET /budgets/{budget_id}/forecast`
+operation as a compact CTR-CAP-007 budget response. Its authorized selection
+binds account/resource, immutable report, interval and pinned `as_of`, including
+original scope for historical reports. Return rate/date availability separately,
+actual sample bounds, exact cost numerator/currency and covered seconds, input
+references, source-evidence/method version, and eligible funds lineage. No bucket
+bodies are added to account summaries or this response. M05 owns bounded sampling;
+P02 must not fetch whole-report endpoints or all history pages to calculate it.
+
+P02 requests that response once per selected financial context through the
+generated client and renders the compact rate row beside existing history.
+Loading another history page does not refetch/recalculate analysis or change its
+identity. A selection change clears incompatible analysis; a late response for
+an earlier context is discarded. A failed analysis read leaves spend, funds and
+history usable and offers a retry of the same stored query; GET never collects.
+Use the existing rounding policy for the displayed USD/day rate: half-even to
+two decimals, positive sub-cent rate as `<0.01 USD/day`, zero explicitly labelled;
+other currencies use an admitted precision rule or exact rational details.
+M05 supplies the derived display amount and rounding metadata. Keep the exact
+numerator/duration accessible; no division or threshold decision is duplicated
+in React. Pure M7-MATH-14/16 covers nonterminating division and positive sub-cent
+rates without displaying false zero. Real HTTP/built-browser assertions cover pinned history,
+page-size independence, reload, context matching and retained ordinary quota
+sections. This is the existing T013 API operation, not another analysis surface.
 Three complete consecutive UTC daily buckets, no unknown gaps or signed
 adjustments, within the bounded seven-day sample. Reuse daily-history aggregation
 over proven-disjoint facts; count each day's duration once. Multiple model rows

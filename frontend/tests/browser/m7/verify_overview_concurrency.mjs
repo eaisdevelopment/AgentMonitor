@@ -13,6 +13,43 @@ const jobs = [
   ["cloud_controls", "verify_cloud_collect.mjs", []],
 ];
 
+// Only known stage/error labels and structural diagnostics cross this boundary.
+// Never forward URLs, identifiers, exception text or arbitrary child payloads.
+const stages = new Set(["tooling", "browser", "authentication", "revision", "overview", "setup_form", "account_layout", "scope_contract", "continuity", "financial_entry", "source_history", "retained_refresh", "initial_window", "previous_window", "refresh_window", "next_window", "wide_window", "latest_window", "period_only_reload", "ordinary_account_entry", "overview_back", "controls", "eligibility", "collection", "rendered_summary", "financial_panel_settle"]);
+const setupSteps = new Set(["accounts_navigation", "add_api_control", "add_api_heading", "provider_choices", "create_control"]);
+const families = new Set(["accounts", "organizations", "budget_summary", "account_detail", "cloud_eligibility", "cloud_run", "other"]);
+const networkErrors = new Set(["net::ERR_NETWORK_CHANGED", "net::ERR_INTERNET_DISCONNECTED", "net::ERR_CONNECTION_REFUSED", "net::ERR_CONNECTION_RESET", "net::ERR_CONNECTION_CLOSED", "net::ERR_TIMED_OUT", "net::ERR_ABORTED", "net::ERR_FAILED", "network_error_other"]);
+const httpStatus = value => Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+const booleanFields = (value, names) => Object.fromEntries(names.filter(name => typeof value?.[name] === "boolean").map(name => [name, value[name]]));
+function diagnostics(value) {
+  const render = value.render_diagnostic;
+  const rows = value.row_set_diagnostic;
+  const availability = value.availability_diagnostic;
+  const availabilityFamily = { "/api/v1/budgets": "budget_overview", "/api/v1/accounts": "accounts", "/api/v1/organizations": "organizations" }[availability?.path] ?? "other";
+  return {
+    stage: stages.has(value.stage) ? value.stage : null,
+    setup_step: setupSteps.has(value.setup_step) ? value.setup_step : null,
+    error_kind: ["timeout", "assertion_or_error"].includes(value.error_kind) ? value.error_kind : null,
+    render_diagnostic: render == null ? null : {
+      phase: ["entry", "reload", "collection_reload"].includes(render.phase) ? render.phase : null,
+      summary_status: httpStatus(render.summary_status),
+      ...booleanFields(render, ["resource_present", "panel_settled"]),
+      page_state: render.page_state == null ? null : booleanFields(render.page_state, ["signed_out", "financial_panel_present", "financial_panel_busy", "alert_visible", "invalid_selection"]),
+    },
+    response_diagnostics: Array.isArray(value.response_diagnostics) ? value.response_diagnostics.slice(0, 40).map(item => ({ family: families.has(item?.family) ? item.family : "other", status: httpStatus(item?.status) })) : [],
+    failed_requests: Array.isArray(value.failed_requests) ? value.failed_requests.slice(0, 40).map(item => ({
+      family: typeof item === "object" && families.has(item?.family) ? item.family : "other",
+      error: networkErrors.has(typeof item === "string" ? item : item?.error) ? typeof item === "string" ? item : item.error : "network_error_other",
+    })) : [],
+    row_set_diagnostic: rows == null ? null : {
+      ...Object.fromEntries(["expected_rows", "rendered_rows"].filter(name => Number.isSafeInteger(rows[name]) && rows[name] >= 0).map(name => [name, rows[name]])),
+      ...booleanFields(rows, ["refresh_error_visible"]),
+      overview_response_statuses: Array.isArray(rows.overview_response_statuses) ? rows.overview_response_statuses.slice(0, 40).map(httpStatus) : [],
+    },
+    availability_diagnostic: availability == null ? null : { family: availabilityFamily, state: ["available", "partial", "unavailable", "stale", "unsupported", "unknown"].includes(availability.state) ? availability.state : null },
+  };
+}
+
 function run([name, file, args]) {
   return new Promise(resolve => {
     const child = spawn(process.execPath, [fileURLToPath(new URL(file, import.meta.url)), ...args], {
@@ -40,7 +77,7 @@ function run([name, file, args]) {
       const reason = value.reason_code ?? value.reason;
       const safeReason = typeof reason === "string" && /^[a-z0-9_]+$/.test(reason) ? reason : null;
       const valid = code === expectedCode && unsafe === 0 && revision === expectedRevision;
-      resolve({ name, status: valid ? value.status : "failed", reason: valid ? safeReason : "probe_revision_or_result_mismatch" });
+      resolve({ name, status: valid ? value.status : "failed", reason: valid ? safeReason : "probe_revision_or_result_mismatch", ...diagnostics(value) });
     });
   });
 }

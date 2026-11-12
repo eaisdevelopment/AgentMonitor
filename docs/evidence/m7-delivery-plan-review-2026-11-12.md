@@ -96,3 +96,46 @@ No production tests or Red/Green claims are made for this documentation-only
 change. Required implementation tests and their expected failures remain mapped
 to existing tickets and worksheet check names. These results validate planning
 coherence, not implementation, installed behavior or M7 completion.
+
+## Follow-up planning reconciliation at 4a64417
+
+Re-read the current worksheet/catalog and the staged monetary verification
+packet without changing its production or test files. Preserve that packet's
+recorded checks; this planning follow-up did not run a browser or deploy code.
+Independent M05 and P02 read-only reviews found these remaining corrections:
+
+- Remove the worksheet's stale claim that the retained monetary display journey
+  still needs its first proof. Fresh commit/retry, interrupted receipt recovery,
+  provider comparison and full filtered shared-pool totals remain open. Daily
+  rate integration stays next; this review does not change ticket completion.
+- Reproducibility means the same report **and pinned as_of/evidence context**.
+  An explicit snapshot advance can change the eligible sample. Calculation,
+  UI and T013 steps now require its actual sample bounds.
+- Name the already allocated compact forecast endpoint as the M05/P01/P02
+  handoff. Keep account summaries compact, avoid full-report UI reads, keep the
+  analysis query independent of history cursors, reject old-context responses,
+  and isolate analysis errors from spend/history/quota sections. Reuse the
+  existing USD half-even/sub-cent display policy with exact rational details.
+
+Rejected: a second analysis response on every history page, a new analytics
+framework, repeated already-valid money checks as a new first-delivery hurdle,
+new tickets or an additional owner approval. Scope stays sixteen tickets, five
+stories and M7-A01..A10. Primary owner remains M05 for financial semantics;
+root owns integration, P01 transport and P02 rendering. The planned additive
+CTR-CAP-007 budget variant is clarified, not published by this documentation
+change; existing installed contracts remain unchanged. No schema, dependency,
+license, security or credential-custody change.
+
+Changed planning artifacts: worksheet, calculation rules, UI journeys, M05
+increment, catalog T013 steps, and this review record. Existing staged
+verification work is preserved. Required implementation Red/Green and real
+HTTP/browser checks remain in T013; this document is not their substitute.
+
+Follow-up validation: `AUTO-DOCS-CHECK` Passed (401 Markdown files),
+`AUTO-M7-PLAN-CHECK` Passed (16 tickets / 5 stories / 10 acceptance items),
+`AUTO-PLAN-CHECK` Passed (synchronized), and `git diff --check` Passed.
+No production implementation, deployment or M7 completion is claimed.
+
+Independent final M05 and P02 diff reviews found no must-fix issue. They
+confirmed the unchanged scope, compact allocated API, pinned sampling context,
+exact rate representation and separation of retained proof from open work.
