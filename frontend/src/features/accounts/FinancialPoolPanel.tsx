@@ -252,7 +252,7 @@ export function CloudFinancialPoolPanels({ account, onExpired, onProofUnavailabl
   useEffect(() => {
     const controller = new AbortController();
     setFailed(false);
-    void budgets.account(account.account_id, completedPeriod(7, new Date()), controller.signal).then((result) => {
+    void budgets.accountSummary(account.account_id, completedPeriod(7, new Date()), controller.signal).then((result) => {
       if (controller.signal.aborted) return;
       if (!result.ok) {
         if (result.problem.code === "dashboard_authentication_required") callbacks.current.onExpired();

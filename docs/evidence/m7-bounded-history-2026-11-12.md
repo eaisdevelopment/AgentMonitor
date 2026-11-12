@@ -91,3 +91,13 @@ Final canonical pure lane passed626 Python tests and eight presentation suites.
 The three genuine private-copy SQLite/application/HTTP tests passed together
 in14.25s against the final cursor implementation, with no skips. Source-provider
 requests and owner database writes were not part of those checks.
+
+## First installed check and correction
+
+Code2081169 passed the same-schema updater and the dashboard remained active
+with HTTP200. At01:39:36UTC the authenticated installed probe reached the new
+history view but failed `ui_requested_unbounded_report`: cloud pool discovery
+in `FinancialPoolPanel.tsx` still requested the old full account report solely
+to extract resource IDs. The correction switches that read to the compact
+summary; its resource metadata is unchanged. This is an observed browser Red,
+not a claim that the first installed candidate passed the complete probe.
