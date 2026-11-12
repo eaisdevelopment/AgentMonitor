@@ -62,7 +62,7 @@ ANTHROPIC_COST_OPERATION_FAMILY_V1 = "billing.anthropic.cost.7d"
 ANTHROPIC_COST_30D_OPERATION_FAMILY_V1 = "billing.anthropic.cost.30d"
 ANTHROPIC_COST_BUDGET_POLICY_ID_V1 = "anthropic-cost-report-requests-v1"
 ANTHROPIC_COST_BUDGET_POLICY_VERSION_V1 = "1.0.0"
-ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1 = "1.0.0"
+ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1 = "1.1.0"
 _CAPABILITY_ID = "api.cost"
 _CAPABILITY_SCHEMA_VERSION = "2.0.0"
 _PAYLOAD_SCHEMA = "budget.report.v1"
@@ -275,7 +275,11 @@ def build_anthropic_billing_run(
     provider_target = ProviderTargetRefV1(
         "cloud_service", access_target.access_target_id
     )
-    target_digest = _target_digest(target, provider_target)
+    target_digest = _digest(
+        "billing-schedule-target-v2",
+        _target_digest(target, provider_target),
+        schedule_id.value,
+    )
     admission = BudgetCollectionRunAdmissionV1(
         billing_target=target,
         run_id=run_id,
@@ -324,7 +328,7 @@ def build_anthropic_billing_run(
         payload_schema=_PAYLOAD_SCHEMA,
         idempotency_key_digest=idempotency_key_digest,
         request_digest=_request_digest(
-            target_key_digest=target_digest,
+            target_key_digest=_target_digest(target, provider_target),
             trigger=trigger,
             request_principal_id=request_principal_id,
             idempotency_key_digest=idempotency_key_digest,
@@ -355,9 +359,13 @@ def _require_anthropic_admission(
         else None
     )
     target = admission.billing_target
-    expected_target_digest = _target_digest(target, admission.provider_target)
+    expected_target_digest = _digest(
+        "billing-schedule-target-v2",
+        _target_digest(target, admission.provider_target),
+        admission.schedule_id.value,
+    )
     expected_request_digest = _request_digest(
-        target_key_digest=expected_target_digest,
+        target_key_digest=_target_digest(target, admission.provider_target),
         trigger=admission.trigger,
         request_principal_id=admission.request_principal_id,
         idempotency_key_digest=admission.idempotency_key_digest,

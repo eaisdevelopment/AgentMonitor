@@ -123,3 +123,58 @@ def test_unsupported_collection_context_remains_actionable_problem() -> None:
         json.loads(bytes(response.body))["code"]
         == "billing_collect_context_unsupported"
     )
+
+
+def test_policy_upgrade_changes_schedule_but_preserves_owner_replay_identity() -> None:
+    from agentmonitor.composition.billing_actions import billing_check_identifiers
+    from agentmonitor.contracts.billing_actions_v1 import BillingCheckCommandV1
+
+    command = BillingCheckCommandV1(
+        OpaqueIdV1("account"),
+        OpaqueIdV1("resource"),
+        1,
+        1,
+        OpaqueIdV1("owner"),
+        OpaqueIdV1("command"),
+        datetime(2026, 11, 12, tzinfo=UTC),
+    )
+    legacy = billing_check_identifiers(command, collection_policy_version="1.0.0")
+    current = billing_check_identifiers(command)
+    assert current.schedule_id != legacy.schedule_id
+    assert current.run_id == legacy.run_id
+    assert current.request_id == legacy.request_id
+    assert current.idempotency_key_digest == legacy.idempotency_key_digest
+
+
+def test_legacy_schedule_replay_is_readable_but_other_intent_still_conflicts() -> None:
+    from dataclasses import replace
+
+    from agentmonitor.composition.billing_actions import (
+        _require_replay,
+        billing_check_identifiers,
+    )
+    from agentmonitor.contracts.billing_actions_v1 import BillingCheckCommandV1
+
+    from backend.tests.contracts.test_billing_monitoring_proof import _evidence
+
+    target, stored, _, _ = _evidence()
+    command = BillingCheckCommandV1(
+        target.connection.account_id,
+        target.connection.resource_id,
+        1,
+        target.connection.record_version,
+        OpaqueIdV1("owner"),
+        OpaqueIdV1("command"),
+        stored.requested_at,
+    )
+    legacy = billing_check_identifiers(command, collection_policy_version="1.0.0")
+    current = billing_check_identifiers(command)
+    stored = replace(stored, run_id=legacy.run_id, schedule_id=legacy.schedule_id)
+    assert _require_replay(command, current, stored, target) == stored
+    with pytest.raises(ValueError, match="billing_check_idempotency_conflict"):
+        _require_replay(
+            command,
+            current,
+            replace(stored, schedule_id=OpaqueIdV1("unrelated")),
+            target,
+        )

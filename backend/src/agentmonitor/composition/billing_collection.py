@@ -46,6 +46,9 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import 
     env_credential_file_lease_v1,
 )
 from agentmonitor.composition.billing_capacity_commit import billing_capacity_repository
+from agentmonitor.composition.billing_context import (
+    billing_cost_operation_families as billing_cost_operation_families,
+)
 from agentmonitor.composition.billing_env_authorization import (
     AnthropicEnvAuthorizationV1,
     OpenAIEnvAuthorizationV1,
@@ -62,27 +65,6 @@ from agentmonitor.contracts.provider_system_v1 import CollectionOutcomeV1
 from agentmonitor.modules.collection_control.application.budget_executor import (
     ExecuteBudgetCollectionRunV1,
 )
-
-
-def billing_cost_operation_families(provider_key: str) -> tuple[str, ...]:
-    """Closed claim allowlist shared by legacy and captured cost admissions."""
-    from agentmonitor.composition.billing_run import (
-        ANTHROPIC_COST_30D_OPERATION_FAMILY_V1,
-        ANTHROPIC_COST_OPERATION_FAMILY_V1,
-    )
-    from agentmonitor.composition.openai_billing_run import (
-        OPENAI_COST_30D_OPERATION_FAMILY_V1,
-        OPENAI_COST_OPERATION_FAMILY_V1,
-    )
-
-    if provider_key == "claude":
-        return (
-            ANTHROPIC_COST_OPERATION_FAMILY_V1,
-            ANTHROPIC_COST_30D_OPERATION_FAMILY_V1,
-        )
-    if provider_key == "codex":
-        return OPENAI_COST_OPERATION_FAMILY_V1, OPENAI_COST_30D_OPERATION_FAMILY_V1
-    raise ValueError("billing_cost_provider_invalid")
 
 
 class BillingCollectionV1:
@@ -150,7 +132,9 @@ class BillingCollectionV1:
             return 4
         return self._dispatch_one()
 
-    def _claim_one(self) -> BudgetCollectionRunAdmissionV1 | None:
+    def _claim_one(
+        self, *, provider_key: str, operation_family: str, expected_run_id: OpaqueIdV1
+    ) -> BudgetCollectionRunAdmissionV1 | None:
         from agentmonitor.composition.billing_run import (
             ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
             anthropic_billing_budget_limit,
@@ -162,8 +146,7 @@ class BillingCollectionV1:
             openai_cost_manifest_fingerprint,
         )
 
-        # Drain both existing queues before admitting any fresh scheduled work.
-        # Each repository claim retains the source-specific authority/rate fence.
+        # Exact selected run retains the source-specific authority/rate fence.
         for provider, source, fingerprint, policy, limit in (
             (
                 "claude",
@@ -180,7 +163,11 @@ class BillingCollectionV1:
                 openai_billing_budget_limit,
             ),
         ):
+            if provider != provider_key:
+                continue
             for operation in billing_cost_operation_families(provider):
+                if operation != operation_family:
+                    continue
                 admission = self._runs.claim_next_budget_run(
                     scheduler_instance_id=self._instance,
                     as_of=datetime.now(UTC),
@@ -191,6 +178,7 @@ class BillingCollectionV1:
                     manifest_fingerprint=fingerprint,
                     collection_policy_version=policy,
                     operation_family=operation,
+                    expected_run_id=expected_run_id,
                 )
                 if admission is not None:
                     if not isinstance(admission, BudgetCollectionRunAdmissionV1):
@@ -199,37 +187,77 @@ class BillingCollectionV1:
         return None
 
     def _dispatch_one(self) -> int:
-        admission = self._claim_one()
-        if admission is None:
-            from agentmonitor.composition.ollama_usage_collection import (
-                OllamaUsageCollectionV1,
-            )
+        from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
+            BudgetCollectionError,
+        )
+        from agentmonitor.composition.billing_schedule import BillingScheduleV1
+        from agentmonitor.composition.financial_dispatch import (
+            prepare_financial_dispatch,
+        )
+        from agentmonitor.composition.ollama_usage_collection import (
+            OllamaUsageCollectionV1,
+        )
 
-            if OllamaUsageCollectionV1(
-                self._data_root,
-                credential_env_file=self._credential_env_file,
-                deadline_monotonic=self._deadline,
-            ).dispatch_manual():
+        scheduler = BillingScheduleV1(self._reference)
+        usage = OllamaUsageCollectionV1(
+            self._data_root,
+            credential_env_file=self._credential_env_file,
+            deadline_monotonic=self._deadline,
+        )
+        work, billing_due, usage_due = prepare_financial_dispatch(
+            self._runs,
+            scheduler,
+            usage.prepare_runs(),
+            deadline_monotonic=self._deadline,
+        )
+        for candidate in work:
+            if time.monotonic() >= self._deadline - 20:
                 return 0
-            from agentmonitor.composition.billing_schedule import BillingScheduleV1
-
-            scheduled = BillingScheduleV1(self._reference).enqueue_due(
-                deadline_monotonic=self._deadline
-            )
-            if scheduled is None:
-                from agentmonitor.composition.ollama_usage_collection import (
-                    OllamaUsageCollectionV1,
+            provider, _, operation = candidate.key
+            try:
+                if candidate.queued_run_id is not None:
+                    if provider == "ollama":
+                        if usage.dispatch_manual(
+                            operation_family=operation,
+                            expected_run_id=candidate.queued_run_id,
+                        ):
+                            return 0
+                    else:
+                        admission = self._claim_one(
+                            provider_key=provider,
+                            operation_family=operation,
+                            expected_run_id=candidate.queued_run_id,
+                        )
+                        if admission is not None:
+                            return self._execute(admission)
+            except BudgetCollectionError as error:
+                if error.code != "budget_dispatch_authority_unavailable":
+                    raise
+                # No lease/owner was changed: allow valid scheduled work or a
+                # later resource rather than repeating the invalid head forever.
+            if not candidate.scheduled_due:
+                continue
+            if provider == "ollama":
+                if usage.dispatch_scheduled(usage_due[candidate.key]):
+                    return 0
+            else:
+                scheduled = scheduler.enqueue_intent(
+                    billing_due[candidate.key], deadline_monotonic=self._deadline
                 )
-
-                return OllamaUsageCollectionV1(
-                    self._data_root,
-                    credential_env_file=self._credential_env_file,
-                    deadline_monotonic=self._deadline,
-                ).run()
-            admission = self._claim_one()
-            if admission is None:
-                return 0
-        return self._execute(admission)
+                if scheduled is not None:
+                    try:
+                        admission = self._claim_one(
+                            provider_key=provider,
+                            operation_family=operation,
+                            expected_run_id=scheduled.run_id,
+                        )
+                    except BudgetCollectionError as error:
+                        if error.code != "budget_dispatch_authority_unavailable":
+                            raise
+                        continue
+                    if admission is not None:
+                        return self._execute(admission)
+        return 0
 
     def _execute(self, admission: BudgetCollectionRunAdmissionV1) -> int:
         from agentmonitor.composition.billing_run import (

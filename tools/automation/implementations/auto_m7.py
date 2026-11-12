@@ -37,6 +37,7 @@ Lane = Literal[
 ]
 
 PURE_TARGETS = (
+    "backend/tests/contracts/test_budget_dispatch.py",
     "backend/tests/contracts/test_cloud_usage_actions.py",
     "backend/tests/contracts/test_budget_pool_projection.py",
     "backend/tests/capacity/pure/test_budget_pool_overview.py",
@@ -112,6 +113,7 @@ PRESENTATION_TARGETS = (
     "frontend/src/features/overview/budgetOverviewPresentation.test.mjs",
 )
 COLLECTION_GUARD_TARGETS = (
+    "backend/tests/integration/collection_control/test_budget_dispatch_snapshot.py",
     "backend/tests/integration/collection_control/test_cloud_usage_actions_empty.py",
     "backend/tests/integration/collection_control/test_ollama_usage_queue_empty.py",
     "backend/tests/integration/collection_control/test_billing_cooldown_empty.py",

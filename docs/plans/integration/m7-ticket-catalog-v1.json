@@ -377,7 +377,9 @@
         "docs/evidence/m7-cloud-usage-authority-2026-11-11.md",
         "docs/evidence/m7-openai-cost-source-2026-11-11.md",
         "docs/evidence/m7-window-navigation-2026-11-12.md",
-        "docs/evidence/m7-manual-collection-2026-11-12.md"
+        "docs/evidence/m7-manual-collection-2026-11-12.md",
+        "docs/evidence/m7-cloud-manual-collection-2026-11-12.md",
+        "docs/evidence/m7-fair-financial-scheduling-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -388,10 +390,10 @@
       ],
       "steps": [
         "Retain installed CTR-COL-002 2.4 billing Check/Collect/status/eligibility and captured 7/30-day context, monitoring proof/GET/PUT, v1_0733 receipts and worker integration. Begin each remaining changed behavior with meaningful Red; do not rebuild those foundations.",
-        "Implement the remaining Ollama manual usage command/eligibility/status against existing cloud authority and shared balance/usage gate; preserve source and balance-service fingerprints separately. API-only jobs must not acquire fictitious profiles.",
+        "Retain installed CTR-COL-002 2.5 Ollama manual usage command/eligibility/status and shared balance/usage gate, with separate source/balance fingerprints. Real 30-day manual collection is evidenced; finish the seven-day live demonstration after natural eligibility and remaining acceptance checks. Do not rebuild the installed action or introduce fictitious profiles.",
         "Bind every request to one resource/scope/category/grouping/UTC interval and generation. Reuse idempotency on uncertain retries; status GET never collects. Queued acceptance is not verified access; publish actual report ID/outcome and persisted retry instant.",
         "Complete first-reading and positive Check/Enable/Disable flows without duplicate current reports or changing owner preferences. Rotation/scope/archive fence old commits; monitoring disabled prevents automatic work but does not invent failed history.",
-        "Schedule admitted 7/30-day ungrouped reports; stagger categories under existing source-wide request limits. Drain eligible work fairly across providers/accounts/ranges with stable bounded selection; a not-due candidate cannot strand later due work and wake signals are hints only.",
+        "Schedule admitted 7/30-day ungrouped reports using exact-context latest attempts; stagger categories under existing source-wide limits. Order eligible queued and automatic work by persisted due/attempt age with stable ties across providers/accounts/ranges; invalid authority cannot strand later valid work. Preserve global Ollama cooldown, and prove continuous manual work cannot starve automatic collection. Reuse the existing worker and timestamps; no new queue or cursor table.",
         "Carry a single deadline through authorization/pages/normalization/commit. Retry-After schedules later work. Reconcile committing receipts before recollection; expired authority fails truthfully; recollect only the exact still-admitted captured interval. Native rolling intervals cannot shift after midnight.",
         "Finish remaining category/dimension action contexts with adapters and P01; no arbitrary backfill. Context-specific latest status cannot freshen another interval/scope; account-wide credential failures remain visible separately.",
         "Prove genuine manual and browser-closed scheduled collection, later-resource fairness, safe isolated failure/restart/receipt recovery and unchanged default profiles. Integrate corresponding T003 checks; natural denied/throttled/empty cases keep conditional dispositions."

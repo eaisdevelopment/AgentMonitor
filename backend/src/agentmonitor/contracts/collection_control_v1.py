@@ -1945,3 +1945,93 @@ class BudgetCollectionRunViewV1(CollectionRunViewV1):
             and not isinstance(self.report_id, OpaqueIdV1)
         ):
             raise InvalidCollectionControlV1("budget_run_report_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetDispatchStateV1(TechnicalValueV1):
+    """Persisted service age and oldest ready intent for one source budget lane."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    budget_scope_digest: str
+    operation_family: str
+    last_started_at: datetime | None
+    queued_run_id: OpaqueIdV1 | None
+    queued_requested_at: datetime | None
+    queued_deadline_at: datetime | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        queued = (self.queued_run_id, self.queued_requested_at, self.queued_deadline_at)
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", self.budget_scope_digest)
+            or not 1 <= len(self.operation_family) <= 128
+            or any(value is None for value in queued)
+            != all(value is None for value in queued)
+            or (
+                self.queued_requested_at is not None
+                and self.queued_deadline_at is not None
+                and self.queued_deadline_at <= self.queued_requested_at
+            )
+        ):
+            raise ValueError("budget_dispatch_state_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetDispatchScheduleV1(TechnicalValueV1):
+    """Existing schedule timing only; it does not authorize a provider read."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    schedule_id: OpaqueIdV1
+    next_due_at: datetime
+    not_before_at: datetime | None
+    has_active_lease: bool
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetDispatchSnapshotV1(TechnicalValueV1):
+    """One bounded source read; absence means no matching persisted history."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    states: tuple[BudgetDispatchStateV1, ...]
+    schedules: tuple[BudgetDispatchScheduleV1, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            len(self.states) > 4096
+            or len(self.schedules) > 4096
+            or len(
+                {
+                    (item.budget_scope_digest, item.operation_family)
+                    for item in self.states
+                }
+            )
+            != len(self.states)
+            or len({item.schedule_id for item in self.schedules}) != len(self.schedules)
+        ):
+            raise ValueError("budget_dispatch_snapshot_invalid")
+
+
+class BudgetDispatchReadPortV1(Protocol):
+    def read_budget_dispatch_snapshot(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        manifest_fingerprint: str,
+        collection_policy_version: str,
+        operation_families: tuple[str, ...],
+        budget_scope_digests: tuple[str, ...],
+        schedule_ids: tuple[OpaqueIdV1, ...],
+        as_of: datetime,
+    ) -> BudgetDispatchSnapshotV1: ...

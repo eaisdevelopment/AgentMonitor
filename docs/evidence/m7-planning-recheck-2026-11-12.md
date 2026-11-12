@@ -110,3 +110,17 @@ Validation for this follow-up:
 These are planning/documentation results, not production Red/Green, live-provider
 acceptance or M7 completion. The edited plans remain local in the M7 worktree;
 installed/public implementation was not changed by this planning task.
+
+## Final scheduling clarification and recorded delivery
+
+Read-only collection review at `50462c0` narrowed the T007 fairness work to
+persisted selection order, both scheduled ranges, exact-context attempt lookup
+and invalid-authority isolation. Global Ollama cooldown is correct behavior;
+it must not be bypassed as a purported starvation fix. The worksheet records
+these cases and the catalog retains installed manual cloud collection instead
+of asking to rebuild it. No production code or runtime changed in this pass.
+
+Earlier references here to local-only planning describe their historical pass.
+The prior refactor was subsequently published with `bb43b67`; the evidence/probe
+successor is `50462c0`. This final clarification remains a documentation change
+until separately committed. Planning validation is separate from M7 acceptance.

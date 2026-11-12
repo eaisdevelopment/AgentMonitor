@@ -36,6 +36,9 @@ from agentmonitor.contracts.collection_control_v1 import (
     BudgetCollectionReceiptV1,
     BudgetCollectionRunAdmissionV1,
     BudgetCollectionRunViewV1,
+    BudgetDispatchScheduleV1,
+    BudgetDispatchSnapshotV1,
+    BudgetDispatchStateV1,
     CloudBudgetCollectionRunAdmissionV1,
     CloudBudgetReportContextV1,
     CollectionCommitReceiptV1,
@@ -312,6 +315,7 @@ class SqliteCollectionRepositoryV1:
         manifest_fingerprint: str,
         collection_policy_version: str,
         operation_family: str,
+        expected_run_id: OpaqueIdV1 | None = None,
     ) -> BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1 | None:
         """Atomically transfer one admitted queued run to its real worker."""
         if (
@@ -324,6 +328,8 @@ class SqliteCollectionRepositoryV1:
             or not isinstance(as_of, datetime)
             or as_of.utcoffset() != timedelta(0)
             or not callable(resolve_budget_limit)
+            or expected_run_id is not None
+            and not isinstance(expected_run_id, OpaqueIdV1)
             or any(
                 type(value) is not str or not 1 <= len(value) <= 128
                 for value in (
@@ -358,6 +364,7 @@ class SqliteCollectionRepositoryV1:
                         "AND r.provider_key=? AND r.capability_id=? AND r.source_id=? "
                         "AND r.manifest_fingerprint=? AND r.collection_policy_version=? "
                         "AND q.operation_family=? "
+                        "AND (? IS NULL OR r.run_id=?) "
                         "AND NOT EXISTS (SELECT 1 FROM collection_run previous_run "
                         "JOIN collection_budget_reservation previous_budget "
                         "ON previous_budget.run_id=previous_run.run_id "
@@ -377,6 +384,8 @@ class SqliteCollectionRepositoryV1:
                             manifest_fingerprint,
                             collection_policy_version,
                             operation_family,
+                            None if expected_run_id is None else expected_run_id.value,
+                            None if expected_run_id is None else expected_run_id.value,
                             instant,
                         ),
                     ).one_or_none()
@@ -400,7 +409,12 @@ class SqliteCollectionRepositoryV1:
                         as_of=as_of,
                         expected_state="queued",
                     )
-                    self._require_budget_target_fence(connection, target)
+                    try:
+                        self._require_budget_target_fence(connection, target)
+                    except ValueError:
+                        raise BudgetCollectionError(
+                            "budget_dispatch_authority_unavailable"
+                        ) from None
                     if (
                         connection.exec_driver_sql(
                             "SELECT 1 FROM collection_scheduler_instance WHERE instance_id=?",
@@ -472,6 +486,205 @@ class SqliteCollectionRepositoryV1:
         as_of: datetime,
     ) -> None:
         """Allow an owning M04 adapter to bind its request gate before commit."""
+
+    def read_budget_dispatch_snapshot(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        manifest_fingerprint: str,
+        collection_policy_version: str,
+        operation_families: tuple[str, ...],
+        budget_scope_digests: tuple[str, ...],
+        schedule_ids: tuple[OpaqueIdV1, ...],
+        as_of: datetime,
+    ) -> BudgetDispatchSnapshotV1:
+        """Read bounded current-inventory service age and queued intent in one snapshot.
+
+        This metadata never authorizes execution. Exact claims revalidate the
+        captured authority, lease, policy and provider request gate.
+        """
+        if (
+            not isinstance(as_of, datetime)
+            or as_of.utcoffset() != timedelta(0)
+            or any(
+                type(value) is not str or not 1 <= len(value) <= 128
+                for value in (
+                    provider_key,
+                    capability_id,
+                    source_id,
+                    collection_policy_version,
+                )
+            )
+            or type(manifest_fingerprint) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", manifest_fingerprint) is None
+            or any(
+                type(values) is not tuple or len(values) > 4096
+                for values in (operation_families, budget_scope_digests, schedule_ids)
+            )
+            or not operation_families
+            or any(
+                type(value) is not str or not 1 <= len(value) <= 128
+                for value in operation_families
+            )
+            or any(
+                type(value) is not str or re.fullmatch(r"[0-9a-f]{64}", value) is None
+                for value in budget_scope_digests
+            )
+            or any(not isinstance(value, OpaqueIdV1) for value in schedule_ids)
+        ):
+            raise BudgetCollectionError("budget_dispatch_query_invalid")
+        instant = _utc_text(as_of)
+        source_parameters = (
+            provider_key,
+            capability_id,
+            source_id,
+            manifest_fingerprint,
+            collection_policy_version,
+        )
+        states: tuple[BudgetDispatchStateV1, ...] = ()
+        schedules: tuple[BudgetDispatchScheduleV1, ...] = ()
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    if budget_scope_digests:
+                        source_sql = (
+                            "FROM collection_run r JOIN collection_budget_run br ON br.run_id=r.run_id "
+                            "JOIN collection_request q ON q.request_id=r.primary_request_id "
+                            "JOIN collection_budget_reservation b ON b.reservation_id=r.budget_reservation_id "
+                            "WHERE r.payload_schema='budget.report.v1' AND r.provider_key=? "
+                            "AND r.capability_id=? AND r.source_id=? AND r.manifest_fingerprint=? "
+                            "AND r.collection_policy_version=? AND r.requested_at<=? "
+                            "AND q.operation_family IN ("
+                            + ",".join("?" for _ in operation_families)
+                            + ") "
+                            "AND b.scope_key_digest IN ("
+                            + ",".join("?" for _ in budget_scope_digests)
+                            + ") "
+                        )
+                        parameters = (
+                            *source_parameters,
+                            instant,
+                            *operation_families,
+                            *budget_scope_digests,
+                        )
+                        history = (
+                            connection.exec_driver_sql(
+                                "SELECT b.scope_key_digest,q.operation_family,max(CASE WHEN r.started_at<=? THEN r.started_at END) AS last_started_at "
+                                + source_sql
+                                + "GROUP BY b.scope_key_digest,q.operation_family "
+                                "ORDER BY b.scope_key_digest,q.operation_family LIMIT 4097",
+                                (instant, *parameters),
+                            )
+                            .mappings()
+                            .all()
+                        )
+                        if len(history) > 4096:
+                            raise BudgetCollectionError(
+                                "budget_dispatch_snapshot_limit"
+                            )
+                        queued = (
+                            connection.exec_driver_sql(
+                                "SELECT * FROM (SELECT b.scope_key_digest,q.operation_family,r.run_id,r.requested_at,r.deadline_at,"
+                                "row_number() OVER (PARTITION BY b.scope_key_digest,q.operation_family ORDER BY r.requested_at,r.run_id) AS position "
+                                + source_sql
+                                + "AND r.state='queued' AND r.deadline_at>? "
+                                "AND EXISTS (SELECT 1 FROM collection_lease l WHERE l.run_id=r.run_id AND l.expires_at>?) "
+                                "AND NOT EXISTS (SELECT 1 FROM collection_run previous_run "
+                                "JOIN collection_budget_reservation previous_budget ON previous_budget.run_id=previous_run.run_id "
+                                "WHERE previous_run.payload_schema='budget.report.v1' "
+                                "AND previous_budget.scope_key_digest=b.scope_key_digest "
+                                "AND previous_budget.dimension=b.dimension AND previous_budget.unit=b.unit "
+                                "AND previous_run.retry_after>?)) WHERE position=1",
+                                (*parameters, instant, instant, instant),
+                            )
+                            .mappings()
+                            .all()
+                        )
+                        queued_by_key = {
+                            (
+                                str(row["scope_key_digest"]),
+                                str(row["operation_family"]),
+                            ): row
+                            for row in queued
+                        }
+                        result: list[BudgetDispatchStateV1] = []
+                        for row in history:
+                            key = (
+                                str(row["scope_key_digest"]),
+                                str(row["operation_family"]),
+                            )
+                            pending = queued_by_key.get(key)
+                            result.append(
+                                BudgetDispatchStateV1(
+                                    *key,
+                                    _utc_value(row["last_started_at"]),
+                                    None
+                                    if pending is None
+                                    else OpaqueIdV1(str(pending["run_id"])),
+                                    None
+                                    if pending is None
+                                    else _required_utc_value(pending["requested_at"]),
+                                    None
+                                    if pending is None
+                                    else _required_utc_value(pending["deadline_at"]),
+                                )
+                            )
+                        states = tuple(result)
+                    if schedule_ids:
+                        rows = (
+                            connection.exec_driver_sql(
+                                "SELECT s.schedule_id,s.next_due_at,s.not_before_at,"
+                                "EXISTS (SELECT 1 FROM collection_lease l WHERE l.schedule_id=s.schedule_id) AS leased "
+                                "FROM collection_schedule s WHERE s.provider_key=? AND s.capability_id=? "
+                                "AND s.state='enabled' AND s.schedule_id IN ("
+                                + ",".join("?" for _ in schedule_ids)
+                                + ") "
+                                "AND (EXISTS (SELECT 1 FROM collection_run r WHERE r.run_id=("
+                                "SELECT latest.run_id FROM collection_run latest WHERE latest.schedule_id=s.schedule_id "
+                                "ORDER BY latest.requested_at DESC,latest.run_id DESC LIMIT 1) "
+                                "AND r.payload_schema='budget.report.v1' AND r.source_id=? "
+                                "AND r.manifest_fingerprint=? AND r.collection_policy_version=? "
+                                "AND r.target_generation=s.target_generation) OR ("
+                                "NOT EXISTS (SELECT 1 FROM collection_run r WHERE r.schedule_id=s.schedule_id) "
+                                "AND EXISTS (SELECT 1 FROM collection_cloud_schedule_lane lane "
+                                "WHERE lane.schedule_id=s.schedule_id AND lane.source_id=?))) "
+                                "ORDER BY s.schedule_id LIMIT 4097",
+                                (
+                                    provider_key,
+                                    capability_id,
+                                    *(item.value for item in schedule_ids),
+                                    source_id,
+                                    manifest_fingerprint,
+                                    collection_policy_version,
+                                    source_id,
+                                ),
+                            )
+                            .mappings()
+                            .all()
+                        )
+                        if len(rows) > 4096:
+                            raise BudgetCollectionError(
+                                "budget_dispatch_snapshot_limit"
+                            )
+                        schedules = tuple(
+                            BudgetDispatchScheduleV1(
+                                OpaqueIdV1(str(row["schedule_id"])),
+                                _required_utc_value(row["next_due_at"]),
+                                _utc_value(row["not_before_at"]),
+                                bool(row["leased"]),
+                            )
+                            for row in rows
+                        )
+                    return BudgetDispatchSnapshotV1(states, schedules)
+        except BudgetCollectionError:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
+            raise BudgetCollectionError("budget_dispatch_unavailable") from None
 
     def assert_claimed_budget_run(
         self,

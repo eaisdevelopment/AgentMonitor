@@ -15,6 +15,7 @@ from agentmonitor.adapters.persistence.collection_control.sqlite import (
     ollama_cloud_admission as cloud_admission,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
+    CollectionRepositoryErrorV1,
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -74,6 +75,10 @@ from agentmonitor.contracts.provider_system_v1 import CollectionOutcomeV1
 from agentmonitor.modules.collection_control.application.budget_executor import (
     ExecuteBudgetCollectionRunV1,
 )
+
+
+class _UsageAdmissionDeferred(Exception):
+    """Known admission race before any provider dispatch."""
 
 
 class _UsageNotStarted(Exception):
@@ -149,13 +154,50 @@ class OllamaUsageCollectionV1:
             return 0
         if self._env_file is None:
             return 3
-        if self.dispatch_manual():
-            return 0
+        from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
+            BudgetCollectionError,
+        )
+        from agentmonitor.composition.billing_schedule import BillingScheduleV1
+        from agentmonitor.composition.financial_dispatch import (
+            prepare_financial_dispatch,
+        )
+
+        work, _, scheduled = prepare_financial_dispatch(
+            SqliteCollectionRepositoryV1(self._reference),
+            BillingScheduleV1(self._reference),
+            self.prepare_runs(),
+            deadline_monotonic=self._deadline,
+        )
+        for candidate in work:
+            if candidate.key[0] != "ollama":
+                continue
+            if candidate.queued_run_id is not None:
+                try:
+                    if self.dispatch_manual(
+                        operation_family=candidate.key[2],
+                        expected_run_id=candidate.queued_run_id,
+                    ):
+                        return 0
+                except BudgetCollectionError as error:
+                    if error.code != "budget_dispatch_authority_unavailable":
+                        raise
+            if candidate.scheduled_due and self.dispatch_scheduled(
+                scheduled[candidate.key]
+            ):
+                return 0
+        return 0
+
+    def prepare_runs(self) -> tuple[CloudBudgetCollectionRunAdmissionV1, ...]:
+        """Read the complete bounded inventory before selecting any usage work."""
+        self._recover()
         registry = SqliteRegistryRepositoryV1(self._reference)
         cloud = SqliteCloudCredentialRegistryV1(self._reference)
         cursor = None
         scanned = 0
+        prepared: list[CloudBudgetCollectionRunAdmissionV1] = []
         while scanned < 1000:
+            if time.monotonic() >= self._deadline - 20:
+                raise ValueError("ollama_usage_inventory_deadline")
             accounts = registry.list_accounts(
                 provider_key="ollama", page_size=100, after_key=cursor
             )
@@ -172,58 +214,87 @@ class OllamaUsageCollectionV1:
                 service = cloud.read_active_access_target(graph.access_target_id)
                 if service is None:
                     continue
-                for range_key in ("7d", "30d"):
-                    if time.monotonic() >= self._deadline - 20:
-                        return 0
-                    now = datetime.now(UTC)
-                    period = completed_period(now, range_key)
-                    context = CloudBudgetReportContextV1(
-                        "self", range_key, period.start, period.end
-                    )
-                    run = build_ollama_usage_run(
-                        graph=graph,
-                        service=service,
-                        context=context,
-                        registry_revision=account.registry_revision,
-                        scheduler_instance_id=self._instance,
-                        run_id=OpaqueIdV1("usage-run-" + uuid.uuid4().hex),
-                        request_id=OpaqueIdV1("usage-request-" + uuid.uuid4().hex),
-                        requested_at=now,
-                    )
-                    self._gate.register_schedule(run)
-                    decision = self._gate.acquire_usage(
-                        OllamaCloudRequestAcquireV1(
-                            OpaqueIdV1("usage-admission-" + uuid.uuid4().hex),
-                            self._instance,
-                            now,
-                            run.deadline_at,
-                            secrets.randbelow(11),
-                        ),
-                        admission=run,
-                    )
-                    if decision.lease is not None:
-                        self._execute(run, decision.lease)
-                        return 0
-                    if decision.state in {"busy", "not_due"}:
-                        return 0
+                for scope in ("self", "team"):
+                    for range_key in ("7d", "30d"):
+                        now = datetime.now(UTC)
+                        period = completed_period(now, range_key)
+                        run = build_ollama_usage_run(
+                            graph=graph,
+                            service=service,
+                            context=CloudBudgetReportContextV1(
+                                scope, range_key, period.start, period.end
+                            ),
+                            registry_revision=account.registry_revision,
+                            scheduler_instance_id=self._instance,
+                            run_id=OpaqueIdV1("usage-run-" + uuid.uuid4().hex),
+                            request_id=OpaqueIdV1("usage-request-" + uuid.uuid4().hex),
+                            requested_at=now,
+                        )
+                        # Team reads remain explicit owner requests; inventory
+                        # includes their scope only to find already queued work.
+                        if scope == "self":
+                            self._gate.register_schedule(run)
+                        prepared.append(run)
             if len(accounts) < 100:
-                return 0
+                return tuple(prepared)
             cursor = accounts[-1].account_id.value
         raise ValueError("ollama_usage_target_limit")
 
-    def dispatch_manual(self) -> bool:
+    def dispatch_scheduled(self, run: CloudBudgetCollectionRunAdmissionV1) -> bool:
+        if self._env_file is None or time.monotonic() >= self._deadline - 20:
+            return False
+        now = datetime.now(UTC)
+        if run.deadline_at <= now or run.report_context.scope != "self":
+            return False
+        if (
+            SqliteCollectionRepositoryV1(self._reference).get_budget_next_allowed_at(
+                run.budget_scope_digest, run.budget_dimension, run.budget_unit, now
+            )
+            is not None
+        ):
+            return False
+        decision = self._gate.acquire_usage(
+            OllamaCloudRequestAcquireV1(
+                OpaqueIdV1("usage-admission-" + uuid.uuid4().hex),
+                self._instance,
+                now,
+                run.deadline_at,
+                secrets.randbelow(11),
+            ),
+            admission=run,
+        )
+        if decision.lease is None:
+            return False
+        try:
+            self._execute(run, decision.lease)
+        except _UsageAdmissionDeferred:
+            return False
+        return True
+
+    def dispatch_manual(
+        self,
+        *,
+        operation_family: str | None = None,
+        expected_run_id: OpaqueIdV1 | None = None,
+    ) -> bool:
         """Claim durable owner work and shared rate authority in one transaction."""
         self._recover()
         if self._env_file is None or time.monotonic() >= self._deadline - 20:
             return False
-        for range_key in ("7d", "30d"):
+        operations = (
+            (operation_family,)
+            if operation_family is not None
+            else ("collect.ollama.usage.7d", "collect.ollama.usage.30d")
+        )
+        for operation in operations:
             claimed = self._gate.claim_next_usage_run(
                 scheduler_instance_id=self._instance,
                 as_of=datetime.now(UTC),
                 resolve_budget_limit=usage_budget_limit,
                 manifest_fingerprint=usage_manifest_fingerprint(),
                 collection_policy_version=POLICY_VERSION,
-                operation_family="collect.ollama.usage." + range_key,
+                operation_family=operation,
+                expected_run_id=expected_run_id,
                 cloud_admission_fence=cloud_usage_fence,
                 jitter_seconds=secrets.randbelow(11),
             )
@@ -266,7 +337,19 @@ class OllamaUsageCollectionV1:
                     lock.inherited_lock(run.cloud_target.account_id),
                     file.inherited_file(),
                 )
-                admitted = runs.get_run(run.run_id) if claimed else runs.admit_run(run)
+                try:
+                    admitted = (
+                        runs.get_run(run.run_id) if claimed else runs.admit_run(run)
+                    )
+                except CollectionRepositoryErrorV1 as error:
+                    if not claimed and error.code in {
+                        "collection_budget_exhausted",
+                        "collection_retry_deferred",
+                        "collection_schedule_conflict",
+                        "collection_generation_conflict",
+                    }:
+                        raise _UsageAdmissionDeferred() from None
+                    raise
                 if claimed:
                     runs.assert_claimed_budget_run(run, as_of=datetime.now(UTC))
                 else:

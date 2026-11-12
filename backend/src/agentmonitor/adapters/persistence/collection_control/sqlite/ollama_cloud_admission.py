@@ -634,6 +634,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         operation_family: str,
         cloud_admission_fence: CloudAdmissionFence | None,
         jitter_seconds: int,
+        expected_run_id: OpaqueIdV1 | None = None,
     ) -> tuple[CloudBudgetCollectionRunAdmissionV1, OllamaCloudRequestLeaseV1] | None:
         """Claim and bind one queued usage run in the same SQLite transaction.
 
@@ -661,6 +662,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                 manifest_fingerprint=manifest_fingerprint,
                 collection_policy_version=collection_policy_version,
                 operation_family=operation_family,
+                expected_run_id=expected_run_id,
             )
         except _UsageClaimDeferred:
             return None

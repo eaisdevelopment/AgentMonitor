@@ -86,6 +86,8 @@ def _identifier(prefix: str, *values: str) -> OpaqueIdV1:
 
 def billing_check_identifiers(
     command: BillingCheckCommandV1,
+    *,
+    collection_policy_version: str = "1.1.0",
 ) -> BillingCheckIdentifiersV1:
     """Derive replay-stable IDs scoped to the owner and exact target intent."""
     if (
@@ -94,6 +96,8 @@ def billing_check_identifiers(
         or command.requested_at.utcoffset() != timedelta(0)
     ):
         raise ValueError("billing_check_command_invalid")
+    if collection_policy_version not in {"1.0.0", "1.1.0"}:
+        raise ValueError("billing_check_policy_invalid")
     owner_request = (command.principal_id.value, command.command_id.value)
     target: tuple[str, ...] = (
         command.account_id.value,
@@ -114,7 +118,15 @@ def billing_check_identifiers(
         )
     return BillingCheckIdentifiersV1(
         run_id=_identifier(prefix + "-run-", *owner_request),
-        schedule_id=_identifier(prefix + "-schedule-", *target),
+        schedule_id=_identifier(
+            prefix + "-schedule-",
+            *target,
+            *(
+                (collection_policy_version,)
+                if collection_policy_version != "1.0.0"
+                else ()
+            ),
+        ),
         request_id=_identifier(prefix + "-request-", *owner_request),
         retry_chain_id=_identifier(prefix + "-retry-", *owner_request),
         scheduler_instance_id=_identifier(prefix + "-producer-", *owner_request),
@@ -132,7 +144,13 @@ def _require_replay(
     provider = target.connection.provider_key
     if (
         run.run_id != identifiers.run_id
-        or run.schedule_id != identifiers.schedule_id
+        or run.schedule_id
+        not in {
+            identifiers.schedule_id,
+            billing_check_identifiers(
+                command, collection_policy_version="1.0.0"
+            ).schedule_id,
+        }
         or provider not in {"claude", "codex"}
         or run.provider_key != provider
         or run.account_id != command.account_id

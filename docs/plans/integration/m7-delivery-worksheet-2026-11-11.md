@@ -96,6 +96,35 @@ decisions bind those packets; they do not add a new queue or task registry.
 | Analysis — T013, M7-A06 | One existing table, one daily bar chart, one chosen supported dimension, one query-time method | Exact table/chart match; no invented Other; 3 qualifying buckets with known duration for rate; missing compatible funds prevents a date, not a valid rate |
 | Final command — T003/T014/T016, M7-A10 | Extend the existing runner's actual selectors, result binding and same-schema verification. Historical setup migrations are not the release route | Missing selected check stays non-pass; source/installed revision mismatch fails; aggregate cannot pass on guards/HTTP 200 alone; no owner copy-paste ceremony |
 
+### Fair scheduling: narrowed implementation decision
+
+Current implementation/test progress is recorded in the
+[scheduling evidence](../../evidence/m7-fair-financial-scheduling-2026-11-12.md).
+This is not installed or full T007 completion evidence.
+
+T007 reuses the existing persisted schedule/run timestamps and single worker.
+Select eligible work by persisted due/attempt age with stable ties, across
+providers, accounts and supported ranges. Include both queued manual and due
+automatic work in fairness; rotating provider lanes alone does not prevent a
+continuous manual queue from starving scheduled collection. No new queue,
+worker, cursor table or owner setting is required.
+
+The inspected implementation has fixed Claude/Codex and 7d/30d priority,
+seven-day-only billing scheduling, and a latest-attempt lookup without the exact
+report context. Fixed Ollama account traversal can also delay later accounts.
+An invalid oldest queued authority must not prevent later valid work from being
+considered. These are T007 implementation/test cases, not additional tickets.
+Ollama `busy`/`not_due` from the shared acquisition gate means **global**
+cooldown and must remain respected; a per-schedule `no_candidate` already
+continues scanning and is not itself a defect.
+
+Prove each changed selector first with pure policy cases, then existing real
+isolated metadata boundaries and genuine eligible collection. Keep the current
+atomic claim, authority fence and source-wide limits. Exact-context status must
+prevent a seven-day attempt from suppressing the thirty-day schedule. T007 is
+not complete until later eligible work proceeds under sustained earlier work;
+merely trying a second provider once is insufficient evidence.
+
 For every packet: record expected failing behavior → minimal producer/consumer
 change → meaningful pass → installed visible result where applicable. Existing
 test families and M7-A01..A10 remain the trace links. An unobserved natural

@@ -9,6 +9,7 @@ import time
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal, cast
 
 import pytest
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
@@ -114,7 +115,10 @@ def test_genuine_queued_usage_claim_binds_gate_and_busy_claim_rolls_back(
                     graph=graph,
                     service=service,
                     context=CloudBudgetReportContextV1(
-                        scope, range_key, period.start, period.end
+                        cast(Literal["self", "team"], scope),
+                        cast(Literal["7d", "30d"], range_key),
+                        period.start,
+                        period.end,
                     ),
                     registry_revision=revision,
                     scheduler_instance_id=OpaqueIdV1(
