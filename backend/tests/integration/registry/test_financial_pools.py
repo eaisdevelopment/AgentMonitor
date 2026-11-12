@@ -468,6 +468,39 @@ def test_snapshot_never_presents_new_metadata_at_old_time_or_revision(
         assert result.pools == () and result.memberships == ()
 
 
+def test_current_metadata_read_preserves_financial_cutoff_and_revision_guard(
+    tmp_path: Path,
+) -> None:
+    reference = _database(tmp_path)
+    repository = _repository(reference)
+    account, billing = _source(reference)
+    created = repository.assign(_assign(repository, account, billing))
+    assert created.membership is not None
+    cutoff = created.membership.valid_from - timedelta(microseconds=1)
+    result = repository.read_current(
+        (billing.resource_id,),
+        expected_registry_revision=created.registry_revision,
+        as_of=cutoff,
+    )
+    assert result.availability.state == "available"
+    assert result.as_of == cutoff
+    assert result.metadata_basis == "current_registry"
+    assert result.pools == (created.pool,)
+    assert result.memberships == (created.membership,)
+    stale = repository.read_current(
+        (billing.resource_id,),
+        expected_registry_revision=created.registry_revision - 1,
+        as_of=cutoff,
+    )
+    assert stale.availability.state == "unavailable"
+    assert stale.pools == () and stale.memberships == ()
+    with pytest.raises(ValueError, match="financial_pool_snapshot_invalid"):
+        replace(
+            result,
+            memberships=(replace(created.membership, valid_until=datetime.now(UTC)),),
+        )
+
+
 @pytest.mark.parametrize("same_command", [False, True])
 def test_concurrent_owner_assignments_are_serialized(
     tmp_path: Path, same_command: bool

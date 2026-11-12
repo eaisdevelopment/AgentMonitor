@@ -133,13 +133,14 @@ class ListBudgetOverviewV1:
             pool_snapshot = None
             projection = None
             if self._financial_pools is not None and resource_ids:
-                pool_snapshot = self._financial_pools(
+                pool_snapshot = self._financial_pools.read_current(
                     resource_ids,
                     expected_registry_revision=revision,
                     as_of=query.as_of,
                 )
                 if (
                     pool_snapshot.availability.state != "available"
+                    or pool_snapshot.metadata_basis != "current_registry"
                     or pool_snapshot.registry_revision != revision
                     or pool_snapshot.as_of != query.as_of
                     or pool_snapshot.resource_ids != resource_ids
@@ -183,7 +184,7 @@ class ListBudgetOverviewV1:
                 raise BudgetOverviewError("budget_overview_registry_changed")
             if pool_snapshot is not None and self._financial_pools is not None:
                 if (
-                    self._financial_pools(
+                    self._financial_pools.read_current(
                         resource_ids,
                         expected_registry_revision=revision,
                         as_of=query.as_of,

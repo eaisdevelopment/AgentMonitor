@@ -278,3 +278,14 @@ P01 publishes additive wire fields and P02 renders them alongside the same
 loaded table facts. Non-daily intervals retain a table-only reason; no gaps,
 totals or monetary values are invented. See the [T013 handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#t013-first-history-chart-handoff-12-november).
 No new storage, endpoint, dependency or provider request is introduced.
+
+### CTR-REG-014 1.9.0: current metadata with a pinned financial cutoff
+
+The pool read port adds explicit `read_current`; the existing callable retains
+its cutoff-bound behavior. An optional snapshot `metadata_basis` defaults to
+`query_cutoff`; the new read returns `current_registry` and only open memberships
+at the requested current registry revision. It does not compare current metadata
+timestamps with the financial cutoff. M05 Overview opts into this path while
+retaining report/funds cutoff, scope/binding checks and repeated revision-consistent
+reads. Command-time guards remain unchanged. See the [continuity handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#current-registry-metadata-with-pinned-financial-time-12-november).
+No new clock, storage, endpoint, credential or owner configuration is required.

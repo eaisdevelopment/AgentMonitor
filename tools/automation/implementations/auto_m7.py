@@ -413,6 +413,7 @@ def execute_overview_browser(expected: str) -> LaneResult:
         (
             "backend/tests/integration/capacity/test_budget_overview_real_metadata.py",
             "backend/tests/live/ollama/test_budget_overview_live.py",
+            "backend/tests/live/ollama/test_budget_overview_history_snapshot.py",
         ),
     )
     if metadata.status != "passed":

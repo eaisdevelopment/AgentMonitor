@@ -14,6 +14,32 @@
 
 ## 1. Outcome and boundaries
 
+### Current registry metadata with pinned financial time (12 November)
+
+T010/T012's existing Back/reload continuity fails when a genuine registry update
+is newer than the financial `as_of`. Reproduction on an unchanged private genuine
+snapshot returns `financial_pool_time_conflict` at the old cutoff and succeeds
+at the current cutoff. The product requires current owner grouping/authorization
+with pinned financial evidence, not historical registry reconstruction.
+
+Root publishes additive CTR-REG-014 1.9.0: retain the existing cutoff-bound pool
+read unchanged and add explicit `read_current` to its public port. Snapshot
+metadata declares `query_cutoff` (legacy default) or `current_registry`. The new
+read uses one current registry transaction at the expected revision, retains
+only open memberships and retains source/scope/binding/authorization checks.
+Only this explicit read omits comparisons between metadata timestamps and the
+financial cutoff. Command timestamp guards and the legacy read are unchanged.
+M05 Overview calls this new read twice around assembly and verifies its basis
+and revision; financial reports, funds and cursors remain bound to their original
+query cutoff and scope. No new clock, history table, endpoint or UI setting.
+
+Red/Green: genuine stored Overview before/after a real metadata update, real
+isolated registry old-cutoff/current-revision reads and stale-revision refusal,
+legacy cutoff behavior, open-membership validation and existing pool/scope
+regressions. Then run real HTTP/built Overview Back/reload and concurrent reads
+on the installed revision. This is the diagnosed existing continuity repair,
+not an additional gate, owner setup action or expansion of M7 scope.
+
 Persist genuine billing reports and serve exact spend, supported budget fields,
 shared-pool-aware summaries, history/breakdowns and a small explainable forecast.
 M05 owns financial meaning and facts. Providers own retrieval/mapping; M02 owns

@@ -608,7 +608,7 @@ class FinancialPoolSnapshotV1(TechnicalValueV1):
     """Bounded atomic metadata; missing memberships mean unresolved, not zero."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
-    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    CONTRACT_VERSION: ClassVar[str] = "1.9.0"
     OWNER: ClassVar[str] = "PLAN-M02"
     resource_ids: tuple[OpaqueIdV1, ...]
     pools: tuple[FinancialPoolViewV1, ...]
@@ -616,6 +616,7 @@ class FinancialPoolSnapshotV1(TechnicalValueV1):
     registry_revision: int
     as_of: datetime
     availability: QueryAvailabilityV1
+    metadata_basis: Literal["query_cutoff", "current_registry"] = "query_cutoff"
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -625,7 +626,8 @@ class FinancialPoolSnapshotV1(TechnicalValueV1):
             for member in self.memberships
         }
         if (
-            len(self.resource_ids) > 2000
+            self.metadata_basis not in {"query_cutoff", "current_registry"}
+            or len(self.resource_ids) > 2000
             or len(set(self.resource_ids)) != len(self.resource_ids)
             or any(not isinstance(value, OpaqueIdV1) for value in self.resource_ids)
             or len(pools) != len(self.pools)
@@ -640,7 +642,8 @@ class FinancialPoolSnapshotV1(TechnicalValueV1):
             and bool(self.pools or self.memberships)
             or any(
                 pool.registry_revision > self.registry_revision
-                or pool.updated_at > self.as_of
+                or self.metadata_basis == "query_cutoff"
+                and pool.updated_at > self.as_of
                 for pool in self.pools
             )
             or any(
@@ -649,9 +652,13 @@ class FinancialPoolSnapshotV1(TechnicalValueV1):
                 or pools[member.pool_id].provider_key != member.scope.provider_key
                 or pools[member.pool_id].selector != member.scope.selector
                 or member.registry_revision > self.registry_revision
-                or member.valid_from > self.as_of
-                or member.valid_until is not None
-                and member.valid_until <= self.as_of
+                or (
+                    member.valid_until is not None
+                    if self.metadata_basis == "current_registry"
+                    else member.valid_from > self.as_of
+                    or member.valid_until is not None
+                    and member.valid_until <= self.as_of
+                )
                 for member in self.memberships
             )
         ):
@@ -668,6 +675,16 @@ class FinancialPoolReadPortV1(Protocol):
         expected_registry_revision: int,
         as_of: datetime,
     ) -> FinancialPoolSnapshotV1: ...
+
+    def read_current(
+        self,
+        resource_ids: tuple[OpaqueIdV1, ...],
+        *,
+        expected_registry_revision: int,
+        as_of: datetime,
+    ) -> FinancialPoolSnapshotV1:
+        """Current authorized metadata; as_of remains the financial query cutoff."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)

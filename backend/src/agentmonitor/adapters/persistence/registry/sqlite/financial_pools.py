@@ -396,7 +396,7 @@ def _guard_revision(
 
 
 class SqliteFinancialPoolRepositoryV1:
-    """CTR-REG-014 1.5.0; association proves neither access nor wider coverage."""
+    """CTR-REG-014 1.9.0; association proves neither access nor wider coverage."""
 
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
@@ -745,6 +745,35 @@ class SqliteFinancialPoolRepositoryV1:
         expected_registry_revision: int,
         as_of: datetime,
     ) -> FinancialPoolSnapshotV1:
+        return self._snapshot(
+            resource_ids,
+            expected_registry_revision=expected_registry_revision,
+            as_of=as_of,
+            metadata_basis="query_cutoff",
+        )
+
+    def read_current(
+        self,
+        resource_ids: tuple[OpaqueIdV1, ...],
+        *,
+        expected_registry_revision: int,
+        as_of: datetime,
+    ) -> FinancialPoolSnapshotV1:
+        return self._snapshot(
+            resource_ids,
+            expected_registry_revision=expected_registry_revision,
+            as_of=as_of,
+            metadata_basis="current_registry",
+        )
+
+    def _snapshot(
+        self,
+        resource_ids: tuple[OpaqueIdV1, ...],
+        *,
+        expected_registry_revision: int,
+        as_of: datetime,
+        metadata_basis: Literal["query_cutoff", "current_registry"],
+    ) -> FinancialPoolSnapshotV1:
         if (
             len(resource_ids) > 2000
             or len(set(resource_ids)) != len(resource_ids)
@@ -752,10 +781,11 @@ class SqliteFinancialPoolRepositoryV1:
         ):
             raise RegistryCommandConflictV1("financial_pool_query_invalid")
         revision = expected_registry_revision
+        metadata_cutoff = as_of if metadata_basis == "query_cutoff" else None
         try:
             with self._connection() as connection:
                 revision = _guard_revision(
-                    connection, expected_registry_revision, as_of
+                    connection, expected_registry_revision, metadata_cutoff
                 )
                 memberships = []
                 pools = {}
@@ -780,7 +810,7 @@ class SqliteFinancialPoolRepositoryV1:
                             OpaqueIdV1(account_id),
                             resource_id,
                             selected,
-                            as_of=as_of,
+                            as_of=metadata_cutoff,
                         )
                         if (
                             config is not None
@@ -806,6 +836,7 @@ class SqliteFinancialPoolRepositoryV1:
                     QueryAvailabilityV1(
                         "available", "financial_pool_snapshot_available", as_of
                     ),
+                    metadata_basis=metadata_basis,
                 )
         except (RegistryCommandConflictV1, RegistryRepositoryErrorV1, ValueError):
             return FinancialPoolSnapshotV1(
@@ -817,4 +848,5 @@ class SqliteFinancialPoolRepositoryV1:
                 QueryAvailabilityV1(
                     "unavailable", "financial_pool_snapshot_unavailable", as_of
                 ),
+                metadata_basis=metadata_basis,
             )

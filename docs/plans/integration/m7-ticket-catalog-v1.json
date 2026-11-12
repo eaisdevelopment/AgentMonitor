@@ -167,7 +167,8 @@
         "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
         "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
         "docs/evidence/m7-account-resource-layout-2026-11-12.md",
-        "docs/evidence/m7-billing-scope-edit-2026-11-12.md"
+        "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -549,7 +550,8 @@
         "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
         "docs/evidence/m7-billing-reconnect-2026-11-12.md",
-        "docs/evidence/m7-billing-maintenance-2026-11-12.md"
+        "docs/evidence/m7-billing-maintenance-2026-11-12.md",
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -672,7 +674,8 @@
         "docs/evidence/m7-overview-sorting-2026-11-12.md",
         "docs/evidence/m7-fair-financial-scheduling-2026-11-12.md",
         "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
-        "docs/evidence/m7-overview-query-reliability-2026-11-12.md"
+        "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -792,7 +795,8 @@
         "docs/evidence/m7-overview-sorting-2026-11-12.md",
         "docs/evidence/m7-bounded-history-2026-11-12.md",
         "docs/evidence/m7-window-navigation-2026-11-12.md",
-        "docs/evidence/m7-manual-collection-2026-11-12.md"
+        "docs/evidence/m7-manual-collection-2026-11-12.md",
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",

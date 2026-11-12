@@ -1,7 +1,7 @@
 # M7 first source-entry history chart
 
 Status: first increment installed and published at `c59d068`; the small series-label
-correction below is a checked successor awaiting installation. T013 remains in progress. Requirements
+correction is installed and pushed at `441fff9`. T013 remains in progress. Requirements
 FR-BUDGET-003/004, FR-HIST-001; acceptance AC-HIST-001, AC-UI-003/004/006,
 M7-A06/A07. M05 owns semantics, P01 serialization and P02 presentation.
 
@@ -96,6 +96,8 @@ Visual inspection of the actual chart found the short Series label wrapping
 mid-word. The installed probe reproduced `history_chart_series_label`; a minimal
 nowrap style fixes it. The strengthened canonical browser selection then passed
 four tests in 45.52 seconds, including narrow layout. No financial behavior changed.
+Its installed exact-revision probe subsequently passed all fourteen entries at
+`441fff987172e42dc766c56cc7bb55aeab0ffd9a`; the GitHub push succeeded.
 
 The broader Overview probe remains blocked at Back navigation. Added safe
 diagnostics now identify `/api/v1/budgets`, `unavailable`,
