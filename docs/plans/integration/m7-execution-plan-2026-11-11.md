@@ -56,7 +56,7 @@ The linked discovery proves documented interfaces, not successful account access
 |---|---|---|---|
 | T006 Anthropic Console analytics | Cost and usage, daily buckets, 7/30 completed UTC days; token/request measures retain their types | Workspace, safe API-key identifier, model, token category; organization/account remain source scope and owner grouping | Ungrouped cost runtime, captured manual dispatch and 7/30-day scheduling are installed; successful live costs and complete usage/grouped coverage remain unfinished |
 | T008 OpenAI organization | Costs plus the eleven usage categories listed below; daily 7/30-day reports | Project, safe API-key identifier, model, token category where that endpoint exposes them; time is the daily bucket | Ungrouped cost runtime, captured manual dispatch and 7/30-day scheduling are installed; successful live costs and complete usage/grouped coverage remain unfinished |
-| T009 Ollama cloud | Native 7d/30d self/team usage; retain actual covered bounds and partial buckets; existing balance collection | Model plus provider-reported remainder; monetary and token fields only when supplied | Self seven-day counts and balance evidence exist; remaining range/scope/model/manual paths still require completion |
+| T009 Ollama cloud | Native 7d/30d self/team usage; retain actual covered bounds and partial buckets; existing balance collection | Model plus provider-reported remainder; monetary and token fields only when supplied | Installed usage/balance and genuine monetary-history increments are recorded in the worksheet; complete range/scope/model/manual acceptance remains unfinished |
 
 OpenAI's fixed usage list is **completions, embeddings, moderations, images,
 audio speeches, audio transcriptions, code-interpreter sessions, vector stores,
@@ -163,13 +163,17 @@ tickets close. Each stage ends with the indicated running result.
 | S4: stabilize and publish | T015 → T016 | Real cross-provider/browser reconciliation, one bounded independent review, one full exit run, remote revision verified and owner demonstration |
 
 The installed Ollama increment already connects cloud-graph commit fencing,
-active-lineage spend selection and shared balance/usage rate coordination; its
-genuine report contains usage counts, not costs. Reuse that work and evidence.
-Those funds/usage are now visible on the installed Overview and detail.
+active-lineage spend selection and shared balance/usage rate coordination.
+The worksheet records both earlier counts-only reports and later genuine USD
+cost reports. Reuse the monetary reports now available for the first money
+journey; neither their existence nor the chart alone proves reconciliation.
+Retain the existing funds/usage views on Overview and detail.
 Retain the installed canonical pool attribution, OpenAI cost runtime, manual
 billing controls/cooldown, context-aware status and prior-scope report discovery.
 Outstanding source lifecycle, Ollama manual verification and monetary proof are
-ordered in the worksheet, normally using Anthropic or OpenAI for the first money.
+ordered in the worksheet, using whichever admitted source supplies real money,
+including the existing Ollama cloud resource. No new billing enrollment is a
+prerequisite for using its report.
 No provider is dropped
 from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
@@ -426,7 +430,7 @@ approval or product scope.
 |---|---|---|
 | T002 owner setup | Create/attach → actual detail URL → locally entered credential → safe status; early T014 setup activation precedes owner entry; cancel/retry/rotation/archive preserve unrelated configuration | Full provider coverage, forecast, final full-dashboard deployment or a provider success mislabeled as local storage success |
 | T004 exact policy | Exact money and complete-report selection tested, with explicit availability and shared-pool rules | T013 rate/horizon implementation; its math cases are verified there |
-| First T006/T008 monetary lane | One complete real monetary report for one owner-selected resource, with exact coverage and source comparison; T009 counts/balances retain their separate cloud evidence | An inaccessible second provider, all organizations, all usage dimensions |
+| First available T006/T008/T009 monetary lane | One complete real monetary report for one owner-selected resource, with exact coverage and source comparison; existing Ollama monetary reports qualify, while counts and balances alone do not | An inaccessible second provider, all organizations, all usage dimensions, or duplicate Ollama billing enrollment |
 | T005/T007 | That report survives database reopen; scheduled/manual reads use one real run and generation fences; first-reading state resolves | A generic job framework, new alert engine or manufactured rare provider failures |
 | T010–T012 | Real API → detail/history table → filtered Overview; exact same values/scope/period | Charts, numerical forecasts or all providers |
 | T014 | Same candidate installed; health plus authenticated Overview and first detail work; subscriptions remain usable | Final publication and full-milestone acceptance |

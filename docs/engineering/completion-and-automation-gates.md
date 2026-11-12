@@ -268,4 +268,7 @@ mutation checks are connected; missing database/HTTP/live/browser/deployment
 boundaries fail closed until implemented. The explicitly partial command
 `python3 -m tools.automation.implementations.auto_m7 --lane pure` verifies only
 pure calculations. Registration or a partial lane supplies no M7 acceptance. The
-existing accepted M6 receipt and production runtime remain unchanged.
+existing accepted M6 receipt remains historical authority for M6. M7 increments
+are installed; the [M7 delivery worksheet](../plans/integration/m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point)
+owns the recorded installed revision and its bounded evidence. Neither those
+increments nor a green planning check closes M7 or reopens M6.

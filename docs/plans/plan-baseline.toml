@@ -195,8 +195,8 @@ bytes = 23222
 [[controls]]
 id = "automation-standard"
 path = "docs/engineering/completion-and-automation-gates.md"
-sha256 = "8562f8df93af6962b8655bbe6bc4b6e9a6cadbdf5ee89d2fea0d1d42c5ff01d1"
-bytes = 27990
+sha256 = "55df6735a8c80a1a7841b33ba287c36112bafc94044474367526df71e4369de0"
+bytes = 28267
 
 [[controls]]
 id = "m0-g0-approval"

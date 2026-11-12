@@ -50,7 +50,8 @@
       "verification": "python3 tools/planning/validate_m7_tickets.py",
       "evidence": [
         "docs/evidence/m7-implementation-authority-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -168,7 +169,8 @@
         "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
         "docs/evidence/m7-account-resource-layout-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
-        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -179,7 +181,7 @@
       ],
       "steps": [
         "Retain existing pure/mutation/metadata/schema, guard, pool-browser and historical activation evidence; a narrow pass does not close its broader lane.",
-        "For each batch in the delivery worksheet, add and test selection of its existing named checks to auto_m7. Guards/pool/activation and revision-bound Overview reads are callable; full monetary Overview acceptance remains Not Run. Wire real assertions alongside each feature, not in a later gate-building phase.",
+        "For each worksheet batch, wire its existing named checks in auto_m7 alongside the feature. Start with the exact monetary HTTP/browser and commit/reopen test seams listed in worksheet section2; existing generic history tests can select counts-only reports. Add explicit monetary selection/assertions, not a second runner. Full monetary Overview acceptance remains Not Run until those assertions execute.",
         "Keep real populated persistence/collection/HTTP/provider outcomes separate from schema/empty/guard checks. Required missing evidence fails closed; natural conditional cases retain their actual disposition.",
         "Extend the existing final runner/result with clean checkout revision, installed revision/schema, named outcomes/times and sanitized evidence references; reject mismatched or missing mandatory evidence. No new runner, short-lived owner attestation or manual codes.",
         "Route final deployment verification through existing same-schema update/recovery helpers; do not replay setup0731 or pool0734 migrations. Complete candidate/backup_recovery/installed_revision/continuity with T014.",
@@ -275,7 +277,8 @@
       "evidence": [
         "docs/evidence/m7-budget-storage-foundation-2026-11-11.md",
         "docs/evidence/m7-budget-current-query-2026-11-11.md",
-        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md"
+        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -287,7 +290,7 @@
       "steps": [
         "Publish the additive commit/query receipt contracts before parallel M04/M05 work; root owns shared types and migration catalog.",
         "Retain delivered real SQLite migration/schema evidence through v1_0734; exercise only a newly changed storage boundary. No replay of historical activation or invented financial rows.",
-        "Commit the first fresh genuine normalized provider report atomically with its coverage and exact signed facts; one successful partial provider cost implementation can feed this step before that provider ticket closes.",
+        "Use an admitted genuine monetary collection result, including existing Ollama cloud cost support, for atomic coverage/fact commit. Reuse the retained Ollama USD report immediately for stored-read comparisons; it does not by itself prove fresh commit/retry/reopen. Do not wait for Anthropic/OpenAI enrollment or a complete provider ticket.",
         "Retry that same in-memory commit, reopen storage and verify the actual receipt, exact query output and generation fences. Preserve genuine correction history and report unavailable natural cases separately.",
         "Hand the actual report/query ports to P01/P02; do not hold the first usable table for chart, forecast or all-category completion.",
         "Separate current-report selection, report-revision history and daily financial buckets. Search compatible revisions within context/byte limits; latest failure without a report comes from M04. Genuine monetary commit/retry/reopen is required. Natural correction and empty-report observations are conditional; always verify pure replacement/empty policies and report unobserved live cases separately."
@@ -488,7 +491,8 @@
       "verification": "Planned scoped verification: ollama through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
         "docs/evidence/m7-ollama-usage-source-2026-11-11.md",
-        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md"
+        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
@@ -502,7 +506,7 @@
         "Reuse canonical M6 balance identity; map genuine monetary/token/request fields only where present and enforce shared rate limits.",
         "Use documented native 7d/30d completed UTC days plus the current partial day; exclude today from the selected completed-day total, validate actual boundaries and expose unexpected gaps. No speculative wider-range workaround.",
         "Compare real usage and balance without duplicate credit pools or invented agent/key attribution; a request-only report cannot close the first monetary slice.",
-        "Retain installed ca5f062 cloud-graph capture/commit fencing, active-binding spend selection and shared balance/usage request gate evidence. Continue team selection, remaining usage actions and full scope/range verification; do not rebuild or repeat completed cloud setup. Counts-only reports remain separate from monetary acceptance.",
+        "Retain installed cloud-graph capture/commit fencing, active-binding selection and shared balance/usage request gate. The worksheet records genuine USD cost reports as well as older counts-only reports; hand available money to T005/T010\u2013T012 now. Finish team selection, remaining actions and full scope/range verification without duplicate cloud setup; counts-only facts still cannot substitute for money.",
         "Retain fixed 7d/30d self/team usage and model/remainder scope; 24h and arbitrary historical collection are deferred. Preserve native covered intervals; a stale rolling request fails explicitly rather than being shifted on restart."
       ]
     },
@@ -618,7 +622,8 @@
         "docs/evidence/m7-account-resource-layout-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
         "docs/evidence/m7-billing-reconnect-2026-11-12.md",
-        "docs/evidence/m7-billing-maintenance-2026-11-12.md"
+        "docs/evidence/m7-billing-maintenance-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -635,7 +640,8 @@
         "Reconcile original Check/Collect intent and uncertain mutations without retargeting or automatic replay. Only successful completion matching the current resource/authority/category/grouping/interval advances as_of; failure preserves facts and another window completion updates its own status. Render actual cooldown/eligibility and distinguish balance Check from usage collection.",
         "Finish direct URL, Back/reload, safe sign-in return and expired-selection evidence with current shell. Preserve allowlisted financial/resource/filter/sort selectors; no new router or automatic action replay. Previous/Next/width keep snapshot, Refresh keeps interval, Latest moves cutoff. Preserve admitted category/dimension identity even before a report exists; changing it clears incompatible report/cursor selection but never changes a pending request.",
         "Exercise partial-versus-complete retained reports, failed later pages, conflicts, setup/empty/offline/access states where real state permits; pure rules never substitute for live cases. Check keyboard, 200% zoom, required widths, long labels and LAN command-copy fallback; installed proof remains T014. Distinguish transient retry from 400 invalid_cursor: Restart history pages rereads page one for the same report/resource/period/as_of and replaces retained rows/chart only on success. A missing report uses selection-unavailable recovery; never force a latest report merely because continuation failed.",
-        "Prove API-origin to mixed-resource account transition: active published capabilities determine sections; creation purpose is only pending fallback. Retain both independent control sets and truthful missing organization-name state. Use genuine isolated registry transitions; no owner-account reconfiguration or invented telemetry."
+        "Prove API-origin to mixed-resource account transition: active published capabilities determine sections; creation purpose is only pending fallback. Retain both independent control sets and truthful missing organization-name state. Use genuine isolated registry transitions; no owner-account reconfiguration or invented telemetry.",
+        "Diagnose the recorded intermittent setup_form_unavailable failure through verify_setup.mjs and verify_overview_concurrency.mjs, retaining sanitized child-stage diagnostics. Establish product versus probe cause and repair that boundary with a regression; one subsequent pass is not a diagnosis. Coordinate installed proof with T014, without resetting owner accounts or adding an arbitrary repetition count."
       ]
     },
     {
@@ -729,7 +735,8 @@
       "verification": "Planned scoped verification: forecast/breakdown pure, persistence, HTTP and browser through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
-        "docs/evidence/m7-history-chart-2026-11-12.md"
+        "docs/evidence/m7-history-chart-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S3",
@@ -742,7 +749,7 @@
         "Start independent pure math and first-history chart work from existing immutable-history contracts after the current integration packet, without waiting for inaccessible providers. depends_on constrains ticket closure, not the start of this independent packet. Final coverage still includes the finite supported matrix. Red tests cover wrong signs/units/coverage, missing inputs and forecast anchoring.",
         "Publish admitted source/category plus one supported dimension and native unit through versioned adapter/P01 surfaces; P02 does not hardcode provider support. Selection reads stored data; explicit collection uses T007 exact context. No Cartesian query builder.",
         "Ship the first source-entry chart from the same loaded immutable facts as its table; do not call separate entries daily totals or require rate completion for this packet. Label unloaded pages as More history available, not zero/source gaps. Failed pages preserve both. M05 aggregates only proven-disjoint facts once per UTC day; three model rows from one day are not three days of rate history, and total-plus-components are not added. Reconcile matching complete breakdown totals/reported remainder without inventing Other or agent attribution. Balance series uses separate genuine capacity-history observations per fund component, with exact amounts, identity and original times; version only missing safe snapshot/selector fields before its consumer. Do not manufacture history from current funds. The first cost/usage chart does not wait for balance-series integration.",
-        "Implement only budget-observed-rate-v1/1.0.0 as specified in calculation section6: bounded contiguous exact monetary history, separate rate/date availability, input IDs and source/funds freshness. Query-time only; no forecast persistence/events or price estimation. Independent history-page size does not change financial identity: pin selected scope/epoch/currency/basis, state actual sample bounds and reject incompatible new-scope funds for an old-scope forecast.",
+        "Implement only budget-observed-rate-v1/1.0.0 as specified in calculation section6: bounded contiguous exact monetary history, separate rate/date availability, input IDs and source/funds freshness. Query-time only; no forecast persistence/events or price estimation. Independent history-page size does not change financial identity: pin selected scope/epoch/currency/basis, state actual sample bounds and reject incompatible new-scope funds for an old-scope forecast. Unresolved corrections means ambiguity in selected replacement/adjustment semantics, not possible future provider revisions. A complete replacement changes the newly selected rate; an explicitly selected older report retains its own rate. Show rate per currency/day with actual sample dates in one compact detail row, separate from exhaustion availability and existing balances.",
         "Run M7-MATH-03/09/10/15/16 and associated component cases: signed adjustments/gaps/zero/expiry/renewal/unknown allocation, at least three complete consecutive daily buckets, eligible funds cutoff or rate-only as_of fallback for absent/stale/incompatible funds, seven-day horizon and unchanged-input reload. Three days with two disjoint 1 USD rows each produce 2 USD/day; one day with three rows remains insufficient. Real absent inputs show a reason; numeric live evidence is conditional.",
         "M05 implements bounded 365-day report/fact retention with referenced-fact preservation; M08 invokes its public participant using existing scheduler. Verify genuine report expiry/cursor expiry with explicit future cutoff on isolated SQLite; no seeded old telemetry or host clock change.",
         "Integrate detail_history/persistence/HTTP/pure/mutation checks with T003 and recheck installed retention invocation in T014/T015. Charts, supported breakdowns and conditional forecast remain required M7 scope; no analytics framework."
@@ -796,7 +803,8 @@
         "docs/evidence/m7-bounded-history-2026-11-12.md",
         "docs/evidence/m7-window-navigation-2026-11-12.md",
         "docs/evidence/m7-manual-collection-2026-11-12.md",
-        "docs/evidence/m7-overview-registry-time-2026-11-12.md"
+        "docs/evidence/m7-overview-registry-time-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-review-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -811,7 +819,8 @@
         "Before any transition verify source/target schema compatibility, protected-env preservation and secret-excluding backup; test that specific changed migration/recovery on isolated real storage. Preserve old migration digests.",
         "On failed update inspect actual revision/schema/transition journal before retry/finalize/recovery; never restore over possible new writes. Retain existing disposable child/refusal/writer regression evidence.",
         "Install the full monetary Overview/detail/history journey and verify same source/API/DOM context, loopback/LAN readiness and authenticated browser at the exact revision.",
-        "Run the finite recovery matrix in worksheet section6: isolated genuine financial backup/restore with identical report IDs/exact amounts/coverage and no secrets; interrupted committed receipt reconciliation through T007; normal installed browser-closed scheduling and existing provider/alert continuity. Extend existing selected-release/backup/probe helpers; do not build a disaster-test platform. Missing restored keys show Credential required. Never alter live owner configuration/default profiles or restart user agents."
+        "Run the finite recovery matrix in worksheet section6: isolated genuine financial backup/restore with identical report IDs/exact amounts/coverage and no secrets; interrupted committed receipt reconciliation through T007; normal installed browser-closed scheduling and existing provider/alert continuity. Extend existing selected-release/backup/probe helpers; do not build a disaster-test platform. Missing restored keys show Credential required. Never alter live owner configuration/default profiles or restart user agents.",
+        "Retain both the recorded setup-form failure and later concurrent pass. T011 diagnoses/fixes the actual failing boundary; T014 verifies the affected installed journey on the candidate without an arbitrary rerun quota or owner configuration changes."
       ]
     },
     {

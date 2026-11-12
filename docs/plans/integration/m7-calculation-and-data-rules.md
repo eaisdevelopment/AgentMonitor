@@ -299,7 +299,14 @@ stream or configurable forecasting framework in M7. Return method version,
 Method `budget-observed-rate-v1/1.0.0` requires at least three complete,
 consecutive UTC **daily** cost buckets, same pool/currency/cost basis,
 known bucket duration, no missing coverage, no signed adjustments or unresolved
-corrections. M05 first selects compatible report coverage and aggregates only
+corrections. Here **unresolved corrections** means ambiguity in the selected
+report's replacement/adjustment semantics, not the possibility that the provider
+may revise a complete report later. The adapter supplies the source semantics;
+M05 selects one immutable compatible report. A complete replacement can yield a
+new rate while the explicitly selected older report retains its original rate;
+never combine their revisions or wait for a financial-finality guarantee.
+Explicit adjustment entries still make that sample ineligible.
+M05 first selects compatible report coverage and aggregates only
 proven-disjoint cost facts within each day. Count each day and its duration once:
 three model rows for one day are not three days; a daily total and its component
 rows are alternative representations, never additional cost or duration.
@@ -509,6 +516,7 @@ Additional cases within the same IDs (no new acceptance inventory):
 | M7-MATH-03/10/15 | Three model cost rows in one complete day | One daily bucket; insufficient history for a rate, regardless of row count |
 | M7-MATH-03/10/15 | Three consecutive complete days; two proven-disjoint rows of 1 USD each per day | Total 6 USD over three days; rate 2 USD/day, with each day's duration counted once |
 | M7-MATH-03/15/16 | Three recent qualifying days at 2 USD/day; selected funds stale or from another scope | Rate 2 USD/day in the selected cost scope with sample dates; no exhaustion date; stale/unrelated funds do not move the rate-only sample backward |
+| M7-MATH-03/04/05/09/15 | Complete three-day report at 2 USD/day, later replaced by complete three-day report at 1 USD/day, with declared replacement semantics and no adjustment entries | Old explicit selection stays 2 USD/day; replacement selection is 1 USD/day; no sum of revisions and no requirement to prove that future corrections are impossible |
 
 Existing test families also cover native-range alignment and DST boundaries
 (M7-MATH-15), no eligible subtotal versus a genuine zero (M7-MATH-12), scope-epoch

@@ -406,6 +406,19 @@ budget/credit/limit cards. Funds and limit headroom use distinct labels if both
 exist. Token/request totals never occupy a monetary column. These are rendering
 rules for the existing sections, not additional cards or screens.
 
+The observed-rate increment occupies one compact row in that financial section:
+**Observed spending rate · [amount] [currency]/day · [sample UTC dates]**.
+Its sample is independent of whether the page displays seven or thirty days;
+always show the actual qualifying sample, never imply a thirty-day average.
+An adjacent line shows an eligible as-of exhaustion estimate or one specific
+reason. If balances exist but their allocation/scope/freshness cannot support a
+date, say **Estimate unavailable — [actual reason]**, not Remaining funds not
+reported. Keep the real balances visible. Expand calculation details for exact
+numerator/duration, inputs and method; no new banner or separate analysis page.
+When rate itself is unavailable, keep spend/history useful and show its reason
+in that same row. T013/M7-MATH-03/15/16 and the existing detail-history browser
+check cover this presentation; no new feature or metric is introduced.
+
 ## 5. Complete state/action table
 
 | State | Visible message | Available action |

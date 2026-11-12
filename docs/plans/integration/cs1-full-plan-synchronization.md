@@ -1472,3 +1472,16 @@ module ownership or dependency edge changes. All twenty baseline plans remain
 unchanged. Snapshot regeneration updates only the parallel-ownership control.
 
 Plan snapshot SHA-256: `3c4af50d356940f65122f26431409f7a613e6443ff33c715f231148e29b1c052`
+
+
+## 2026-11-12 M7 installed-state documentation correction
+
+Root corrected only the automation standard's obsolete statement that the
+production runtime remains at M6. The standard now retains historical M6
+acceptance and points to the M7 worksheet for installed increments. The
+rendered snapshot updates that control digest/byte count; the twenty Draft
+module plans, remaining controls and historical attestations are unchanged.
+This is a bounded documentation rebind, not renewed all-V1 approval, production
+verification or M7 acceptance. See the [M7 planning review](../../evidence/m7-delivery-plan-review-2026-11-12.md).
+
+Plan snapshot SHA-256: `884e0094f3a36a87d74d181c372b98ccbef356f7af816de70fcda8d478052666`
