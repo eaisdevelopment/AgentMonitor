@@ -64,6 +64,8 @@ PURE_TARGETS = (
     "backend/tests/contracts/test_budget_funds_query.py",
     "backend/tests/providers/ollama/pure/test_funds_projection.py",
     "backend/tests/contracts/test_billing_actions.py",
+    "backend/tests/capacity/pure/test_budget_collection_context.py",
+    "backend/tests/collection_control/pure/test_billing_cooldown.py",
     "backend/tests/contracts/test_anthropic_billing_run.py",
     "backend/tests/contracts/test_openai_billing_run.py",
     "backend/tests/adapters/providers/codex/openai_api/test_manifest.py",
@@ -96,6 +98,7 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )
 PRESENTATION_TARGETS = (
+    "frontend/tests/pure/billing-collect-presentation.mjs",
     "frontend/tests/pure/billing-check-presentation.mjs",
     "frontend/tests/pure/financial-pool-presentation.mjs",
     "frontend/tests/pure/budget-account-presentation.mjs",
@@ -107,6 +110,7 @@ PRESENTATION_TARGETS = (
     "frontend/src/features/overview/budgetOverviewPresentation.test.mjs",
 )
 COLLECTION_GUARD_TARGETS = (
+    "backend/tests/integration/collection_control/test_billing_cooldown_empty.py",
     "backend/tests/integration/collection_control/test_billing_budget_context_empty.py",
     "backend/tests/integration/registry/test_billing_monitoring_status.py",
     "backend/tests/contracts/test_billing_schedule.py",
@@ -120,6 +124,7 @@ COLLECTION_GUARD_TARGETS = (
     "backend/tests/integration/collection_control/test_cloud_budget_repository_empty.py",
 )
 BUDGET_HTTP_GUARD_TARGETS = (
+    "backend/tests/integration/capacity/test_budget_billing_collection_context.py",
     "backend/tests/integration/capacity/test_budget_overview_empty.py",
     "backend/tests/integration/api/test_budget_http.py",
     "backend/tests/integration/api/test_budget_overview_http.py",

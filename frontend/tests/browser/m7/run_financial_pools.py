@@ -15,6 +15,8 @@ STAGES = {
     "login",
     "owner_metadata",
     "pool_controls_missing",
+    "collection_controls_missing",
+    "collection_context_read_only",
     "create_pool",
     "join_pool",
     "shared_overview",

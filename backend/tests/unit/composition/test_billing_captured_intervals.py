@@ -189,3 +189,29 @@ def test_normalization_cannot_commit_another_interval_under_captured_admission(
         outcome = openai_billing_outcome(legacy, result_openai, completed)
         with pytest.raises(ValueError):
             normalize_openai_billing_outcome(captured, outcome, completed)
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+def test_explicit_manual_collection_does_not_require_automatic_monitoring(
+    provider: Provider,
+) -> None:
+    from agentmonitor.contracts.common_v1 import OpaqueIdV1
+
+    fixture = anthropic if provider == "claude" else openai
+    target = fixture._target(purpose="verification")
+    target = replace(
+        target, connection=replace(target.connection, monitoring_preference="disabled")
+    )
+    admission = _build(
+        provider,
+        target=target,
+        trigger="manual",
+        request_principal_id=OpaqueIdV1("owner"),
+        idempotency_key_digest="a" * 64,
+        report_context=_context(30),
+    )
+    assert admission.billing_target.connection.monitoring_preference == "disabled"
+    request = (
+        anthropic_billing_request if provider == "claude" else openai_billing_request
+    )(admission)
+    assert request.period.start == _context(30).interval_start

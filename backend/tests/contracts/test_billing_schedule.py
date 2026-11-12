@@ -82,3 +82,13 @@ def test_openai_has_independent_identity_and_shares_oldest_due_order() -> None:
         "codex",
         "claude",
     )
+
+
+def test_scheduled_intent_captures_the_reporting_window() -> None:
+    from agentmonitor.composition.billing_schedule import billing_schedule_intent
+
+    before = datetime(2026, 11, 11, 23, 59, tzinfo=UTC)
+    intent = billing_schedule_intent(_target(purpose="monitoring"), before)
+    assert intent.report_context.range_key == "7d"
+    assert intent.report_context.interval_end == datetime(2026, 11, 11, tzinfo=UTC)
+    assert intent.report_context.interval_start == datetime(2026, 11, 4, tzinfo=UTC)

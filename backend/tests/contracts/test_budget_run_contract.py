@@ -101,6 +101,8 @@ def test_billing_admission_has_real_account_and_scope_without_a_profile() -> Non
         {"profile_id": OpaqueIdV1("profile")},
         {"payload_schema": "quota"},
         {"trigger": "scheduled"},
+        {"trigger": "observable_request"},
+        {"trigger": "registry_changed"},
     ):
         with pytest.raises(ValueError):
             replace(current, **change)

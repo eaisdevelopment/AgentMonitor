@@ -117,7 +117,7 @@ def _target_digest(
     )
 
 
-def _budget_scope_digest(
+def anthropic_billing_budget_scope_digest(
     target: BillingAccessTargetV1, provider_target: ProviderTargetRefV1
 ) -> str:
     connection = target.connection
@@ -206,7 +206,7 @@ def _valid_trigger_authority(
 ) -> bool:
     if target.purpose == "verification":
         return (
-            trigger == "reauth_verification"
+            trigger in {"reauth_verification", "manual"}
             and request_principal_id is not None
             and idempotency_key_digest is not None
         )
@@ -312,7 +312,9 @@ def build_anthropic_billing_run(
         lease_policy_version=_LEASE_POLICY_VERSION,
         budget_policy_id=ANTHROPIC_COST_BUDGET_POLICY_ID_V1,
         budget_policy_version=ANTHROPIC_COST_BUDGET_POLICY_VERSION_V1,
-        budget_scope_digest=_budget_scope_digest(target, provider_target),
+        budget_scope_digest=anthropic_billing_budget_scope_digest(
+            target, provider_target
+        ),
         budget_dimension="request",
         budget_unit="count",
         budget_units=MAX_REQUESTS,
@@ -387,7 +389,7 @@ def _require_anthropic_admission(
         or admission.budget_policy_id != ANTHROPIC_COST_BUDGET_POLICY_ID_V1
         or admission.budget_policy_version != ANTHROPIC_COST_BUDGET_POLICY_VERSION_V1
         or admission.budget_scope_digest
-        != _budget_scope_digest(target, admission.provider_target)
+        != anthropic_billing_budget_scope_digest(target, admission.provider_target)
         or admission.budget_dimension != "request"
         or admission.budget_unit != "count"
         or admission.budget_units != MAX_REQUESTS

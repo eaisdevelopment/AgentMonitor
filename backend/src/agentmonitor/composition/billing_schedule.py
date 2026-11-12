@@ -22,6 +22,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
+from agentmonitor.composition.billing_context import completed_billing_cost_context
 from agentmonitor.composition.billing_run import (
     anthropic_cost_manifest_fingerprint,
     build_anthropic_billing_run,
@@ -31,7 +32,10 @@ from agentmonitor.composition.openai_billing_run import (
     build_openai_billing_run,
     openai_cost_manifest_fingerprint,
 )
-from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
+from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetReportContextV1,
+    BudgetCollectionRunViewV1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
 from agentmonitor.modules.registry.application.accounts import ListAccountsV1
@@ -48,6 +52,7 @@ class BillingScheduleIntentV1:
     retry_chain_id: OpaqueIdV1
     producer_id: OpaqueIdV1
     correlation_id: OpaqueIdV1
+    report_context: BillingBudgetReportContextV1
 
 
 def _digest(*values: str) -> str:
@@ -91,6 +96,7 @@ def billing_schedule_intent(
         OpaqueIdV1("billing-periodic-retry-" + tick[:40]),
         OpaqueIdV1("billing-periodic-producer-" + tick[:40]),
         OpaqueIdV1("billing-periodic-correlation-" + tick[:40]),
+        completed_billing_cost_context(as_of),
     )
 
 
@@ -244,6 +250,7 @@ class BillingScheduleV1:
                 trigger="scheduled",
                 request_principal_id=None,
                 idempotency_key_digest=None,
+                report_context=intent.report_context,
                 requested_at=requested_at,
                 deadline_at=requested_at + timedelta(seconds=remaining),
             )

@@ -15,6 +15,8 @@ import {
   type BudgetResourceCurrentWireV1,
   type ExactMoneyWireV1,
   type BillingCheckRunV1,
+  type BillingReportContextV1,
+  type BillingCollectionEligibilityWireV1,
   type BudgetRunStatusV1,
   type BillingMonitoringStatusV1,
   type BillingMonitoringResultV1,
@@ -93,6 +95,8 @@ export type {
   BudgetResourceCurrentWireV1,
   ExactMoneyWireV1,
   BillingCheckRunV1,
+  BillingReportContextV1,
+  BillingCollectionEligibilityWireV1,
   BudgetRunStatusV1,
   BillingMonitoringStatusV1,
   BillingMonitoringResultV1,
@@ -403,6 +407,16 @@ export const registry = Object.freeze({
       headers: { ...mutationHeaders({ id: intent.accountId, recordVersion: intent.accountVersion }), "Idempotency-Key": intent.idempotencyKey },
       signal,
     }),
+  billingCollectionEligibility: (accountId: string, resourceId: string, context: BillingReportContextV1, signal?: AbortSignal): Promise<ClientResult<BillingCollectionEligibilityWireV1>> =>
+    apiClient.billing_get_collection_eligibility_v1({ path: { account_id: accountId, resource_id: resourceId },
+      query: { range_key: context.range_key, interval_start: context.interval_start, interval_end: context.interval_end }, signal }),
+  collectBilling: (
+    intent: Readonly<{ accountId: string; resourceId: string; accountVersion: number; connectionVersion: number; idempotencyKey: string; reportContext: BillingReportContextV1 }>,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<BillingCheckRunV1>> =>
+    apiClient.billing_collect_now_v1({ path: { account_id: intent.accountId, resource_id: intent.resourceId },
+      body: { expected_connection_version: intent.connectionVersion, report_context: intent.reportContext },
+      headers: { ...mutationHeaders({ id: intent.accountId, recordVersion: intent.accountVersion }), "Idempotency-Key": intent.idempotencyKey }, signal }),
   billingRun: (runId: string, signal?: AbortSignal): Promise<ClientResult<BudgetRunStatusV1>> =>
     apiClient.billing_get_run_status_v1({ path: { run_id: runId }, signal }),
   billingMonitoring: (accountId: string, resourceId: string, signal?: AbortSignal): Promise<ClientResult<BillingMonitoringStatusV1>> =>

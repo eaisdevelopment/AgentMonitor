@@ -9,6 +9,8 @@ import {
 } from "../../shared/api/client";
 import { completedPeriod, displayMoney, exactMoneyText } from "./budgetPresentation";
 import { BudgetDailyHistory } from "./BudgetDailyHistory";
+import { BillingCollectControl } from "./BillingCollectControl";
+import { collectionContext } from "./billingCollectPresentation";
 import { budgetWindowDays, budgetWindowSearch, latestBudgetWindow, resizeBudgetWindow, shiftBudgetWindow, type BudgetWindow } from "./budgetWindowNavigation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
 import { canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
@@ -230,6 +232,10 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
       {hasFunds && funds !== null && funds !== undefined ? <FundsReading funds={funds} /> : <p>Remaining funds not reported{funds === null || funds === undefined ? "." : `: ${readable(funds.availability.reason_code)}.`}</p>}
       {data.availability.state !== "available" && !(hasFunds && data.availability.reason_code === "billing_not_configured") && <p role="status">Spend data {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
       {data.resources.length === 0 && cloudResources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>{hasFunds ? "No usage report for this interval." : "API billing is not set up."}</p>}
+      {data.resources.filter(resource => selection.kind !== "selected" || resource.connection.resource_id === selection.resourceId).map(resource => <BillingCollectControl
+        key={`${account.account_id}.${account.record_version}.${resource.connection.resource_id}.${resource.connection.record_version}.${resource.connection.scope_generation}.${query.period_start}.${query.period_end}`}
+        account={account} connection={resource.connection} reportContext={collectionContext(query.period_start, query.period_end)}
+        onExpired={onExpired} onCollected={() => selectWindow(advanceFinancialRead(query, new Date()))} />)}
       {selection.kind === "selected" && selection.reportId !== null &&
         [...data.resources, ...cloudResources].filter(resource => ("connection" in resource ? resource.connection.resource_id : resource.resource_id) === selection.resourceId).map(resource => {
           const run = resource.latest_collection;

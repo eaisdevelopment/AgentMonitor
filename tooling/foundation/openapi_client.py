@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.11"
+GENERATOR_VERSION = "2.0.12"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -161,6 +161,14 @@ IAM_OPERATIONS = {
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/checks",
         "post",
     ): "billing_check_connection_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collections",
+        "post",
+    ): "billing_collect_now_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collection-eligibility",
+        "get",
+    ): "billing_get_collection_eligibility_v1",
     (
         "/api/v1/provider-coverage/{provider_key}",
         "get",
@@ -1223,6 +1231,30 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "billing_collect_now_v1": (
+        "browser_cookie_only",
+        "write:accounts",
+        "BillingCheckPortV1.collect",
+        "replay_safe_representation",
+        _COOKIE_CSRF,
+        "202",
+        "BillingCheckRunV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "BillingCollectInputV1",
+    ),
+    "billing_get_collection_eligibility_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BillingCheckPortV1.get_collect_eligibility",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BillingCollectionEligibilityWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "billing_check_connection_v1": (
         "browser_cookie_only",
         "write:accounts",
@@ -1657,7 +1689,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 93
+        or len(identifiers) != 95
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

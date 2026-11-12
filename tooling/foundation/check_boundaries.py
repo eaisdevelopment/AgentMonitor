@@ -81,7 +81,10 @@ CONTRACT_VERSION_EXCEPTIONS = {
 # prevents arbitrary aliases/re-exports from masquerading as support metadata.
 SUPPORT_SYMBOLS = {
     "agentmonitor.contracts.common_quantity_v1": {"InvalidExactQuantityV1"},
-    "agentmonitor.contracts.billing_actions_v1": {"BillingCheckPortV1"},
+    "agentmonitor.contracts.billing_actions_v1": {
+        "BillingCheckPortV1",
+        "BillingCollectCommandV1",
+    },
     "agentmonitor.contracts.budget_query_v1": {
         "AccountBudgetCurrentPortV1",
         "AccountBudgetFundsPortV1",

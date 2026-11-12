@@ -24,6 +24,9 @@ from agentmonitor.modules.capacity.application.cloud_budget_query import (
     cloud_budget_current,
 )
 from agentmonitor.modules.capacity.domain.budget_account_spend import reported_spend
+from agentmonitor.modules.capacity.domain.budget_collection_context import (
+    billing_cost_context,
+)
 
 
 class GetAccountBudgetCurrentV1:
@@ -86,6 +89,10 @@ class GetAccountBudgetCurrentV1:
         ):
             return empty
         resources = []
+        try:
+            collection_context = billing_cost_context(period)
+        except ValueError:
+            collection_context = None
         for connection in status.connections:
             result = self._reports.get_current_reports(
                 BudgetCurrentQueryV1(
@@ -98,11 +105,14 @@ class GetAccountBudgetCurrentV1:
                 )
             )
             try:
+                if collection_context is None:
+                    raise ValueError("budget_billing_context_unavailable")
                 latest = self._collection.get_latest_budget_run(
                     account_id,
                     connection.resource_id,
                     connection.scope_generation,
                     as_of,
+                    report_context=collection_context,
                 )
                 collection_availability = QueryAvailabilityV1(
                     "available",
@@ -115,7 +125,9 @@ class GetAccountBudgetCurrentV1:
                 latest = None
                 collection_availability = QueryAvailabilityV1(
                     "unavailable",
-                    "budget_collection_query_unavailable",
+                    "budget_billing_context_unavailable"
+                    if collection_context is None
+                    else "budget_collection_query_unavailable",
                     as_of,
                 )
             spend = tuple(

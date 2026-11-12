@@ -26,22 +26,41 @@ from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction impo
     RegistryRepositoryErrorV1,
 )
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import SOURCE_ID
+from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
+    validate_period as validate_anthropic_period,
+)
 from agentmonitor.adapters.providers.codex.openai_api.policy import (
     SOURCE_ID as OPENAI_SOURCE_ID,
 )
+from agentmonitor.adapters.providers.codex.openai_api.policy import (
+    validate_period as validate_openai_period,
+)
+from agentmonitor.composition.billing_context import completed_billing_cost_context
 from agentmonitor.composition.billing_run import (
+    anthropic_billing_budget_scope_digest,
     anthropic_cost_manifest_fingerprint,
     build_anthropic_billing_run,
 )
 from agentmonitor.composition.openai_billing_run import (
     OPENAI_COST_AUTHORITY_ID_V1,
     build_openai_billing_run,
+    openai_billing_budget_scope_digest,
     openai_cost_manifest_fingerprint,
 )
-from agentmonitor.contracts.billing_actions_v1 import BillingCheckCommandV1
-from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
+from agentmonitor.contracts.billing_actions_v1 import (
+    BillingCheckCommandV1,
+    BillingCollectCommandV1,
+    BillingCollectionEligibilityV1,
+)
+from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1
+from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetAuthorityV1,
+    BillingBudgetReportContextV1,
+    BudgetCollectionRunViewV1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
+from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,22 +95,31 @@ def billing_check_identifiers(
     ):
         raise ValueError("billing_check_command_invalid")
     owner_request = (command.principal_id.value, command.command_id.value)
-    target = (
+    target: tuple[str, ...] = (
         command.account_id.value,
         command.resource_id.value,
         str(command.expected_account_version),
         str(command.expected_connection_version),
     )
+    prefix = "billing-check"
+    if isinstance(command, BillingCollectCommandV1):
+        prefix = "billing-collect"
+        context = command.report_context
+        target += (
+            context.range_key,
+            context.interval_start.isoformat(),
+            context.interval_end.isoformat(),
+            context.source_category,
+            *context.grouping,
+        )
     return BillingCheckIdentifiersV1(
-        run_id=_identifier("billing-check-run-", *owner_request),
-        schedule_id=_identifier("billing-check-schedule-", *target),
-        request_id=_identifier("billing-check-request-", *owner_request),
-        retry_chain_id=_identifier("billing-check-retry-", *owner_request),
-        scheduler_instance_id=_identifier("billing-check-producer-", *owner_request),
-        correlation_id=_identifier("billing-check-correlation-", *owner_request),
-        idempotency_key_digest=_digest(
-            "billing-check-command-v1", *owner_request, *target
-        ),
+        run_id=_identifier(prefix + "-run-", *owner_request),
+        schedule_id=_identifier(prefix + "-schedule-", *target),
+        request_id=_identifier(prefix + "-request-", *owner_request),
+        retry_chain_id=_identifier(prefix + "-retry-", *owner_request),
+        scheduler_instance_id=_identifier(prefix + "-producer-", *owner_request),
+        correlation_id=_identifier(prefix + "-correlation-", *owner_request),
+        idempotency_key_digest=_digest(prefix + "-command-v1", *owner_request, *target),
     )
 
 
@@ -171,6 +199,123 @@ class BillingCheckActionsV1:
             raise ValueError("billing_check_unavailable")
         return run
 
+    def get_report_context(
+        self, run_id: OpaqueIdV1
+    ) -> BillingBudgetReportContextV1 | None:
+        authority = self._runs.get_budget_target(run_id)
+        return (
+            authority.report_context
+            if isinstance(authority, BillingBudgetAuthorityV1)
+            else None
+        )
+
+    def get_collect_eligibility(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        report_context: BillingBudgetReportContextV1,
+        as_of: datetime,
+    ) -> BillingCollectionEligibilityV1 | None:
+        """Read eligibility and persisted cooldown; never enroll or collect."""
+        status = self._connections.get(account_id)
+        if status is None:
+            return None
+        connection = next(
+            (item for item in status.connections if item.resource_id == resource_id),
+            None,
+        )
+        if connection is None:
+            return None
+        generation = (
+            status.credential_status.active_generation
+            if status.credential_status
+            else None
+        )
+        reason = "billing_collect_ready"
+        next_allowed = None
+        if status.provider_key not in {"claude", "codex"}:
+            reason = "billing_check_provider_unsupported"
+        elif status.account_lifecycle not in {
+            "pending",
+            "active",
+        } or connection.lifecycle not in {"pending", "active"}:
+            reason = "billing_check_target_unavailable"
+        elif report_context.source_category != "cost" or report_context.grouping:
+            reason = "billing_collect_context_unsupported"
+        else:
+            try:
+                validate = (
+                    validate_openai_period
+                    if status.provider_key == "codex"
+                    else validate_anthropic_period
+                )
+                validate(
+                    BudgetPeriodV1(
+                        report_context.interval_start, report_context.interval_end
+                    ),
+                    as_of,
+                )
+            except ValueError:
+                reason = "billing_collect_context_unsupported"
+        if reason == "billing_collect_ready":
+            if generation is None:
+                reason = "billing_collect_credential_required"
+            else:
+                target = self._access.resolve(account_id, resource_id, "verification")
+                if target is None:
+                    reason = "billing_check_authority_unavailable"
+                else:
+                    is_openai = status.provider_key == "codex"
+                    service_target = (
+                        self._service_targets.read_access_target_for_authority(
+                            status.provider_key,
+                            OPENAI_COST_AUTHORITY_ID_V1
+                            if is_openai
+                            else "anthropic.analytics",
+                        )
+                    )
+                    if service_target is not None:
+                        digest = (
+                            openai_billing_budget_scope_digest
+                            if is_openai
+                            else anthropic_billing_budget_scope_digest
+                        )(
+                            target,
+                            ProviderTargetRefV1(
+                                "cloud_service", service_target.access_target_id
+                            ),
+                        )
+                        next_allowed = self._runs.get_budget_next_allowed_at(
+                            digest, "request", "count", as_of
+                        )
+                    if next_allowed is not None:
+                        reason = "billing_check_rate_limited"
+                    else:
+                        try:
+                            ready = (
+                                self._can_dispatch is not None
+                                and self._can_dispatch() is True
+                            )
+                        except Exception:
+                            ready = False
+                        if not ready:
+                            reason = "billing_check_service_unavailable"
+        if self._connections.get(account_id) != status:
+            raise ValueError("billing_check_target_changed")
+        return BillingCollectionEligibilityV1(
+            account_id,
+            resource_id,
+            status.account_record_version,
+            connection.record_version,
+            connection.scope_generation,
+            generation,
+            report_context,
+            reason == "billing_collect_ready",
+            reason,
+            next_allowed,
+            as_of,
+        )
+
     def _notify_queued(self, run: BudgetCollectionRunViewV1) -> None:
         """Best-effort wake hint after durable admission; never an authority."""
         if run.state != "queued" or self._on_queued is None:
@@ -197,6 +342,11 @@ class BillingCheckActionsV1:
             target = self._runs.get_billing_target(run.run_id)
         except (BudgetCollectionError, CollectionRepositoryErrorV1):
             raise ValueError("billing_check_unavailable") from None
+        if (
+            isinstance(command, BillingCollectCommandV1)
+            and self.get_report_context(run.run_id) != command.report_context
+        ):
+            raise ValueError("billing_check_idempotency_conflict")
         return _require_replay(command, identifiers, run, target)
 
     def _target(self, command: BillingCheckCommandV1) -> BillingAccessTargetV1:
@@ -227,6 +377,21 @@ class BillingCheckActionsV1:
         return target
 
     def check(self, command: BillingCheckCommandV1) -> BudgetCollectionRunViewV1:
+        if type(command) is not BillingCheckCommandV1:
+            raise ValueError("billing_check_command_invalid")
+        return self._queue(command)
+
+    def collect(self, command: BillingCollectCommandV1) -> BudgetCollectionRunViewV1:
+        if type(command) is not BillingCollectCommandV1:
+            raise ValueError("billing_collect_command_invalid")
+        if (
+            command.report_context.source_category != "cost"
+            or command.report_context.grouping
+        ):
+            raise ValueError("billing_collect_context_unsupported")
+        return self._queue(command)
+
+    def _queue(self, command: BillingCheckCommandV1) -> BudgetCollectionRunViewV1:
         """Replay or queue exactly one bounded read; never call the provider."""
         identifiers = billing_check_identifiers(command)
         replay = self._replay(command, identifiers)
@@ -234,6 +399,24 @@ class BillingCheckActionsV1:
             self._notify_queued(replay)
             return replay
         target = self._target(command)
+        if isinstance(command, BillingCollectCommandV1):
+            try:
+                validate = (
+                    validate_openai_period
+                    if target.connection.provider_key == "codex"
+                    else validate_anthropic_period
+                )
+                validate(
+                    BudgetPeriodV1(
+                        command.report_context.interval_start,
+                        command.report_context.interval_end,
+                    ),
+                    command.requested_at,
+                )
+            except ValueError:
+                raise ValueError("billing_collect_context_unsupported") from None
+        if self._can_dispatch is None:
+            raise ValueError("billing_check_service_unavailable")
         if self._can_dispatch is not None:
             try:
                 dispatch_ready = self._can_dispatch()
@@ -267,11 +450,16 @@ class BillingCheckActionsV1:
                 retry_chain_id=identifiers.retry_chain_id,
                 correlation_id=identifiers.correlation_id,
                 causation_id=None,
-                trigger="reauth_verification",
+                trigger="manual"
+                if isinstance(command, BillingCollectCommandV1)
+                else "reauth_verification",
                 request_principal_id=command.principal_id,
                 idempotency_key_digest=identifiers.idempotency_key_digest,
                 requested_at=command.requested_at,
                 deadline_at=command.requested_at + timedelta(seconds=120),
+                report_context=command.report_context
+                if isinstance(command, BillingCollectCommandV1)
+                else completed_billing_cost_context(command.requested_at),
             )
             result = self._runs.admit_run(admission)
         except CredentialBindingRepositoryErrorV1:

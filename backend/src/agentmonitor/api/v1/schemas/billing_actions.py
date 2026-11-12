@@ -12,6 +12,20 @@ class BillingCheckInputV1(BaseModel):
     expected_connection_version: int = Field(strict=True, ge=1)
 
 
+class BillingReportContextV1(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    range_key: Literal["7d", "30d"]
+    interval_start: datetime
+    interval_end: datetime
+    source_category: Literal["cost"]
+    grouping: tuple[str, ...] = Field(default=(), max_length=0)
+
+
+class BillingCollectInputV1(BillingCheckInputV1):
+    report_context: BillingReportContextV1
+
+
 class BillingCheckRunV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -42,6 +56,7 @@ class BudgetRunStatusV1(BillingCheckRunV1):
     account_id: str
     resource_id: str
     report_id: str | None
+    report_context: BillingReportContextV1 | None = None
 
 
 class SetBillingMonitoringInputV1(BaseModel):
@@ -85,3 +100,18 @@ class BillingMonitoringResultV1(BaseModel):
     lifecycle: Literal["pending", "active", "disconnected"]
     registry_revision: int
     updated_at: datetime
+
+
+class BillingCollectionEligibilityWireV1(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    account_id: str
+    resource_id: str
+    account_record_version: int
+    connection_record_version: int
+    scope_generation: int
+    binding_generation: int | None
+    report_context: BillingReportContextV1
+    can_collect: bool
+    reason_code: str
+    next_allowed_at: datetime | None
+    checked_at: datetime

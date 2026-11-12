@@ -107,6 +107,24 @@ Root owns typed contracts and composition integration. No migration, new queue,
 credential access, account mutation or dependency is required. The first nine
 pure contract cases passed; positive provider evidence remains separate.
 
+### T007 manual action handoff (12 November)
+
+Within approved plan 1.1.0, CTR-COL-002 2.4.0 adds a mandatory captured-context
+manual command and collection action to the existing billing action port.
+P01 adds an authenticated admin/CSRF POST on the selected connection's
+`collections` child; Check keeps its existing request and behavior. The command
+identity binds exact interval/category/grouping; retrying the same key cannot
+select a different interval. Existing durable run, target/generation fences,
+request-budget reservation and provider cooldown remain authoritative.
+An explicit manual read may use verification authority while automatic
+monitoring is disabled, without changing the preference. Scheduled reads still
+require monitoring authority; manual authority requires the owner principal
+and idempotency key. Root owns shared contracts/composition/P01 generation;
+M04 owns read-only cooldown projection. No new table, provider mutation,
+dependency or second collector is introduced. Browser controls follow the
+server's capability/eligibility and retain action identity across reload.
+This additive handoff does not claim populated collection or full T007 evidence.
+
 ## 5. Minimum data model and migration
 
 Root allocates M05 `v1_0732` after M02 owner-setup `v1_0730`/`v1_0731`, which follow

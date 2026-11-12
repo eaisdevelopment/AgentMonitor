@@ -4,6 +4,7 @@
 
 import hashlib
 import json
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -116,6 +117,22 @@ def _budget_retry_deferred(retry_after: datetime | None, as_of: datetime) -> boo
         return False
     _utc_text(retry_after)
     return retry_after > as_of
+
+
+def _billing_cooldown_boundary(
+    as_of: datetime,
+    retry_after: datetime | None,
+    reservation_end: datetime | None,
+) -> datetime | None:
+    """Select the latest future restriction; equality is eligible, not deferred."""
+    _utc_text(as_of)
+    future = []
+    for value in (retry_after, reservation_end):
+        if value is not None:
+            _utc_text(value)
+            if value > as_of:
+                future.append(value)
+    return max(future, default=None)
 
 
 def _schedule_interval_seconds(admission: CollectionRunAdmissionV1OrV2) -> int:
@@ -1216,6 +1233,60 @@ class SqliteCollectionRepositoryV1:
                     return tuple(claimed)
         except CollectionRepositoryErrorV1:
             raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise CollectionRepositoryErrorV1() from None
+
+    def get_budget_next_allowed_at(
+        self,
+        scope_digest: str,
+        dimension: str,
+        unit: str,
+        as_of: datetime,
+    ) -> datetime | None:
+        """Read the billing scope's cooldown without admitting or changing a run.
+
+        Billing reserves the entire bounded report allowance per fifteen-minute
+        slot. Any unreleased reservation in the current slot therefore blocks
+        another report until its end. Provider retry boundaries apply across
+        slots and report contexts. This advisory read cannot replace atomic
+        admission, whose authority and budget checks still decide a POST.
+        """
+        if (
+            type(scope_digest) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", scope_digest) is None
+            or any(
+                type(value) is not str
+                or re.fullmatch(r"[a-z][a-z0-9_.-]{0,63}", value) is None
+                for value in (dimension, unit)
+            )
+            or not isinstance(as_of, datetime)
+            or as_of.utcoffset() != timedelta(0)
+        ):
+            raise CollectionRepositoryErrorV1("collection_query_invalid")
+        instant = _utc_text(as_of)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    retry_after = _budget_retry_after(
+                        connection, scope_digest, dimension, unit
+                    )
+                    reservation_end = connection.exec_driver_sql(
+                        "SELECT max(window_end) FROM collection_budget_reservation "
+                        "WHERE scope_key_digest=? AND dimension=? AND unit=? "
+                        "AND state IN ('reserved','dispatched','expired_conservative') "
+                        "AND window_start<=? AND window_end>?",
+                        (scope_digest, dimension, unit, instant, instant),
+                    ).scalar_one()
+                    return _billing_cooldown_boundary(
+                        as_of,
+                        retry_after,
+                        None
+                        if reservation_end is None
+                        else _required_utc_value(reservation_end),
+                    )
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise CollectionRepositoryErrorV1() from None
 

@@ -121,6 +121,9 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "billing_check_provider_unsupported": (
         "Billing checks for this provider are not yet available."
     ),
+    "billing_collect_context_unsupported": (
+        "The source does not admit this report interval or context."
+    ),
     "billing_check_rate_limited": (
         "The billing read budget is currently exhausted. Try later."
     ),

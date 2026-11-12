@@ -1749,8 +1749,21 @@ class BudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
             or self.resource_id != target.connection.resource_id
             or self.provider_key != target.connection.provider_key
             or self.payload_schema != "budget.report.v1"
-            or (self.trigger == "reauth_verification")
-            != (target.purpose == "verification")
+            or (
+                self.trigger == "reauth_verification"
+                and target.purpose != "verification"
+            )
+            or (
+                target.purpose == "verification"
+                and self.trigger not in {"reauth_verification", "manual"}
+            )
+            or (
+                self.trigger == "manual"
+                and (
+                    self.request_principal_id is None
+                    or self.idempotency_key_digest is None
+                )
+            )
             or self.budget_unit != "count"
             or self.budget_dimension != "request"
             or not 1 <= self.budget_units <= 20

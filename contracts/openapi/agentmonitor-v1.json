@@ -2042,6 +2042,104 @@
         "title": "BillingCheckRunV1",
         "type": "object"
       },
+      "BillingCollectInputV1": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_connection_version": {
+            "minimum": 1.0,
+            "title": "Expected Connection Version",
+            "type": "integer"
+          },
+          "report_context": {
+            "$ref": "#/components/schemas/BillingReportContextV1"
+          }
+        },
+        "required": [
+          "expected_connection_version",
+          "report_context"
+        ],
+        "title": "BillingCollectInputV1",
+        "type": "object"
+      },
+      "BillingCollectionEligibilityWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_record_version": {
+            "title": "Account Record Version",
+            "type": "integer"
+          },
+          "binding_generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding Generation"
+          },
+          "can_collect": {
+            "title": "Can Collect",
+            "type": "boolean"
+          },
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "connection_record_version": {
+            "title": "Connection Record Version",
+            "type": "integer"
+          },
+          "next_allowed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Allowed At"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "report_context": {
+            "$ref": "#/components/schemas/BillingReportContextV1"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "scope_generation": {
+            "title": "Scope Generation",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account_id",
+          "resource_id",
+          "account_record_version",
+          "connection_record_version",
+          "scope_generation",
+          "binding_generation",
+          "report_context",
+          "can_collect",
+          "reason_code",
+          "next_allowed_at",
+          "checked_at"
+        ],
+        "title": "BillingCollectionEligibilityWireV1",
+        "type": "object"
+      },
       "BillingConnectionViewV1": {
         "additionalProperties": false,
         "properties": {
@@ -2370,6 +2468,51 @@
           "verified_at"
         ],
         "title": "BillingMonitoringStatusV1",
+        "type": "object"
+      },
+      "BillingReportContextV1": {
+        "additionalProperties": false,
+        "properties": {
+          "grouping": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0,
+            "title": "Grouping",
+            "type": "array"
+          },
+          "interval_end": {
+            "format": "date-time",
+            "title": "Interval End",
+            "type": "string"
+          },
+          "interval_start": {
+            "format": "date-time",
+            "title": "Interval Start",
+            "type": "string"
+          },
+          "range_key": {
+            "enum": [
+              "7d",
+              "30d"
+            ],
+            "title": "Range Key",
+            "type": "string"
+          },
+          "source_category": {
+            "const": "cost",
+            "title": "Source Category",
+            "type": "string"
+          }
+        },
+        "required": [
+          "range_key",
+          "interval_start",
+          "interval_end",
+          "source_category"
+        ],
+        "title": "BillingReportContextV1",
         "type": "object"
       },
       "BrowserSessionPageV1": {
@@ -4230,6 +4373,16 @@
               }
             ],
             "title": "Outcome Code"
+          },
+          "report_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingReportContextV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "report_id": {
             "anyOf": [
@@ -13137,6 +13290,487 @@
           "billing"
         ],
         "x-agentmonitor-application-port": "BillingCheckPortV1.check",
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
+    "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collection-eligibility": {
+      "get": {
+        "operationId": "billing_get_collection_eligibility_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "range_key",
+            "required": true,
+            "schema": {
+              "enum": [
+                "7d",
+                "30d"
+              ],
+              "title": "Range Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "interval_start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Interval Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "interval_end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Interval End",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingCollectionEligibilityWireV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Collection Eligibility",
+        "tags": [
+          "billing"
+        ],
+        "x-agentmonitor-application-port": "BillingCheckPortV1.get_collect_eligibility",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
+    "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collections": {
+      "post": {
+        "operationId": "billing_collect_now_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Current account ETag.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable key for retrying this collection.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingCollectInputV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingCheckRunV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserCsrfHeaderV1": [],
+            "BrowserSessionCookieV1": []
+          }
+        ],
+        "summary": "Collect Billing",
+        "tags": [
+          "billing"
+        ],
+        "x-agentmonitor-application-port": "BillingCheckPortV1.collect",
         "x-agentmonitor-auth-profile": "browser_cookie_only",
         "x-agentmonitor-error-schema": "SafeProblemV1",
         "x-agentmonitor-replay-policy": "replay_safe_representation",
@@ -31442,10 +32076,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "de2929124c1b994b7fedd06d4450f03e560d0988db1d88bb21df42554999a942",
-    "generator_version": "2.0.11",
+    "generator_sha256": "710ffd27d2afedc37bc5f4042ccb37d17e3bc0f06d161d34ecf5155d88e80919",
+    "generator_version": "2.0.12",
     "openapi_version": "3.1.0",
-    "schema_sha256": "e03b0c6f1313c88a17567adb3b01aa5e1f26b45a8e692cb2215a840ca16959af",
-    "source_sha256": "ae9a861edb4d2fda60a1ed664cff22d87404b0f65de75b12a9fc3b836969f9b2"
+    "schema_sha256": "bbcbdfd3668ee028e43f39f4dbaaade85ebfea7f1209e93226f1ead67ef9f2a6",
+    "source_sha256": "d9e9d71711531ba2b11d7b4d9c1dce1c5bcc2d34641b041eb01b070df5efed73"
   }
 }

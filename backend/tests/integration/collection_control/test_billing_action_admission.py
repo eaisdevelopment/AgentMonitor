@@ -83,3 +83,67 @@ def test_empty_real_database_refuses_before_creating_target_or_run(
                 connection.exec_driver_sql("PRAGMA integrity_check").scalar_one()
                 == "ok"
             )
+
+
+def test_collect_eligibility_requires_real_credential_and_never_changes_metadata(
+    tmp_path: Path,
+) -> None:
+    from agentmonitor.adapters.persistence.registry.sqlite.billing_connections import (
+        SqliteBillingConnectionRepositoryV1,
+    )
+    from agentmonitor.contracts.collection_control_v1 import (
+        BillingBudgetReportContextV1,
+    )
+
+    from backend.tests.integration.registry.test_billing_connections import (
+        _account,
+        _database,
+    )
+    from backend.tests.integration.registry.test_billing_connections import (
+        _command as create_command,
+    )
+
+    reference = _database(tmp_path)
+    account = _account(reference, "codex")
+    connections = SqliteBillingConnectionRepositoryV1(reference)
+    connection = connections.create(create_command(account))
+    before = connections.get(account.account_id)
+    end = NOW.replace(hour=0)
+    context = BillingBudgetReportContextV1("7d", end - timedelta(days=7), end, "cost")
+    from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+        SqliteCloudCredentialRegistryV1,
+    )
+
+    assert (
+        SqliteCloudCredentialRegistryV1(reference).read_access_target_for_authority(
+            "codex", "openai.analytics"
+        )
+        is None
+    )
+    service = BillingCheckActionsV1(reference)
+    eligibility = service.get_collect_eligibility(
+        account.account_id, connection.resource_id, context, NOW
+    )
+    assert eligibility is not None
+    assert eligibility.can_collect is False
+    assert eligibility.reason_code == "billing_collect_credential_required"
+    assert eligibility.next_allowed_at is None
+    assert eligibility.report_context == context
+    assert (
+        service.get_collect_eligibility(
+            account.account_id, OpaqueIdV1("absent"), context, NOW
+        )
+        is None
+    )
+    assert connections.get(account.account_id) == before
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as db:
+            for table in (
+                "reg_provider_access_target",
+                "collection_run",
+                "collection_request",
+            ):
+                assert (
+                    db.exec_driver_sql(f"SELECT count(*) FROM {table}").scalar_one()
+                    == 0
+                )

@@ -38,6 +38,11 @@ Reuse those increments. Do not rebuild pool controls, rewire OpenAI, rerun initi
 migrations or request completed cloud setup again. Current ticket counts are one
 done, twelve in progress and three planned; they are not a completion percentage.
 
+The next local increment is recorded in [manual collection evidence](../../evidence/m7-manual-collection-2026-11-12.md): selected-period action/eligibility,
+cooldown projection and original-request UI reconciliation are implemented and
+under integration verification. It is not yet a successful monetary journey or
+installed/public revision claim. No ticket closes from credential-free tests.
+
 ## 2. One remaining delivery sequence
 
 Each row is a bounded increment inside existing tickets, not a new ticket or

@@ -849,6 +849,16 @@ class SqliteCloudCredentialRegistryV1:
                 "credential_binding_unavailable"
             ) from None
 
+    def read_access_target_for_authority(
+        self,
+        provider_key: str,
+        authority_id: str,
+    ) -> ProviderAccessTargetV1 | None:
+        """Resolve an existing service identity without creating registry state."""
+        return self.read_active_access_target(
+            _access_target_id(provider_key, authority_id)
+        )
+
     def reconcile_access_target(
         self,
         *,
