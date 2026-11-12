@@ -1,4 +1,4 @@
-"""Admit one owner-requested Anthropic billing check without provider I/O."""
+"""Admit one owner-requested API billing check without provider I/O."""
 
 import hashlib
 from collections.abc import Callable
@@ -26,9 +26,17 @@ from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction impo
     RegistryRepositoryErrorV1,
 )
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import SOURCE_ID
+from agentmonitor.adapters.providers.codex.openai_api.policy import (
+    SOURCE_ID as OPENAI_SOURCE_ID,
+)
 from agentmonitor.composition.billing_run import (
     anthropic_cost_manifest_fingerprint,
     build_anthropic_billing_run,
+)
+from agentmonitor.composition.openai_billing_run import (
+    OPENAI_COST_AUTHORITY_ID_V1,
+    build_openai_billing_run,
+    openai_cost_manifest_fingerprint,
 )
 from agentmonitor.contracts.billing_actions_v1 import BillingCheckCommandV1
 from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
@@ -93,18 +101,19 @@ def _require_replay(
     run: BudgetCollectionRunViewV1,
     target: BillingAccessTargetV1,
 ) -> BudgetCollectionRunViewV1:
+    provider = target.connection.provider_key
     if (
         run.run_id != identifiers.run_id
         or run.schedule_id != identifiers.schedule_id
-        or run.provider_key != "claude"
+        or provider not in {"claude", "codex"}
+        or run.provider_key != provider
         or run.account_id != command.account_id
         or run.resource_id != command.resource_id
         or run.capability_id != "api.cost"
-        or run.source_id != SOURCE_ID
+        or run.source_id != (SOURCE_ID if provider == "claude" else OPENAI_SOURCE_ID)
         or target.purpose != "verification"
         or target.connection.account_id != command.account_id
         or target.connection.resource_id != command.resource_id
-        or target.connection.provider_key != "claude"
         or target.connection.record_version != command.expected_connection_version
     ):
         raise ValueError("billing_check_idempotency_conflict")
@@ -112,7 +121,7 @@ def _require_replay(
 
 
 class BillingCheckActionsV1:
-    """Queue a first Anthropic check through the existing durable M04 run."""
+    """Queue an admitted Anthropic/OpenAI check through the durable M04 run."""
 
     def __init__(
         self,
@@ -197,7 +206,7 @@ class BillingCheckActionsV1:
             raise ValueError("billing_check_unavailable") from None
         if status is None or len(status.connections) != 1:
             raise ValueError("billing_check_target_unavailable")
-        if status.provider_key != "claude":
+        if status.provider_key not in {"claude", "codex"}:
             raise ValueError("billing_check_provider_unsupported")
         connection = status.connections[0]
         if connection.resource_id != command.resource_id:
@@ -233,13 +242,21 @@ class BillingCheckActionsV1:
             if dispatch_ready is not True:
                 raise ValueError("billing_check_service_unavailable")
         try:
+            is_openai = target.connection.provider_key == "codex"
             service_target = self._service_targets.reconcile_access_target(
-                provider_key="claude",
-                authority_id="anthropic.analytics",
-                manifest_fingerprint=anthropic_cost_manifest_fingerprint(),
+                provider_key=target.connection.provider_key,
+                authority_id=OPENAI_COST_AUTHORITY_ID_V1
+                if is_openai
+                else "anthropic.analytics",
+                manifest_fingerprint=openai_cost_manifest_fingerprint()
+                if is_openai
+                else anthropic_cost_manifest_fingerprint(),
                 as_of=command.requested_at,
             )
-            admission = build_anthropic_billing_run(
+            build = (
+                build_openai_billing_run if is_openai else build_anthropic_billing_run
+            )
+            admission = build(
                 target=target,
                 access_target=service_target,
                 registry_revision=target.connection.registry_revision,

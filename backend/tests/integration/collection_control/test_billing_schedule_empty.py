@@ -3,6 +3,7 @@
 import time
 from pathlib import Path
 
+import pytest
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -42,7 +43,10 @@ def test_empty_registry_does_not_create_scheduled_runs_or_service_target(
                 )
 
 
-def test_actual_pending_inventory_is_not_enabled_by_scheduler(tmp_path: Path) -> None:
+@pytest.mark.parametrize("provider", ("claude", "codex"))
+def test_actual_pending_inventory_is_not_enabled_by_scheduler(
+    tmp_path: Path, provider: str
+) -> None:
     import asyncio
     import http.cookiejar
     import json
@@ -84,7 +88,7 @@ def test_actual_pending_inventory_is_not_enabled_by_scheduler(tmp_path: Path) ->
                 "POST",
                 "/api/v1/accounts",
                 body={
-                    "provider_key": "claude",
+                    "provider_key": provider,
                     "friendly_name": "Unconnected billing " + secrets.token_urlsafe(8),
                     "organization_id": None,
                     "initial_connection_purpose": "api",

@@ -89,7 +89,7 @@ export function checkEligibility(
   status: Pick<AccountBillingConnectionsV1, "account_lifecycle" | "credential_status">,
   connection: Pick<BillingConnectionViewV1, "provider_key" | "lifecycle">,
 ): Readonly<{ allowed: boolean; reason: string }> {
-  if (connection.provider_key !== "claude") return { allowed: false, reason: "Connection checking is not yet available for this provider in this build." };
+  if (!["claude", "codex"].includes(connection.provider_key)) return { allowed: false, reason: "Connection checking is not yet available for this provider in this build." };
   if (!["pending", "active"].includes(status.account_lifecycle) || !["pending", "active"].includes(connection.lifecycle)) {
     return { allowed: false, reason: "This connection is not available for checking." };
   }

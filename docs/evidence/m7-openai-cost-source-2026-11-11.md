@@ -135,3 +135,61 @@ No installed service, source account, provider state, default profile or credent
 was changed. No dependency, license, migration, UI or database change. Raw provider
 payload parsing remains unverified until genuine authorized access; this evidence
 must not be used to close M7-A04 or T008.
+
+## First seven-day runtime integration, 12 November 2026
+
+T008/T007 now have a local OpenAI cost manifest and run composition, plus explicit
+OpenAI selection in Check, scheduling, recovery, durable claims, the protected
+credential grant and source/commit normalization. The UI permits the existing
+Check workflow for stored OpenAI administrative credentials. This extends the
+same worker and contracts; no new queue, shared DTO, migration, dependency,
+credential store, source category or default-profile behavior.
+
+The local service authority `openai.organization` is a code-owned routing key,
+not proof of provider identity. Source/version admission pins the reviewed
+documentation mechanism; report provenance retains unknown upstream version,
+watermark and freshness. Exact reported currency is preserved, including
+currency=None for empty coverage without monetary facts. Existing Anthropic
+source/digest behavior remains unchanged.
+
+Tests and scope:
+
+- Initial manifest/run Red: two missing-module errors; later malformed-result
+  Red exposed an AttributeError and now produces a sanitized closed failure.
+  Sixty-eight new pure cases and140 combined provider/run regressions pass.
+- Root Red: OpenAI schedule intent rejected with
+  `billing_schedule_target_invalid`; actual isolated metadata Check incorrectly
+  returned `billing_check_provider_unsupported` instead of missing authority.
+  Both corrected. Fifteen scoped actual HTTP/SQLite/worker and pure tests pass;
+  no constructed report, binding credential or provider result enters storage.
+- UI Red: OpenAI missing-credential guidance said checking was not implemented.
+  Pure Green verifies required local entry, stored-credential eligibility and
+  continued separation from Ollama's cloud setup.
+- Canonical M7 pure passes583 Python cases and seven presentation suites.
+  Canonical collection_guards passes42 cases: actual no-credential inventory,
+  worker/recovery/supervisor boundaries and scheduling/retry policy. These are
+  not successful OpenAI requests or populated monetary commits.
+- AUTO-QUALITY passes at00:41:20UTC: Ruff760 formatted files, strict mypy699,
+  zero boundary violations, compatible91-operation API/client, typecheck/build.
+  An earlier overlapping execution of canonical checks removed shared temporary
+  tool links before another test finished, causing tool/import failures. The
+  independent reruns passed; those orchestration failures are not product Red
+  evidence. Run tool-link-owning canonical checks serially.
+
+Root reviewed the module implementation and wired the source to existing
+binding/scope/commit fences. Both already-admitted cost queues are inspected
+before fresh scheduled work; due selection covers both provider inventories.
+Full cross-provider backlog fairness, thirty-day intents, usage/categories and
+breakdowns remain the existing T007/T008 scope, not implied by this increment.
+
+Read-only installed inventory currently contains zero billing connections.
+No genuine source read/parse/receipt or provider-to-screen amount is claimed.
+Owner enrollment and local credential entry remain necessary for that live lane;
+no owner account configuration was performed. The code remains a candidate until
+its exact commit is installed and separately verified. Full T008/M7 stay open.
+
+Files: new A02 manifest and `composition/openai_billing_run.py`; existing billing
+actions/collection/schedule/monitoring; P02 Check presentation; pure and actual
+metadata/worker tests; existing M7 runner suite registrations. Reuses
+CTR-REG-0141.3+, CTR-COL-0022.1, CTR-CAP-0022.0 and current API schemas without
+breaking changes. Security custody, license and database shape are unchanged.

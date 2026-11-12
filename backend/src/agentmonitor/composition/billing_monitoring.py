@@ -148,8 +148,8 @@ class BillingMonitoringActionsV1:
         return monitoring_proof(target, captured, run, committed, report, instant)
 
     def _runtime_ready(self, provider_key: str) -> bool:
-        # The current supervised billing worker admits only Anthropic costs.
-        if provider_key != "claude" or self._can_dispatch is None:
+        # The supervised worker explicitly admits Anthropic and OpenAI costs.
+        if provider_key not in {"claude", "codex"} or self._can_dispatch is None:
             return False
         try:
             return self._can_dispatch() is True

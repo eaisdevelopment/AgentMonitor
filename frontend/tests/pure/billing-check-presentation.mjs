@@ -13,6 +13,9 @@ assert.equal(checkEligibility({ ...status, credential_status: { state: "pending"
 assert.equal(checkEligibility({ ...status, account_lifecycle: "archived" }, connection).allowed, false);
 assert.equal(checkEligibility(status, { ...connection, provider_key: "codex" }).allowed, false);
 assert.doesNotMatch(checkEligibility(status, { ...connection, provider_key: "codex" }).reason, /unsupported/i);
+assert.match(checkEligibility(status, { ...connection, provider_key: "codex" }).reason, /Store a credential locally/);
+assert.equal(checkEligibility({ ...status, credential_status: { state: "stored", active_generation: 1 } }, { ...connection, provider_key: "codex" }).allowed, true, "OpenAI billing runtime must be reachable from Check connection");
+assert.equal(checkEligibility({ ...status, credential_status: { state: "stored", active_generation: 1 } }, { ...connection, provider_key: "ollama" }).allowed, false, "Ollama uses its existing cloud connection controls");
 assert.equal(checkEligibility({ ...status, credential_status: null }, connection).allowed, false);
 assert.equal(pendingRun("committing"), true);
 assert.equal(pendingRun("queued"), true);

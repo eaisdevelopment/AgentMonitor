@@ -1,4 +1,4 @@
-"""Bounded seven-day Anthropic scheduling over public M02/M04 application ports."""
+"""Bounded seven-day API cost scheduling over public M02/M04 application ports."""
 
 import hashlib
 import math
@@ -25,6 +25,11 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 from agentmonitor.composition.billing_run import (
     anthropic_cost_manifest_fingerprint,
     build_anthropic_billing_run,
+)
+from agentmonitor.composition.openai_billing_run import (
+    OPENAI_COST_AUTHORITY_ID_V1,
+    build_openai_billing_run,
+    openai_cost_manifest_fingerprint,
 )
 from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -55,21 +60,25 @@ def billing_schedule_intent(
     """Stable window identity does not replace the actual admission timestamp."""
     if (
         target.purpose != "monitoring"
-        or target.connection.provider_key != "claude"
+        or target.connection.provider_key not in {"claude", "codex"}
         or as_of.utcoffset() != timedelta(0)
     ):
         raise ValueError("billing_schedule_target_invalid")
     connection = target.connection
     window = as_of.replace(minute=(as_of.minute // 15) * 15, second=0, microsecond=0)
     identity = _digest(
-        "anthropic-scheduled-cost-7d-v1",
+        "anthropic-scheduled-cost-7d-v1"
+        if connection.provider_key == "claude"
+        else "openai-scheduled-cost-7d-v1",
         connection.account_id.value,
         connection.resource_id.value,
         str(connection.record_version),
         str(connection.scope_generation),
         target.binding.binding_id.value,
         str(target.binding.generation),
-        anthropic_cost_manifest_fingerprint(),
+        anthropic_cost_manifest_fingerprint()
+        if connection.provider_key == "claude"
+        else openai_cost_manifest_fingerprint(),
     )
     tick = _digest(identity, window.isoformat())
     return BillingScheduleIntentV1(
@@ -138,9 +147,7 @@ class BillingScheduleV1:
         cursor: str | None = None
         while True:
             _remaining(deadline_monotonic)
-            page = self._accounts.page(
-                "claude", as_of=as_of, limit=200, after_key=cursor
-            )
+            page = self._accounts.page(None, as_of=as_of, limit=200, after_key=cursor)
             if page.availability.state != "available":
                 raise ValueError("billing_schedule_inventory_unavailable")
             for account in page.items:
@@ -148,7 +155,10 @@ class BillingScheduleV1:
                 if account.account_id in seen:
                     raise ValueError("billing_schedule_inventory_changed")
                 seen.add(account.account_id)
-                if account.lifecycle not in {"pending", "active"}:
+                if account.provider_key not in {
+                    "claude",
+                    "codex",
+                } or account.lifecycle not in {"pending", "active"}:
                     continue
                 metadata = self._connections.get(account.account_id)
                 if metadata is None or not metadata.connections:
@@ -200,10 +210,15 @@ class BillingScheduleV1:
             )
             if current != intent.target:
                 continue
+            is_openai = current.connection.provider_key == "codex"
             service_target = self._targets.reconcile_access_target(
-                provider_key="claude",
-                authority_id="anthropic.analytics",
-                manifest_fingerprint=anthropic_cost_manifest_fingerprint(),
+                provider_key=current.connection.provider_key,
+                authority_id=OPENAI_COST_AUTHORITY_ID_V1
+                if is_openai
+                else "anthropic.analytics",
+                manifest_fingerprint=openai_cost_manifest_fingerprint()
+                if is_openai
+                else anthropic_cost_manifest_fingerprint(),
                 as_of=datetime.now(UTC),
             )
             requested_at = datetime.now(UTC)
@@ -212,7 +227,10 @@ class BillingScheduleV1:
                 # intent rather than assigning an old cutoff to a new request.
                 continue
             remaining = min(120.0, _remaining(deadline_monotonic))
-            admission = build_anthropic_billing_run(
+            build = (
+                build_openai_billing_run if is_openai else build_anthropic_billing_run
+            )
+            admission = build(
                 target=current,
                 access_target=service_target,
                 registry_revision=current.connection.registry_revision,

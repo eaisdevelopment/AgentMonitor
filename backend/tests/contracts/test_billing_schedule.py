@@ -58,3 +58,27 @@ def test_due_selection_is_oldest_first_and_current_window_is_not_repeated() -> N
     assert due_billing_targets(((target, now - timedelta(seconds=10)),), now) == ()
     # A complete Check in this window delays the first scheduled read to next window.
     assert len(due_billing_targets(((target, now),), now + timedelta(minutes=15))) == 1
+
+
+def test_openai_has_independent_identity_and_shares_oldest_due_order() -> None:
+    from agentmonitor.composition.billing_schedule import (
+        billing_schedule_intent,
+        due_billing_targets,
+    )
+
+    anthropic = _target(purpose="monitoring")
+    openai = replace(
+        anthropic, connection=replace(anthropic.connection, provider_key="codex")
+    )
+    now = datetime(2026, 11, 11, 12, 1, tzinfo=UTC)
+    first = billing_schedule_intent(openai, now)
+    assert first == billing_schedule_intent(openai, now + timedelta(seconds=30))
+    assert first.schedule_id != billing_schedule_intent(anthropic, now).schedule_id
+    assert first.run_id != billing_schedule_intent(anthropic, now).run_id
+    selected = due_billing_targets(
+        ((anthropic, now - timedelta(hours=1)), (openai, None)), now
+    )
+    assert tuple(item.target.connection.provider_key for item in selected) == (
+        "codex",
+        "claude",
+    )

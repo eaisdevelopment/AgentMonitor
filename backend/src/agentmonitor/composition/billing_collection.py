@@ -1,7 +1,7 @@
 """Connect an admitted billing run to its source and fenced report sink.
 
-The first lane is Anthropic's completed-week cost report. Other billing sources
-must be integrated explicitly; a candidate adapter is not runtime admission.
+Anthropic and OpenAI completed-week costs use the same fenced run lifecycle.
+Other categories still require explicit integration and live verification.
 """
 
 import time
@@ -32,6 +32,15 @@ from agentmonitor.adapters.providers.claude.anthropic_api.source import (
     AnthropicCostResultV1,
     collect_cost_report_in_worker_v1,
 )
+from agentmonitor.adapters.providers.codex.openai_api.policy import (
+    SOURCE_ID as OPENAI_SOURCE_ID,
+)
+from agentmonitor.adapters.providers.codex.openai_api.source import (
+    OpenAICostResultV1,
+)
+from agentmonitor.adapters.providers.codex.openai_api.source import (
+    collect_cost_report_in_worker_v1 as collect_openai_cost_report_in_worker_v1,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
     approve_env_credential_file_v1,
     env_credential_file_lease_v1,
@@ -39,8 +48,10 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import 
 from agentmonitor.composition.billing_capacity_commit import billing_capacity_repository
 from agentmonitor.composition.billing_env_authorization import (
     AnthropicEnvAuthorizationV1,
+    OpenAIEnvAuthorizationV1,
 )
 from agentmonitor.composition.ollama_env_store import env_location_matches
+from agentmonitor.composition.openai_billing_run import OPENAI_COST_AUTHORITY_ID_V1
 from agentmonitor.contracts.capacity_v1 import BudgetReportInputV1
 from agentmonitor.contracts.collection_control_v1 import (
     BudgetCollectionRunAdmissionV1,
@@ -81,26 +92,27 @@ class BillingCollectionV1:
             self._runs, SqliteBudgetReportRepositoryV1(self._reference)
         )
         recovery_owner = OpaqueIdV1("billing-recovery-" + uuid.uuid4().hex)
-        recovery.recover_expired_runs(
-            provider_key="claude",
-            capability_id="api.cost",
-            source_id=SOURCE_ID,
-            as_of=now,
-            owner_stale_before=now - timedelta(seconds=120),
-            recovery_instance_id=recovery_owner,
-            recovery_lease_expires_at=now + timedelta(seconds=30),
-            maximum_runs=16,
-        )
-        recovery.recover_pending_commits(
-            provider_key="claude",
-            capability_id="api.cost",
-            source_id=SOURCE_ID,
-            as_of=now,
-            owner_stale_before=now - timedelta(seconds=120),
-            recovery_instance_id=recovery_owner,
-            recovery_lease_expires_at=now + timedelta(seconds=30),
-            maximum_runs=16,
-        )
+        for provider, source in (("claude", SOURCE_ID), ("codex", OPENAI_SOURCE_ID)):
+            recovery.recover_expired_runs(
+                provider_key=provider,
+                capability_id="api.cost",
+                source_id=source,
+                as_of=now,
+                owner_stale_before=now - timedelta(seconds=120),
+                recovery_instance_id=recovery_owner,
+                recovery_lease_expires_at=now + timedelta(seconds=30),
+                maximum_runs=16,
+            )
+            recovery.recover_pending_commits(
+                provider_key=provider,
+                capability_id="api.cost",
+                source_id=source,
+                as_of=now,
+                owner_stale_before=now - timedelta(seconds=120),
+                recovery_instance_id=recovery_owner,
+                recovery_lease_expires_at=now + timedelta(seconds=30),
+                maximum_runs=16,
+            )
         if recovery_only:
             from agentmonitor.composition.ollama_usage_collection import (
                 OllamaUsageCollectionV1,
@@ -117,25 +129,59 @@ class BillingCollectionV1:
             return 4
         return self._dispatch_one()
 
-    def _dispatch_one(self) -> int:
+    def _claim_one(self) -> BudgetCollectionRunAdmissionV1 | None:
         from agentmonitor.composition.billing_run import (
             ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
             ANTHROPIC_COST_OPERATION_FAMILY_V1,
             anthropic_billing_budget_limit,
             anthropic_cost_manifest_fingerprint,
         )
-
-        admission = self._runs.claim_next_budget_run(
-            scheduler_instance_id=self._instance,
-            as_of=datetime.now(UTC),
-            resolve_budget_limit=anthropic_billing_budget_limit,
-            provider_key="claude",
-            capability_id="api.cost",
-            source_id=SOURCE_ID,
-            manifest_fingerprint=anthropic_cost_manifest_fingerprint(),
-            collection_policy_version=ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
-            operation_family=ANTHROPIC_COST_OPERATION_FAMILY_V1,
+        from agentmonitor.composition.openai_billing_run import (
+            OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
+            OPENAI_COST_OPERATION_FAMILY_V1,
+            openai_billing_budget_limit,
+            openai_cost_manifest_fingerprint,
         )
+
+        # Drain both existing queues before admitting any fresh scheduled work.
+        # Each repository claim retains the source-specific authority/rate fence.
+        for provider, source, fingerprint, policy, operation, limit in (
+            (
+                "claude",
+                SOURCE_ID,
+                anthropic_cost_manifest_fingerprint(),
+                ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
+                ANTHROPIC_COST_OPERATION_FAMILY_V1,
+                anthropic_billing_budget_limit,
+            ),
+            (
+                "codex",
+                OPENAI_SOURCE_ID,
+                openai_cost_manifest_fingerprint(),
+                OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
+                OPENAI_COST_OPERATION_FAMILY_V1,
+                openai_billing_budget_limit,
+            ),
+        ):
+            admission = self._runs.claim_next_budget_run(
+                scheduler_instance_id=self._instance,
+                as_of=datetime.now(UTC),
+                resolve_budget_limit=limit,
+                provider_key=provider,
+                capability_id="api.cost",
+                source_id=source,
+                manifest_fingerprint=fingerprint,
+                collection_policy_version=policy,
+                operation_family=operation,
+            )
+            if admission is not None:
+                if not isinstance(admission, BudgetCollectionRunAdmissionV1):
+                    raise ValueError("billing_admission_provider_mismatch")
+                return admission
+        return None
+
+    def _dispatch_one(self) -> int:
+        admission = self._claim_one()
         if admission is None:
             from agentmonitor.composition.billing_schedule import BillingScheduleV1
 
@@ -152,21 +198,9 @@ class BillingCollectionV1:
                     credential_env_file=self._credential_env_file,
                     deadline_monotonic=self._deadline,
                 ).run()
-            admission = self._runs.claim_next_budget_run(
-                scheduler_instance_id=self._instance,
-                as_of=datetime.now(UTC),
-                resolve_budget_limit=anthropic_billing_budget_limit,
-                provider_key="claude",
-                capability_id="api.cost",
-                source_id=SOURCE_ID,
-                manifest_fingerprint=anthropic_cost_manifest_fingerprint(),
-                collection_policy_version=ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
-                operation_family=ANTHROPIC_COST_OPERATION_FAMILY_V1,
-            )
+            admission = self._claim_one()
             if admission is None:
                 return 0
-        if not isinstance(admission, BudgetCollectionRunAdmissionV1):
-            raise ValueError("billing_admission_provider_mismatch")
         return self._execute(admission)
 
     def _execute(self, admission: BudgetCollectionRunAdmissionV1) -> int:
@@ -175,7 +209,15 @@ class BillingCollectionV1:
             anthropic_billing_request,
             normalize_anthropic_billing_outcome,
         )
+        from agentmonitor.composition.openai_billing_run import (
+            normalize_openai_billing_outcome,
+            openai_billing_outcome,
+            openai_billing_request,
+        )
 
+        if admission.provider_key not in {"claude", "codex"}:
+            raise ValueError("billing_admission_provider_mismatch")
+        is_openai = admission.provider_key == "codex"
         run = self._runs.assert_claimed_budget_run(admission, datetime.now(UTC))
         service_target = SqliteCloudCredentialRegistryV1(
             self._reference
@@ -183,7 +225,8 @@ class BillingCollectionV1:
         if (
             service_target is None
             or service_target.provider_key != admission.provider_key
-            or service_target.authority_id != "anthropic.analytics"
+            or service_target.authority_id
+            != (OPENAI_COST_AUTHORITY_ID_V1 if is_openai else "anthropic.analytics")
             or service_target.manifest_fingerprint != admission.manifest_fingerprint
         ):
             self._runs.finalize_failed(
@@ -207,9 +250,10 @@ class BillingCollectionV1:
             ),
         )
         target = admission.billing_target
-        request = anthropic_billing_request(admission)
         with ExitStack() as stack:
-            authorization: AnthropicEnvAuthorizationV1 | None = None
+            authorization: (
+                AnthropicEnvAuthorizationV1 | OpenAIEnvAuthorizationV1 | None
+            ) = None
             try:
                 lock = stack.enter_context(
                     account_credential_lock(
@@ -226,7 +270,12 @@ class BillingCollectionV1:
                         approve_env_credential_file_v1(self._credential_env_file)
                     )
                 )
-                authorization = AnthropicEnvAuthorizationV1(
+                authorize = (
+                    OpenAIEnvAuthorizationV1
+                    if is_openai
+                    else AnthropicEnvAuthorizationV1
+                )
+                authorization = authorize(
                     target.binding.binding_id.value,
                     target.connection.account_id,
                     lock.inherited_lock(target.connection.account_id),
@@ -237,17 +286,41 @@ class BillingCollectionV1:
                 # The normal executor records this failure without freshening money.
                 authorization = None
 
-            def collect() -> CollectionOutcomeV1[BudgetReportInputV1]:
-                now = datetime.now(UTC)
-                remaining = (admission.deadline_at - now).total_seconds() - 5
-                source_deadline = min(self._deadline - 5, time.monotonic() + remaining)
+            def deadline() -> float:
+                remaining = (
+                    admission.deadline_at - datetime.now(UTC)
+                ).total_seconds() - 5
+                return min(self._deadline - 5, time.monotonic() + remaining)
+
+            def collect_openai() -> CollectionOutcomeV1[BudgetReportInputV1]:
+                assert authorization is None or isinstance(
+                    authorization, OpenAIEnvAuthorizationV1
+                )
+                source_deadline = deadline()
+                if source_deadline <= time.monotonic():
+                    result = OpenAICostResultV1(
+                        "deadline_exceeded", "openai_cost_deadline_exceeded", None, 0
+                    )
+                else:
+                    result = collect_openai_cost_report_in_worker_v1(
+                        openai_billing_request(admission),
+                        authorization=authorization,
+                        deadline_monotonic=source_deadline,
+                    )
+                return openai_billing_outcome(admission, result, datetime.now(UTC))
+
+            def collect_anthropic() -> CollectionOutcomeV1[BudgetReportInputV1]:
+                assert authorization is None or isinstance(
+                    authorization, AnthropicEnvAuthorizationV1
+                )
+                source_deadline = deadline()
                 if source_deadline <= time.monotonic():
                     result = AnthropicCostResultV1(
                         "deadline_exceeded", "anthropic_cost_deadline_exceeded", None, 0
                     )
                 else:
                     result = collect_cost_report_in_worker_v1(
-                        request,
+                        anthropic_billing_request(admission),
                         authorization=authorization,
                         deadline_monotonic=source_deadline,
                     )
@@ -255,8 +328,10 @@ class BillingCollectionV1:
 
             executor.execute_claimed(
                 admission,
-                collect,
-                normalize_anthropic_billing_outcome,
+                collect_openai if is_openai else collect_anthropic,
+                normalize_openai_billing_outcome
+                if is_openai
+                else normalize_anthropic_billing_outcome,
                 as_of=datetime.now(UTC),
                 completed_at=lambda: datetime.now(UTC),
             )
