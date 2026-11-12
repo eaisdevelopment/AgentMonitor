@@ -4,6 +4,7 @@ import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type 
 import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent, type BillingCheckIntent, type BillingMonitoringIntent } from "./billingCheckPresentation";
 import { FinancialPoolPanel } from "./FinancialPoolPanel";
 import { BillingScopeControls } from "./BillingScopeControls";
+import { BillingReconnectControl } from "./BillingReconnectControl";
 
 type BillingState =
   | Readonly<{ kind: "loading" }>
@@ -427,6 +428,11 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
       {state.status.connections.map((connection) => <div key={connection.resource_id}>
         <FinancialPoolPanel key={`${connection.resource_id}:${connection.scope_generation}`} account={account} resourceId={connection.resource_id} selector="billing" onExpired={onExpired} onProofUnavailable={onProofUnavailable} onChanged={() => { onAccountReload(); financialRead.current(); }} />
         <p><span className="state-chip state-unavailable">Connection {connection.lifecycle}</span></p>
+        <BillingReconnectControl accountStatus={state.status} connection={connection} disabled={busy || submitting || statusReading}
+          refreshRevision={revision} statusReadRevision={state.readRevision}
+          onBusyChange={(value) => { if (mounted.current) { mutating.current = value; setBusy(value); } }}
+          onExpired={onExpired} onProofUnavailable={onProofUnavailable} onScopeMutation={onScopeMutation}
+          onChanged={() => { setRevision((value) => value + 1); onAccountReload(); financialRead.current(); }} />
         <BillingMonitoringControls accountStatus={state.status} connection={connection} onExpired={onExpired} onProofUnavailable={onProofUnavailable}
           onChanged={() => { setRevision((value) => value + 1); onAccountReload(); financialRead.current(); }} />
         <dl className="telemetry-readouts">

@@ -13,6 +13,7 @@ from tooling.foundation.openapi_client import (
 
 EXPECTED_SUCCESS = {
     "registry_change_billing_scope_v1": ("200", "BillingConnectionViewV1"),
+    "registry_reconnect_billing_connection_v1": ("200", "BillingConnectionViewV1"),
     "capacity_list_budgets_v1": ("200", "AccountBudgetSummaryWireV1"),
     "capacity_list_budget_history_v1": ("200", "BudgetHistoryWireV1"),
     "capacity_list_budget_reports_v1": ("200", "BudgetReportListWireV1"),
@@ -152,6 +153,7 @@ EXPECTED_ERRORS = frozenset(
 )
 EXPECTED_REQUESTS = {
     "registry_change_billing_scope_v1": "ChangeBillingScopeInputV1",
+    "registry_reconnect_billing_connection_v1": "ReconnectBillingConnectionInputV1",
     "billing_collect_now_v1": "BillingCollectInputV1",
     "cloud_usage_collect_v1": "CloudUsageCollectInputV1",
     "registry_create_billing_connection_v1": "CreateBillingConnectionInputV1",
@@ -209,7 +211,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 100
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 101
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

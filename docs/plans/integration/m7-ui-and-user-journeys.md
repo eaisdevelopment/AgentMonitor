@@ -382,6 +382,13 @@ rules for the existing sections, not additional cards or screens.
 | Unknown mutation outcome | Connection/update result not confirmed | Reconcile status first; no automatic duplicate write |
 | Disconnected/archived | Monitoring stopped; history retained | Reconnect/restore by owner; never log out provider profiles |
 
+For archived API billing, the owner uses **Restore account**, then **Reconnect
+API billing** on that account's existing connection. Reconnect retains source
+identity, scope and history and leaves monitoring off. It exposes the existing
+local key setup command again; it does not restore a retired key or earlier
+access verification. Unknown outcomes require **Refresh billing status** before
+another reconnect attempt. No automatic retry or provider request follows.
+
 If the first report is partial, display its available exact buckets, coverage
 and omissions as partial evidence, without a complete-period total. If an older
 complete report exists, keep its total and history together, and show the newer

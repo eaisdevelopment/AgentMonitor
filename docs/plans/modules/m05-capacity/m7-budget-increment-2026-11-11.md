@@ -72,6 +72,33 @@ built-browser editing/reload, explicit access recheck, no provider request and
 actual offline status reconciliation. Existing genuine monetary and full
 connection-disconnect/reconnect acceptance remain in T002/T010/T011.
 
+### T002/T010/T011 restored billing connection handoff (12 November)
+
+CTR-REG-014 1.7.0 adds an explicit `ReconnectBillingConnectionCommandV1` and
+`BillingConnectionPortV1.reconnect`. P01 exposes POST on the connection's
+`/reconnect` resource, using the existing account/scope body versions, connection
+If-Match, CSRF/write authority and idempotency key. The restored account must be
+pending or active and its billing connection disconnected. A short M02 write
+transaction changes only that connection to pending/disabled and records its
+version, audit/outbox event and replay receipt. Account/resource identity, scope
+generation, financial-pool association, stored reports and retired bindings stay
+unchanged. No credential is activated, access proof inherited or provider called.
+
+P02 offers Reconnect API billing on the disconnected connection after account
+restore. It explains that history is preserved and a new local key setup/access
+check is required. Successful reconnect reloads current status and exposes the
+existing installed setup command; ambiguous results require a fresh status read,
+never an automatic mutation retry. Archived accounts must be restored first.
+This fixes the existing archive/restore dead end, not a new account wizard.
+
+Real SQLite and authenticated HTTP tests cover restore/reconnect, missing key,
+unchanged history authority, stale account/connection/scope, idempotency replay,
+archived rejection and guard failures. A real built-browser test covers the
+visible archive/restore/reconnect journey on isolated owner metadata. It does
+not claim actual key deletion/replacement or successful provider access. Those
+remain distinct lifecycle acceptance within the same existing tickets. No
+schema, dependency, secret custody or provider-profile change is required.
+
 ## 2. Actual source inventory and hazards
 
 - `capacity_v1.py` has a four-field reserved BudgetViewV1; preserve it and add

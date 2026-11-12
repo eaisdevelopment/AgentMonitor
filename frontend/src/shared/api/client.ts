@@ -413,6 +413,14 @@ export const registry = Object.freeze({
       body: { scope_id: scopeId, expected_account_version: status.account_record_version, expected_scope_generation: connection.scope_generation },
       headers: mutationHeaders({ id: connection.resource_id, recordVersion: connection.record_version }, true),
     }),
+  reconnectBillingConnection: (
+    status: AccountBillingConnectionsV1, connection: BillingConnectionViewV1,
+  ): Promise<ClientResult<BillingConnectionViewV1>> =>
+    apiClient.registry_reconnect_billing_connection_v1({
+      path: { account_id: status.account_id, resource_id: connection.resource_id },
+      body: { expected_account_version: status.account_record_version, expected_scope_generation: connection.scope_generation },
+      headers: mutationHeaders({ id: connection.resource_id, recordVersion: connection.record_version }, true),
+    }),
   checkBillingConnection: (
     intent: Readonly<{ accountId: string; resourceId: string; accountVersion: number; connectionVersion: number; idempotencyKey: string }>,
     signal?: AbortSignal,

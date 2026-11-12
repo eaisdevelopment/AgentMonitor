@@ -166,6 +166,11 @@ class ChangeBillingScopeInputV1(_ClosedV1):
     expected_scope_generation: int = Field(ge=1)
 
 
+class ReconnectBillingConnectionInputV1(_ClosedV1):
+    expected_account_version: int = Field(ge=1)
+    expected_scope_generation: int = Field(ge=1)
+
+
 class BillingConnectionViewV1(_ClosedV1):
     account_id: str
     resource_id: str

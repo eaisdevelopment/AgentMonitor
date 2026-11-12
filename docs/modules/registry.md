@@ -304,3 +304,11 @@ report-write transaction; changed/disconnected/archived authority is rejected.
 This does not prove provider permission or enable monitoring. Ollama usage still
 needs its existing cloud graph adapter. See the
 [billing authority evidence](../evidence/m7-billing-authority-2026-11-11.md).
+
+CTR-REG-014 1.7.0 adds explicit reconnect for a restored account's disconnected
+billing connection. Account/connection/scope versions and idempotency fence one
+transaction returning it to pending/disabled. Scope, resource, pool membership
+and retained reports stay unchanged; retired credentials and old access checks
+do not regain authority. Reconnect requires no active/pending credential. P02
+then exposes the existing local setup command and Check workflow. See the
+[bounded reconnect evidence](../evidence/m7-billing-reconnect-2026-11-12.md).

@@ -125,6 +125,10 @@ try {
   requireEvidence(scopeOperation?.operationId === "registry_change_billing_scope_v1", "billing_scope_contract_missing");
   const scopeInput = contract.components?.schemas?.ChangeBillingScopeInputV1;
   requireEvidence(scopeInput?.additionalProperties === false && ["scope_id", "expected_account_version", "expected_scope_generation"].every(field => scopeInput.required?.includes(field)), "billing_scope_contract_invalid");
+  const reconnectOperation = contract.paths?.["/api/v1/accounts/{account_id}/billing-connections/{resource_id}/reconnect"]?.post;
+  requireEvidence(reconnectOperation?.operationId === "registry_reconnect_billing_connection_v1", "billing_reconnect_contract_missing");
+  const reconnectInput = contract.components?.schemas?.ReconnectBillingConnectionInputV1;
+  requireEvidence(reconnectInput?.additionalProperties === false && ["expected_account_version", "expected_scope_generation"].every(field => reconnectInput.required?.includes(field)), "billing_reconnect_contract_invalid");
   checks.scope_contract = "passed";
 
   stage = "continuity";

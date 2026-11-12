@@ -231,6 +231,10 @@ IAM_OPERATIONS = {
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/scope",
         "put",
     ): "registry_change_billing_scope_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/reconnect",
+        "post",
+    ): "registry_reconnect_billing_connection_v1",
     ("/api/v1/accounts", "get"): "registry_list_accounts_v1",
     ("/api/v1/accounts", "post"): "registry_register_account_v1",
     ("/api/v1/accounts/{account_id}", "get"): "registry_get_account_v1",
@@ -1082,6 +1086,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         "ChangeBillingScopeInputV1",
     ),
+    "registry_reconnect_billing_connection_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "BillingConnectionPortV1.reconnect",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "200",
+        "BillingConnectionViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "ReconnectBillingConnectionInputV1",
+    ),
     "registry_get_account_v1": (
         "cookie_or_bearer",
         "read:accounts",
@@ -1768,7 +1784,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 100
+        or len(identifiers) != 101
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

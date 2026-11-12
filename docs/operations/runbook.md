@@ -1386,6 +1386,22 @@ Provider logins and credentials remain separate. The
 [actual successful login record](../evidence/m6-dashboard-corrections-2026-11-04.md)
 documents HTTP 204 followed by an authenticated HTTP 200.
 
+### Restore an archived API billing account
+
+Open the account in **Accounts**, expand **Edit account** and choose **Restore
+account**. On its API billing connection, choose **Reconnect API billing**.
+History and source scope remain available; monitoring stays disabled. Expand
+**Set up or replace local key** and use the displayed nonsecret command on the
+AgentMonitor host. Enter the provider administrative key only at its hidden
+local prompt, then return to **Check connection** and enable API monitoring
+after successful verification. Subscription login does not provide billing access.
+
+If the reconnect result is uncertain, choose **Refresh billing status** before
+trying again. Reconnect does not reactivate retired credentials. A displayed
+**Cleanup required** remains truthful until local removal is confirmed; it is
+not an instruction to edit provider profiles. This path preserves stored history
+and never restarts user agents.
+
 ### Connect, rotate or disconnect an Ollama cloud account
 
 This is the approved Linux local-server flow. Create the organization and an

@@ -37,6 +37,7 @@ from agentmonitor.api.v1.schemas.registry import (
     OrganizationViewV1,
     ProviderInstallationPageV1,
     ProviderInstallationViewV1,
+    ReconnectBillingConnectionInputV1,
     RegisterAccountInputV1,
     RenameAccountInputV1,
     RenameOrganizationInputV1,
@@ -50,6 +51,7 @@ from agentmonitor.contracts.registry_billing_v1 import (
 from agentmonitor.contracts.registry_billing_v1 import (
     ChangeBillingScopeCommandV1,
     CreateBillingConnectionCommandV1,
+    ReconnectBillingConnectionCommandV1,
 )
 from agentmonitor.contracts.registry_v1 import (
     AccountViewV1 as SourceAccountViewV1,
@@ -927,6 +929,53 @@ def change_billing_scope(
         raise ProblemError(503, "registry_repository_unavailable")
     try:
         item = port.change_scope(command)
+    except RegistryCommandConflictV1 as error:
+        code = str(error)
+        if code == "registry_subject_not_found":
+            raise ProblemError(404, code) from None
+        if code == "registry_version_conflict":
+            raise ProblemError(412, code) from None
+        if code not in {"registry_idempotency_conflict", "registry_replay_stale"}:
+            code = "registry_conflict"
+        raise ProblemError(409, code) from None
+    except ValueError:
+        raise ProblemError(503, "registry_repository_unavailable") from None
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["ETag"] = f'"{item.resource_id.value}.{item.record_version}"'
+    return _billing_connection(item)
+
+
+@router.post(
+    "/accounts/{account_id}/billing-connections/{resource_id}/reconnect",
+    operation_id="registry_reconnect_billing_connection_v1",
+    response_model=BillingConnectionViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=_version_policy("BillingConnectionPortV1.reconnect", idempotent=True),
+)
+def reconnect_billing_connection(
+    account_id: str,
+    resource_id: str,
+    input: ReconnectBillingConnectionInputV1,
+    request: Request,
+    response: Response,
+) -> BillingConnectionViewV1:
+    caller = authorize_request(request, "write:accounts", require_csrf=True)
+    reject_unknown_query(request, frozenset())
+    command = ReconnectBillingConnectionCommandV1(
+        account_id=OpaqueIdV1(account_id),
+        resource_id=OpaqueIdV1(resource_id),
+        expected_account_version=input.expected_account_version,
+        expected_connection_version=_expected_version(request, resource_id),
+        expected_scope_generation=input.expected_scope_generation,
+        principal_id=caller.principal.principal_id,
+        command_id=_idempotency_key(request),
+        requested_at=datetime.now(UTC),
+    )
+    port = observation_ports(request).billing_connections
+    if port is None:
+        raise ProblemError(503, "registry_repository_unavailable")
+    try:
+        item = port.reconnect(command)
     except RegistryCommandConflictV1 as error:
         code = str(error)
         if code == "registry_subject_not_found":

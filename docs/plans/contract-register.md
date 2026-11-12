@@ -243,3 +243,8 @@ idempotency and account-version checks. Account subscription identity/monitoring
 are unchanged; a pending connection is not verified access. M6 Ollama resource
 reuse, credential setup and billing monitoring remain separate unfinished work.
 See [contract impact and evidence](../evidence/m7-billing-metadata-contract-2026-11-11.md).
+
+Additive CTR-REG-014 1.7.0 publishes explicit restored-account reconnect through
+the existing billing port, with account/connection/scope fencing and replay
+protection. It reopens only metadata, never retired credentials or access proof;
+see the [current handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#t002t010t011-restored-billing-connection-handoff-12-november).

@@ -192,6 +192,35 @@ class ChangeBillingScopeCommandV1(TechnicalValueV1):
             raise ValueError("billing_scope_command_invalid")
 
 
+@dataclass(frozen=True, slots=True)
+class ReconnectBillingConnectionCommandV1(TechnicalValueV1):
+    """Reopen owner metadata only; never restore credential or access authority."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.7.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    expected_account_version: int
+    expected_connection_version: int
+    expected_scope_generation: int
+    principal_id: OpaqueIdV1
+    command_id: OpaqueIdV1
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if any(
+            type(value) is not int or value < 1
+            for value in (
+                self.expected_account_version,
+                self.expected_connection_version,
+                self.expected_scope_generation,
+            )
+        ):
+            raise ValueError("billing_reconnect_command_invalid")
+
+
 class BillingConnectionPortV1(Protocol):
     """Registry metadata only. No call reads a secret or contacts a provider."""
 
@@ -203,6 +232,10 @@ class BillingConnectionPortV1(Protocol):
 
     def change_scope(
         self, command: ChangeBillingScopeCommandV1
+    ) -> BillingConnectionViewV1: ...
+
+    def reconnect(
+        self, command: ReconnectBillingConnectionCommandV1
     ) -> BillingConnectionViewV1: ...
 
 
