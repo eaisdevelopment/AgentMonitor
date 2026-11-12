@@ -25,12 +25,14 @@ also records failed broad concurrent continuity probes and an observed browser
 network interruption. Reverify that broader boundary; independent T013 work
 continues. This remains existing recovery scope, not a new owner prerequisite.
 
-**Next independent delivery:** finish the existing first-source-entry history
-chart packet in T013 through its built-browser and installed checks. Its local
-draft is not a daily aggregate or a completed T013 delivery. Daily aggregation
-and observed rate are the following packet; conditional exhaustion follows the
-same financial contract. Do not hold the first chart for those calculations or
-restart its existing Red/Green work. Billing disconnect/local cleanup and status-to-financial
+**Delivered first chart:** T013 source entries are installed and published at
+`c59d068`, with fourteen genuine API/table/chart entries verified. Its
+[evidence](../../evidence/m7-history-chart-2026-11-12.md) records a small checked
+series-label successor. This is not daily aggregation or completed T013.
+Next, correct the diagnosed Overview registry-time conflict and complete the
+daily aggregation/observed-rate packet; conditional exhaustion follows the same
+financial contract. Retain the delivered chart rather than restart it.
+Billing disconnect/local cleanup and status-to-financial
 refresh are installed and published at `d985cc7`; their
 [evidence](../../evidence/m7-billing-maintenance-2026-11-12.md) records 95 registry
 tests, isolated SQLite/PTY/browser Red/Green, local quality and concurrent
@@ -50,12 +52,18 @@ records real HTTP/registry/built-browser Green and installed read-only checks.
 Retain that increment, including pool refresh and the historical-selection
 collection guard; do not restart scope editing, routing or concurrent-read fixes.
 
-**Highest-priority demonstration when access exists:** one genuine monetary
+**Highest-priority monetary demonstration:** one genuine monetary
 report, with identical scope, period, currency, cost basis and exact amount in
 storage, API, installed Overview and account detail. Ollama counts/balances do
 not replace that proof. All remaining categories, charts and forecasts must not
-delay this first monetary journey. The existing monetary-setup request remains
-pending; missing access pauses its live assertions only.
+delay this first monetary journey. The existing Anthropic/OpenAI setup request
+remains pending; missing access pauses those provider assertions only.
+
+The 09:09 UTC current-source check now finds seven real USD cost entries in the
+Ollama report as well as usage. Use these genuine facts for monetary storage/
+API/DOM verification and seek their matching provider display; do not continue
+assuming all available reports are counts-only. Anthropic/OpenAI access remains
+a separate prerequisite for those mandatory provider lanes.
 
 | Owner-visible checkpoint | Usable result | Remaining after it |
 |---|---|---|
@@ -71,8 +79,8 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `d73c171`, schema `v1_0734`; readable queued expiry plus local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey, complete lifecycle/analysis and current broad concurrent continuity |
-| Public code | GitHub implementation `d73c171`, independently verified | Later documentation/probe-only receipts do not change installed code |
+| Installed implementation | `c59d068`, schema `v1_0734`; source-entry chart plus readable queued expiry, local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey, complete lifecycle/analysis and current broad concurrent continuity |
+| Public code | GitHub implementation `c59d068`, independently verified | Later documentation/probe-only receipts do not change installed code |
 | Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Later seven-day probe made one POST; the queued run expired before dispatch and its status/history read failed. Successful seven-day manual collection, monetary reports and remaining provider matrix are unproved |
 | Browser reliability | Prior installed concurrent Overview/setup/cloud reads passed; current expired-run/history UI passes; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Current broad concurrent probe failed; later inspection observed browser network interruption. Monetary totals, full accessibility and final acceptance remain open |
 | Source access | Read-only installed inventory at 08:11:53 UTC, 12 November: zero Anthropic/OpenAI billing connections, stored bindings or enabled billing connections | Subscription logins do not prove billing access; absence is not a provider denial |

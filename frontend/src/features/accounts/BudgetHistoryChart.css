@@ -10,7 +10,7 @@
 .budget-history-chart-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .25rem .75rem; }
 .budget-history-chart h4 { margin: 0; }
 .budget-history-chart p { font-size: .8rem; margin: .3rem 0; }
-.budget-history-chart label { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: .4rem; font-size: .85rem; }
+.budget-history-chart label { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: .4rem; font-size: .85rem; white-space: nowrap; }
 .budget-history-chart select { width: min(20rem, 100%); min-width: 0; }
 .budget-history-chart-entries { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(3.4rem, 1fr); gap: .25rem; list-style: none; padding: .25rem; margin: .3rem 0; overflow-x: auto; }
 .budget-history-chart-entry {

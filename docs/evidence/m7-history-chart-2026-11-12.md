@@ -1,7 +1,7 @@
 # M7 first source-entry history chart
 
-Status: candidate increment under approved focused plan 1.1.0; installation and
-publication pending at this checkpoint. T013 remains in progress. Requirements
+Status: first increment installed and published at `c59d068`; the small series-label
+correction below is a checked successor awaiting installation. T013 remains in progress. Requirements
 FR-BUDGET-003/004, FR-HIST-001; acceptance AC-HIST-001, AC-UI-003/004/006,
 M7-A06/A07. M05 owns semantics, P01 serialization and P02 presentation.
 
@@ -76,3 +76,32 @@ not claimed as live financial evidence. T013 still needs proven-disjoint daily
 aggregation/rate, supported breakdowns, separate balance history, conditional
 forecast and retention. Current broad installed concurrent continuity remains
 unresolved independently of this chart. M7 remains open.
+
+## Installed result and visual follow-up
+
+Implementation `c59d0686aec0f2e7940d6ee860955dc57bea4319` passed the selected
+same-schema updater. The installed read-only chart probe passed all fourteen
+genuine entries at that exact revision. Service active and landing HTTP 200;
+GitHub main independently matched the full implementation revision.
+
+Actual current report inspection at 09:09 UTC found seven USD cost entries and
+seven usage entries, complete coverage for 5–12 November, category
+`self_requests_and_cost`, basis `provider_reported_usage_usd`. The report was
+stored at 09:07:15 UTC. Thus current Ollama evidence is no longer counts-only;
+it supports a genuine monetary history path. This is not yet comparison with
+Ollama's own displayed cost or the required Anthropic/OpenAI source success.
+Do not retain the prior absence-of-money assumption as a prerequisite.
+
+Visual inspection of the actual chart found the short Series label wrapping
+mid-word. The installed probe reproduced `history_chart_series_label`; a minimal
+nowrap style fixes it. The strengthened canonical browser selection then passed
+four tests in 45.52 seconds, including narrow layout. No financial behavior changed.
+
+The broader Overview probe remains blocked at Back navigation. Added safe
+diagnostics now identify `/api/v1/budgets`, `unavailable`,
+`budget_overview_registry_changed`, with zero mutations. Source inspection and
+independent M04 review identify conflated financial cutoff and current registry
+metadata time in pool reads. A versioned, tested correction must preserve
+revision/scope/binding/open-membership checks and command-time guards; do not
+remove safety checks or call this broad continuity passed. The exact original
+report context remains valid for the successful chart check.

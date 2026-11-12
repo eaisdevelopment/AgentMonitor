@@ -13,6 +13,7 @@ let stage = "overview";
 let errorKind = null;
 let rowSetDiagnostic = null;
 let entryDiagnostic = null;
+let availabilityDiagnostic = null;
 const overviewResponseStatuses = [];
 const renderedReadPaths = [];
 const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", source_history: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
@@ -66,7 +67,11 @@ try {
       query.set("limit", "200");
       if (cursor !== undefined) query.set("cursor", cursor);
       const result = await read(`${path}?${query}`);
-      if (!["available", ...(path === "/api/v1/budgets" ? ["partial"] : [])].includes(result.availability?.state)) stop("blocked", "comparison_source_unavailable");
+      if (!["available", ...(path === "/api/v1/budgets" ? ["partial"] : [])].includes(result.availability?.state)) {
+        const safeCode = value => typeof value === "string" && /^[a-z0-9_]{1,128}$/.test(value) ? value : "unclassified";
+        availabilityDiagnostic = { path, state: safeCode(result.availability?.state), reason_code: safeCode(result.availability?.reason_code) };
+        stop("blocked", "comparison_source_unavailable");
+      }
       requireEvidence(Array.isArray(result.items) && typeof result.page?.has_more === "boolean", "overview_page_invalid");
       if (first === undefined) first = result;
       if (first.registry_revision !== result.registry_revision) stop("blocked", "inventory_changed_during_probe");
@@ -501,4 +506,4 @@ try {
   checks.read_only = page === undefined ? "not_run" : mutations === 0 ? "passed" : "failed";
   if (mutations !== 0) { status = "failed"; reason = "unexpected_mutation_request"; }
 }
-process.stdout.write(JSON.stringify({ record_type: "agentmonitor.m7_overview_probe.v1", status, reason_code: reason, stage, error_kind: errorKind, source_revision: sourceRevision, checks, rows_verified: rowsVerified, row_set_diagnostic: rowSetDiagnostic, entry_diagnostic: entryDiagnostic, unsafe_requests: mutations, observed_at: new Date().toISOString() }) + "\n", () => process.exit(status === "passed" ? 0 : status === "failed" ? 1 : 3));
+process.stdout.write(JSON.stringify({ record_type: "agentmonitor.m7_overview_probe.v1", status, reason_code: reason, stage, error_kind: errorKind, source_revision: sourceRevision, checks, rows_verified: rowsVerified, row_set_diagnostic: rowSetDiagnostic, entry_diagnostic: entryDiagnostic, availability_diagnostic: availabilityDiagnostic, unsafe_requests: mutations, observed_at: new Date().toISOString() }) + "\n", () => process.exit(status === "passed" ? 0 : status === "failed" ? 1 : 3));

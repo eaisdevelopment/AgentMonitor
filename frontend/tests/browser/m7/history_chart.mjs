@@ -109,6 +109,12 @@ try {
     check(facts.length === loaded.length && new Set(loaded).size === loaded.length);
     const series = [...new Map(facts.filter(item => item.chart != null).map(item => [item.chart.series_key, item.chart.label])).entries()];
     const selector = chart.getByRole("combobox", { name: "History chart series", exact: true });
+    stage = "history_chart_series_label";
+    check(await selector.evaluate(node => {
+      const range = document.createRange();
+      range.selectNodeContents(node.closest("label").firstChild);
+      return range.getClientRects().length === 1;
+    }));
     check(await selector.locator("option").count() === series.length);
     for (const [key, label] of series) {
       stage = "history_chart_series";
