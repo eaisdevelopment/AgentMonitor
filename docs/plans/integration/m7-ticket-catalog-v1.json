@@ -780,7 +780,7 @@
       "deliverable": "Ordered increments in the existing service: setup before owner entry, financial storage/worker before the installed first report, then complete Overview/detail/history verification; selected clean candidate, safe phase-specific diagnostics, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Recorded installed46b8d9d/schema0734: pool controls, funds/usage Overview, exact report navigation, filters, Back/reload and responsive/setup browser checks passed. Earlier0733→0734 migration and same-schema update evidence retained. Full genuine monetary journey, continuity/recovery and AUTO-M7-DEPLOY remain required; this increment does not close T014.",
+      "verification": "Recorded installed54eab61/schema0734: full-inventory sorting, pool controls, funds/usage Overview, exact report navigation, filters, Back/reload and responsive/setup browser checks passed. Earlier0733→0734 migration and same-schema update evidence retained. Full genuine monetary journey, continuity/recovery and AUTO-M7-DEPLOY remain required; this increment does not close T014.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",

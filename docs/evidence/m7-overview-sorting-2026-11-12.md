@@ -1,7 +1,6 @@
 # M7 full-inventory financial Overview sorting
 
-Status: candidate implementation; installed verification and publication are
-not yet claimed. Requirements FR-ORG-003, FR-BUDGET-002/005, AC-UI-002..006;
+Status: installed and published increment at `54eab61`; full M7 remains open. Requirements FR-ORG-003, FR-BUDGET-002/005, AC-UI-002..006;
 T010/T012, M7-A07/A08. M05 owns financial ordering, P01 transport and P02 controls;
 root owns shared contracts, generated client and composition.
 
@@ -82,3 +81,30 @@ Canonical pure lane passed598 Python cases and seven presentation suites.
 Canonical `--lane technical --check budget_http_guards` passed13 actual
 IAM/current-read/Check/status/monitoring HTTP cases. Scope remains no-report
 metadata/guards; neither count asserts genuine monetary persistence.
+
+## Installed and published checkpoint
+
+Clean code revision `54eab619961b1e33ed31cc882693b071895b5738` passed the existing
+same-schema update on12 November2026; schema remains `v1_0734`. Original restart
+policy restored, service active and dashboard HTTP200. No owner accounts,
+credentials, profiles or monitoring preferences were changed.
+
+At01:15:12UTC, the authenticated installed Overview probe passed all seven
+checks at that exact revision: two genuine financial rows, API/DOM order,
+filters, immutable report/detail navigation, responsive layout, pool controls,
+and zero unsafe requests. At01:15:42UTC the installed setup/shell probe passed
+all six checks,38 requests and zero unsafe requests, including actual revision,
+setup, Overview and existing header/footer continuity. The >50-row pagination
+and six sorting combinations were proved separately in isolated real metadata;
+the installed two-row inventory does not establish that larger boundary alone.
+
+Pinned Gitleaks8.30.0 scanned e644912..54eab61. Raw exit1 flagged one generic-key
+pattern: the generated `openapiArtifactSha256` constant. Root verified that
+exact line against the actual SHA-256 of the committed OpenAPI artifact; it is
+not a credential. No finding was suppressed or misreported as scanner exit0.
+Git push fast-forwarded public GitHub main; `git ls-remote` confirmed54eab61.
+
+This completes the full-inventory sorting increment of T010/T012. Their broader
+history/monetary/UI acceptance, all remaining M7 tickets and full exit remain
+unfinished. Next independent work is bounded immutable daily-history paging;
+first genuine monetary integration proceeds when owner billing setup exists.
