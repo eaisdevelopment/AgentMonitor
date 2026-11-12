@@ -11,6 +11,9 @@ let actualRevision = null;
 let requestsObserved = 0;
 let unsafeRequests = 0;
 let stage = "tooling";
+let setupStep = null;
+let errorKind = null;
+const failedRequests = [];
 
 function stop(nextStatus, reason) {
   status = nextStatus;
@@ -48,6 +51,10 @@ try {
     requestsObserved += 1;
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) unsafeRequests += 1;
   });
+  page.on("requestfailed", request => {
+    const error = request.failure()?.errorText;
+    if (typeof error === "string" && /^net::ERR_[A-Z_]+$/.test(error)) failedRequests.push(error);
+  });
   await page.setViewportSize({ width: 1366, height: 768 });
   stage = "authentication";
   const navigation = await page.goto(origin, { waitUntil: "domcontentloaded", timeout: 10000 });
@@ -81,17 +88,22 @@ try {
   checks.overview = "passed";
 
   stage = "setup_form";
+  setupStep = "accounts_navigation";
   requireEvidence(await accounts.getAttribute("type") === "button", "accounts_navigation_not_safe");
   await accounts.click();
+  setupStep = "add_api_control";
   const addApi = page.getByRole("button", { name: "Add API billing account", exact: true });
   await addApi.waitFor();
   requireEvidence(await addApi.getAttribute("type") === "button", "setup_mode_not_safe");
   await addApi.click();
+  setupStep = "add_api_heading";
   await page.getByRole("heading", { name: "Add API billing account", exact: true }).waitFor();
+  setupStep = "provider_choices";
   const provider = page.getByLabel("Provider", { exact: true });
   const providerKeys = await provider.locator("option").evaluateAll((options) => options.map((option) => option.value));
   requireEvidence(JSON.stringify(providerKeys) === JSON.stringify(["", "claude", "codex", "ollama"]), "provider_choices_mismatch");
   const create = page.getByRole("button", { name: "Create API billing account", exact: true });
+  setupStep = "create_control";
   await create.waitFor();
   requireEvidence(await create.isDisabled(), "blank_creation_not_disabled");
   await noOverflow();
@@ -151,6 +163,7 @@ try {
   status = "passed";
   reasonCode = "installed_setup_surface_verified";
 } catch (error) {
+  errorKind = error?.name === "TimeoutError" ? "timeout" : "assertion_or_error";
   if (error?.message !== "probe_stopped") {
     const authRequired = page !== undefined && await page.getByRole("heading", { name: "Sign in", exact: true }).isVisible().catch(() => false);
     status = authRequired || ["tooling", "browser", "authentication", "revision"].includes(stage) ? "blocked" : "failed";
@@ -176,6 +189,7 @@ const result = {
   record_type: "agentmonitor.m7_installed_setup_probe.v1", status, reason_code: reasonCode,
   expected_revision: expectedRevision, source_revision: actualRevision, checks,
   requests_observed: requestsObserved, unsafe_requests: unsafeRequests,
+  setup_step: setupStep, error_kind: errorKind, failed_requests: [...new Set(failedRequests)],
   observed_at: new Date().toISOString(),
 };
 // Exiting disconnects CDP without Browser.close or context.close on the shared browser.

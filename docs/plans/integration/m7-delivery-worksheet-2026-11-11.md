@@ -15,21 +15,19 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Installed repair within T007:** `d73c171` makes the genuine queued-expiry
-outcome readable through run status and Collection / History, preserving its
-null start/duration and failed outcome. The original seven-day run expired before
-dispatch; repairing its reads is not successful provider collection. Retain its
-17-case genuine/pure check, 73-case regression and installed browser evidence.
-The [repair evidence](../../evidence/m7-queued-expiry-history-2026-11-12.md)
-also records failed broad concurrent continuity probes and an observed browser
-network interruption. Reverify that broader boundary; independent T013 work
-continues. This remains existing recovery scope, not a new owner prerequisite.
+**Installed Overview repair:** `e0ecf92` keeps financial cutoffs separate from
+current registry metadata. Back/reload now passes; the latest concurrent
+Overview/setup/cloud check passed at 09:26:50 UTC. Its preceding run still had
+an intermittent setup-form failure whose cause is not established. The
+[registry-time evidence](../../evidence/m7-overview-registry-time-2026-11-12.md)
+retains both outcomes. Retain the earlier [queued-expiry repair](../../evidence/m7-queued-expiry-history-2026-11-12.md)
+too: the original expired seven-day run remains a failed collection, not success.
 
 **Delivered first chart:** T013 source entries are installed and published at
 `c59d068`, with fourteen genuine API/table/chart entries verified. Its
-[evidence](../../evidence/m7-history-chart-2026-11-12.md) records a small checked
-series-label successor. This is not daily aggregation or completed T013.
-Next, correct the diagnosed Overview registry-time conflict and complete the
+[evidence](../../evidence/m7-history-chart-2026-11-12.md) includes the installed
+series-label correction and another exact-revision pass at `e0ecf92`.
+This is not daily aggregation or completed T013. Next, complete the
 daily aggregation/observed-rate packet; conditional exhaustion follows the same
 financial contract. Retain the delivered chart rather than restart it.
 Billing disconnect/local cleanup and status-to-financial
@@ -79,10 +77,10 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `c59d068`, schema `v1_0734`; source-entry chart plus readable queued expiry, local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey, complete lifecycle/analysis and current broad concurrent continuity |
-| Public code | GitHub implementation `c59d068`, independently verified | Later documentation/probe-only receipts do not change installed code |
-| Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Later seven-day probe made one POST; the queued run expired before dispatch and its status/history read failed. Successful seven-day manual collection, monetary reports and remaining provider matrix are unproved |
-| Browser reliability | Prior installed concurrent Overview/setup/cloud reads passed; current expired-run/history UI passes; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Current broad concurrent probe failed; later inspection observed browser network interruption. Monetary totals, full accessibility and final acceptance remain open |
+| Installed implementation | `e0ecf92`, schema `v1_0734`; current-metadata Overview reads, source-entry chart plus readable queued expiry, local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary reconciliation, complete lifecycle/analysis and final candidate continuity |
+| Public code | See the registry-time delivery receipt for the verified GitHub revision | Documentation/probe-only successors do not change installed code |
+| Live reports | Genuine Ollama balances, usage and now daily USD costs; one manual 30-day report and scheduled 30-day reports on two real resources | Successful seven-day manual collection, monetary source comparison and remaining Anthropic/OpenAI matrix are unproved; the old expired run is not a success |
+| Browser reliability | Latest installed concurrent Overview/setup/cloud reads passed on `e0ecf92`; chart API/table/geometry passed on all fourteen entries | Prior setup-form failure remains recorded without an established cause. Monetary reconciliation, full accessibility and final acceptance remain open |
 | Source access | Read-only installed inventory at 08:11:53 UTC, 12 November: zero Anthropic/OpenAI billing connections, stored bindings or enabled billing connections | Subscription logins do not prove billing access; absence is not a provider denial |
 | Tracker | Read current ticket states from the catalog; this worksheet does not duplicate changing counts | Counts are not percentage complete; local implementation is not installed delivery |
 
@@ -146,9 +144,11 @@ scope, not eleven simultaneous priorities.
 | Each frozen provider's existing source contract | Complete required mapping/access/range inventory for that provider; other providers do not block its implementation | A01/A02/A03/M04, T006–T009 |
 | Genuine retained financial data | Isolated receipt recovery/backup/restore and installed continuity, then final reconciliation | M04/M05/M08, T007/T014/T015 |
 
-The known external setup dependency for the first monetary demonstration is
-genuine admitted Anthropic or OpenAI billing access. The recorded
-inventory is absent setup, not an observed permission denial. The owner uses
+Current Ollama reports provide genuine monetary facts for the first monetary
+demonstration; do not wait for another provider to verify their storage/API/DOM
+path. Anthropic and OpenAI still need their own admitted billing access for the
+mandatory provider comparisons. The recorded inventory is absent setup, not an
+observed permission denial. The owner uses
 the existing dashboard/local key-entry flow; the agent does not create accounts,
 change groups or enable monitoring on the owner's behalf. Report an exact
 failed action if access is denied later. Do not assume that condition now or

@@ -1,6 +1,6 @@
 # M7 Overview: current registry with pinned financial evidence
 
-Status: correction under verification; not yet installed at this checkpoint.
+Status: correction installed at `e0ecf92`; bounded installed verification below.
 T010/T012/T014, FR-ORG-003, FR-BUDGET-001/003/004, AC-UI-005/006,
 M7-A07/A08/A10. Root integrates M02 metadata and M05 read policy.
 
@@ -57,5 +57,28 @@ unchanged. No clock, migration, dependency, endpoint or owner action is added.
 Changed: registry pool contract/repository, M05 Overview, registry integration
 and genuine snapshot tests, existing M7 runner, generated source identity and
 plan/contract/evidence documentation. Installation, broader regressions and
-actual concurrent browser outcome will be recorded after execution. Full M7
+actual concurrent browser outcomes are recorded below. Full M7
 provider/analysis/release scope remains unfinished.
+
+## Installed result
+
+Implementation `e0ecf925dcfec2fd1c305028040cb7ab02b9ec55` passed the same-schema
+selected updater and retained `v1_0734`. The exact-revision chart probe passed
+all fourteen genuine entries. Service active and landing HTTP 200.
+
+The canonical Overview selection passed five real metadata/genuine-source
+checks in 14.61 seconds. Its first concurrent run at 09:25:25 UTC passed Overview
+and cloud controls but failed `setup_form_unavailable`, so the command failed.
+Overview's former Back failure was resolved; that does not erase the separate
+setup failure. Safe setup-step/network diagnostics were then added without
+changing production. The next actual concurrent run at 09:26:50 UTC passed all
+three probes at the same installed revision, with zero mutations. The earlier
+intermittent setup failure has no established cause and remains recorded.
+
+Full monetary Overview reconciliation remains Not Run in the canonical runner;
+the observed cost entries do not by themselves close that acceptance. No full
+M7 pass is claimed. Staged secret scan found only two generated artifact hashes
+verified against their actual bytes, with zero unresolved findings.
+GitHub main was independently verified at the full implementation revision
+`e0ecf925dcfec2fd1c305028040cb7ab02b9ec55` after push. This record and the setup
+diagnostic are documentation/probe successors; they need no production reinstall.
