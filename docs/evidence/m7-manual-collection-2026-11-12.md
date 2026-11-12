@@ -1,6 +1,7 @@
 # M7 selected-period manual collection
 
-Status: local implementation and verification in progress. T007/T010/T011,
+Status: installed and published increment at `ef8fa86`; bounded verification
+passed, successful monetary collection remains unverified. T007/T010/T011,
 FR-COL-004/008, FR-BUDGET-001/004, M7-A01/A06/A07/A09. No ticket or milestone
 closure is claimed by this increment.
 
@@ -112,3 +113,22 @@ without changing product behavior. Git/documentation/planning preflight passed.
 The staged-patch scan reported two generic-api-key matches; both were generated
 OpenAPI artifact SHA256 declarations, verified against actual old/new artifact
 bytes. No credential finding or secret output was retained.
+
+## Installed/public result
+
+Canonical current-update installed `ef8fa862072380deeca455cbc2ec136bd84e4062`
+and restored the original restart policy; no schema change beyond existing
+`v1_0734`. At 03:22:19.664 UTC the authenticated installed Overview probe passed
+all eight checks, including stored-window navigation and responsive/pool
+continuity: two genuine financial rows, zero unsafe requests. At 03:22:43.496 UTC
+the setup probe passed all six checks on that same source revision: 39 requests,
+zero unsafe requests. GitHub main was independently confirmed with
+`git ls-remote github refs/heads/main` at the exact full implementation revision.
+Follow-up evidence documents do not change installed product behavior.
+
+Dashboard: `http://127.0.0.1:43110/`. Billing controls are on the owner-created
+billing account detail, not on subscription-only or Ollama usage resources.
+Existing live inventory has no billing connections; the new disabled/no-key
+control was proved using isolated genuine admin CRUD, not by altering owner
+accounts. Complete provider/category coverage, actual monetary collection,
+Ollama manual usage, prior-scope report discovery and analysis remain in M7.
