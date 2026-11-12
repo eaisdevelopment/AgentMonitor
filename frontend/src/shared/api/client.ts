@@ -7,6 +7,7 @@ import {
   type BudgetCloudResourceSummaryWireV1,
   type BudgetReportSummaryWireV1,
   type BudgetHistoryWireV1,
+  type BudgetForecastWireV1,
   type BudgetReportListWireV1,
   type BudgetCloudResourceCurrentWireV1,
   type BudgetOverviewWireV1,
@@ -91,6 +92,7 @@ export type {
   BudgetCloudResourceSummaryWireV1,
   BudgetReportSummaryWireV1,
   BudgetHistoryWireV1,
+  BudgetForecastWireV1,
   BudgetReportListWireV1,
   BudgetCloudResourceCurrentWireV1,
   BudgetOverviewWireV1,
@@ -635,6 +637,12 @@ export const financialPools = Object.freeze({
 });
 
 export const budgets = Object.freeze({
+  forecast: (
+    resourceId: string,
+    query: Readonly<{ account_id: string; report_id: string; period_start: string; period_end: string; as_of: string }>,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<BudgetForecastWireV1>> =>
+    apiClient.capacity_get_budget_forecast_v1({ path: { budget_id: resourceId }, query, signal }),
   reports: (
     resourceId: string,
     query: Readonly<{ account_id: string; period_start: string; period_end: string; as_of: string; limit?: number; cursor?: string }>,

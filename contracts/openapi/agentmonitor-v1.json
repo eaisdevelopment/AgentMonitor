@@ -2896,6 +2896,143 @@
         "title": "BudgetDimensionWireV1",
         "type": "object"
       },
+      "BudgetForecastWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "exhaustion_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exhaustion At"
+          },
+          "exhaustion_reason": {
+            "title": "Exhaustion Reason",
+            "type": "string"
+          },
+          "funds_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Funds Observed At"
+          },
+          "input_observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Observation Ids",
+            "type": "array"
+          },
+          "method_id": {
+            "title": "Method Id",
+            "type": "string"
+          },
+          "method_version": {
+            "title": "Method Version",
+            "type": "string"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetObservedRateWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rate_reason": {
+            "title": "Rate Reason",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/BudgetReportSummaryWireV1"
+          },
+          "source_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Policy Id"
+          },
+          "source_policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Policy Version"
+          },
+          "time_left_denominator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Left Denominator"
+          },
+          "time_left_numerator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Left Numerator"
+          },
+          "time_rounding": {
+            "title": "Time Rounding",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report",
+          "as_of",
+          "rate",
+          "rate_reason",
+          "exhaustion_reason",
+          "exhaustion_at",
+          "funds_observed_at",
+          "input_observation_ids",
+          "time_left_numerator",
+          "time_left_denominator",
+          "method_id",
+          "method_version",
+          "time_rounding",
+          "source_policy_id",
+          "source_policy_version"
+        ],
+        "title": "BudgetForecastWireV1",
+        "type": "object"
+      },
       "BudgetFundComponentWireV1": {
         "additionalProperties": false,
         "properties": {
@@ -3189,6 +3326,90 @@
           "availability"
         ],
         "title": "BudgetHistoryWireV1",
+        "type": "object"
+      },
+      "BudgetObservedRateWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "cost": {
+            "$ref": "#/components/schemas/ExactMoneyWireV1"
+          },
+          "covered_seconds": {
+            "exclusiveMinimum": 0.0,
+            "title": "Covered Seconds",
+            "type": "integer"
+          },
+          "day_count": {
+            "maximum": 7.0,
+            "minimum": 3.0,
+            "title": "Day Count",
+            "type": "integer"
+          },
+          "display_decimal_places": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Decimal Places"
+          },
+          "display_rounding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Rounding"
+          },
+          "display_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Text"
+          },
+          "input_bucket_keys": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Input Bucket Keys",
+            "type": "array"
+          },
+          "input_report_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1,
+            "title": "Input Report Ids",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriodWireV1"
+          }
+        },
+        "required": [
+          "cost",
+          "covered_seconds",
+          "period",
+          "input_report_ids",
+          "input_bucket_keys",
+          "day_count",
+          "display_text",
+          "display_rounding",
+          "display_decimal_places"
+        ],
+        "title": "BudgetObservedRateWireV1",
         "type": "object"
       },
       "BudgetOverviewAccessPathWireV1": {
@@ -24199,6 +24420,249 @@
         "x-agentmonitor-required-permission": "read:telemetry"
       }
     },
+    "/api/v1/budgets/{budget_id}/forecast": {
+      "get": {
+        "operationId": "capacity_get_budget_forecast_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "title": "Budget Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "As Of",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetForecastWireV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Budget Forecast",
+        "tags": [
+          "budgets"
+        ],
+        "x-agentmonitor-application-port": "BudgetForecastPortV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/budgets/{budget_id}/history": {
       "get": {
         "operationId": "capacity_list_budget_history_v1",
@@ -33993,10 +34457,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "47533b6d33c6db5be548974d68967f4dc4a6e7a630ec59b9fdd0a97500b85c4f",
-    "generator_version": "2.0.13",
+    "generator_sha256": "e5720beba07dc0d077475888c245c4d91aaf28977e610af455cac123ab41fc6f",
+    "generator_version": "2.0.14",
     "openapi_version": "3.1.0",
-    "schema_sha256": "ddd23964641b351f3b6adc4bc8d9cd642e2b85163c4b41067242b18407d9ad30",
-    "source_sha256": "812a3481ff454ca949dfac71914e31a200d7afb88e11e6b093ef05350b22f61e"
+    "schema_sha256": "88d5ae1c9c33ac5d93e53ecb60d690f0672b375c94f2a41eec1aebab1c6514cb",
+    "source_sha256": "b6d01ba994da2ae17dd79a3432e5952d34f426e3495299e1eff45a8abb2d2f0a"
   }
 }

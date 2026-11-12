@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.13"
+GENERATOR_VERSION = "2.0.14"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -69,6 +69,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/schemas/capacity.py",
     "backend/src/agentmonitor/api/v1/schemas/budgets.py",
     "backend/src/agentmonitor/api/v1/schemas/budget_overview.py",
+    "backend/src/agentmonitor/api/v1/schemas/budget_forecast.py",
     "backend/src/agentmonitor/api/v1/schemas/billing_actions.py",
     "backend/src/agentmonitor/api/v1/schemas/cloud_usage_actions.py",
     "backend/src/agentmonitor/api/v1/schemas/financial_pools.py",
@@ -99,6 +100,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/contracts/collection_control_v1.py",
     "backend/src/agentmonitor/contracts/capacity_v1.py",
     "backend/src/agentmonitor/contracts/budget_query_v1.py",
+    "backend/src/agentmonitor/contracts/budget_forecast_v1.py",
     "backend/src/agentmonitor/contracts/billing_actions_v1.py",
     "backend/src/agentmonitor/contracts/runtime_observation_v1.py",
     "backend/src/agentmonitor/contracts/operations_v1.py",
@@ -324,6 +326,7 @@ IAM_OPERATIONS = {
     ("/api/v1/budgets/{budget_id}", "get"): "capacity_get_budget_v1",
     ("/api/v1/accounts/{account_id}/budgets", "get"): "capacity_list_budgets_v1",
     ("/api/v1/budgets/{budget_id}/history", "get"): "capacity_list_budget_history_v1",
+    ("/api/v1/budgets/{budget_id}/forecast", "get"): "capacity_get_budget_forecast_v1",
     ("/api/v1/budgets/{budget_id}/reports", "get"): "capacity_list_budget_reports_v1",
     (
         "/api/v1/accounts/{account_id}/quotas/v2",
@@ -1386,6 +1389,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "capacity_get_budget_forecast_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BudgetForecastPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetForecastWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "capacity_list_budget_history_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1784,7 +1799,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 101
+        or len(identifiers) != 102
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

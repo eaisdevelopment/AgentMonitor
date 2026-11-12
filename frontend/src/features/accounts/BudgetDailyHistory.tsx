@@ -4,6 +4,7 @@ import { budgets, type BudgetHistoryWireV1 } from "../../shared/api/client";
 import { displayMoney, exactMoneyText, exactUsageText } from "./budgetPresentation";
 import { appendHistoryItems, historyContextKey, historyPageMatches, type HistoryContext, type HistoryProgress } from "./budgetHistoryPagination";
 import { BudgetHistoryChart } from "./BudgetHistoryChart";
+import { BudgetObservedRate } from "./BudgetObservedRate";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -70,6 +71,7 @@ function History({ context, onExpired, showSummary = false }: Props) {
       <p>{bounds(report.requested_period.start, report.requested_period.end)} · {readable(report.cost_basis)} · {readable(report.source_category)}</p>
       <p>Data through: {report.source_data_through === null ? "Not reported" : instant(report.source_data_through)} · Collected: {instant(report.collected_at)} · {report.completeness}</p>
     </>}
+    <BudgetObservedRate context={context} onExpired={onExpired} />
     {value !== undefined && value.availability.state !== "available" && <p role="status">History {value.availability.state}: {readable(value.availability.reason_code)}.</p>}
     {snapshot !== null && items.length === 0 && <p>No reported usage in this interval.</p>}
     {items.length > 0 && <BudgetHistoryChart items={items} hasMore={snapshot?.progress.nextCursor != null} busy={busy} failed={error !== null} />}

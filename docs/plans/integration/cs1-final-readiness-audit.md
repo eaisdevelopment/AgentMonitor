@@ -1457,3 +1457,16 @@ This is a bounded documentation rebind, not renewed all-V1 approval, production
 verification or M7 acceptance. See the [M7 planning review](../../evidence/m7-delivery-plan-review-2026-11-12.md).
 
 Plan snapshot SHA-256: `884e0094f3a36a87d74d181c372b98ccbef356f7af816de70fcda8d478052666`
+
+
+## 2026-11-12 M7 observed-rate contract handoff
+
+Focused approved T013 adds the exact budget_forecast_v1.py shared contract path
+and A03/FND consumption of CTR-CAP-007 for source semantics/composition. M05
+remains the semantic owner; old quota forecast types and all twenty parent plans
+remain unchanged. Exact named module/support imports are admitted, with no
+wildcard or private-module exception. Generated adoption and control hashes
+reflect only these ownership/consumption changes. This scoped rebind is not
+whole-program Draft approval or full M7 acceptance.
+
+Plan snapshot SHA-256: `ee71edd6c610d8082388679b4b0a5feda17659416208d5b32b0a9965f048ac98`

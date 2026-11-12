@@ -29,6 +29,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     BudgetCollectionCommitStatusV1,
     BudgetCollectionReceiptV1,
 )
+from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
     QueryAvailabilityV1,
@@ -40,6 +41,7 @@ from agentmonitor.modules.capacity.application.budget_commit import (
     validate_budget_commit,
 )
 from agentmonitor.modules.capacity.domain.budget_codec import (
+    decode_budget_provenance,
     decode_budget_report,
     encode_budget_provenance,
     utc_text,
@@ -296,6 +298,73 @@ class SqliteBudgetReportRepositoryV1:
                     return _view(row) if row is not None else None
         except (SqlitePolicyError, SQLAlchemyError):
             raise BudgetRepositoryError() from None
+
+    def get_report_provenance(
+        self, account_id: OpaqueIdV1, report_id: OpaqueIdV1
+    ) -> ObservationProvenanceV1 | None:
+        """Read retained lineage only with its exact report and commit receipt."""
+        if not isinstance(account_id, OpaqueIdV1) or not isinstance(
+            report_id, OpaqueIdV1
+        ):
+            raise BudgetRepositoryError("budget_report_selector_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM capacity_budget_report "
+                            "WHERE account_id=? AND report_id=?",
+                            (account_id.value, report_id.value),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        return None
+                    view = _view(row)
+                    provenance = decode_budget_provenance(
+                        str(row["canonical_provenance_json"])
+                    )
+                    receipt_row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM capacity_commit_receipt WHERE receipt_id=?",
+                            (row["receipt_id"],),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if receipt_row is None or receipt_row["conflict_state"]:
+                        raise ValueError
+                    receipt = _receipt(connection, receipt_row)
+                    if (
+                        receipt.report_id != view.report_id
+                        or receipt.stored_at != view.stored_at
+                        or provenance.operation_id != receipt.run_id
+                        or utc_text(view.report.collected_at) != row["collected_at"]
+                    ):
+                        raise ValueError
+                    complete = (
+                        view.report.completeness == "complete"
+                        and view.report.covered_period == view.report.requested_period
+                    )
+                    validate_budget_commit(
+                        BudgetCollectionInputV1(
+                            receipt.run_id,
+                            receipt.target_generation,
+                            receipt.capability_id,
+                            receipt.payload_schema,
+                            receipt.payload_digest,
+                            "succeeded" if complete else "partial",
+                            view.report,
+                            provenance,
+                        )
+                    )
+                    return provenance
+        except (SqlitePolicyError, SQLAlchemyError, ValueError):
+            raise BudgetRepositoryError("budget_report_provenance_invalid") from None
 
     def get_current_reports(
         self,

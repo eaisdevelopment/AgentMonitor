@@ -50,6 +50,9 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_history_cursor.py",
     "backend/tests/capacity/pure/test_budget_history_contract.py",
     "backend/tests/capacity/pure/test_budget_daily_history.py",
+    "backend/tests/capacity/pure/test_budget_daily_costs.py",
+    "backend/tests/capacity/pure/test_budget_forecast.py",
+    "backend/tests/adapters/providers/ollama/api/test_budget_source_evidence_policy.py",
     "backend/tests/capacity/pure/test_budget_history_chart.py",
     "backend/tests/contracts/test_budget_report_contract.py",
     "backend/tests/contracts/test_budget_commit_contract.py",
@@ -321,6 +324,7 @@ def execute_pool_browser(name: str = "owner_pool_controls") -> LaneResult:
                             "backend/tests/integration/api/test_budget_report_discovery_http.py",
                             "backend/tests/live/ollama/test_budget_history_http_live.py",
                             "backend/tests/live/ollama/test_budget_monetary_persistence.py",
+                            "backend/tests/live/ollama/test_budget_source_evidence.py",
                             "backend/tests/live/ollama/test_source_history_browser.py",
                         ]
                     ),

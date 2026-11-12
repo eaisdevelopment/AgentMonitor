@@ -8,8 +8,9 @@
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
   That worksheet owns the installed revision and delivered-increment list;
   this plan does not duplicate a competing current deployment checkpoint.
-  Genuine monetary evidence, complete provider/history/analysis coverage and
-  full M7 acceptance remain unfinished. The worksheet alone owns current order.
+  Retained monetary display is verified; fresh commit/recovery, provider
+  comparisons, complete provider/history/analysis coverage and full M7 acceptance
+  remain unfinished. The worksheet alone owns current order.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.

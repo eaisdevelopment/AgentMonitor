@@ -1,4 +1,4 @@
-"""Kill seven critical M7 regressions in isolated copies of actual source.
+"""Kill critical M7 regressions in isolated copies of actual source.
 
 The subprocesses run only existing pure-domain tests with constructed no-I/O
 values. This is mutation evidence, not a provider, storage or browser test.
@@ -22,10 +22,14 @@ PURE_TESTS = (
     Path("tests/capacity/pure/test_budget_exact_arithmetic.py"),
     Path("tests/capacity/pure/test_budget_money.py"),
     Path("tests/capacity/pure/test_budget_report_selection.py"),
+    Path("tests/capacity/pure/test_budget_daily_costs.py"),
+    Path("tests/capacity/pure/test_budget_forecast.py"),
 )
+SUPPORT_TESTS = (Path("tests/providers/ollama/pure/test_funds_projection.py"),)
 QUANTITY = Path("src/agentmonitor/contracts/common_quantity_v1.py")
 MONEY = Path("src/agentmonitor/modules/capacity/domain/budget_money.py")
 REPORTS = Path("src/agentmonitor/modules/capacity/domain/budget_reports.py")
+FORECAST = Path("src/agentmonitor/modules/capacity/domain/budget_forecast.py")
 MUTATIONS = (
     (
         "decimal_context_rounding",
@@ -64,21 +68,67 @@ MUTATIONS = (
         'if item.report.completeness == "complete"',
         'if item.report.completeness == "complete" and item.report.cost_buckets',
     ),
+    (
+        "daily_duration_counted_per_source_row",
+        FORECAST,
+        "duration = len(sample) * 86400",
+        "duration = sum(len(day.input_bucket_keys) for day in sample) * 86400",
+    ),
+    (
+        "single_day_rate_admitted",
+        FORECAST,
+        "if len(segment) >= 3",
+        "if len(segment) >= 1",
+    ),
+    (
+        "fund_anchor_replaced_by_query_time",
+        FORECAST,
+        "funds.observed_at\n        if funds is not None and funds_reason is None",
+        "selected.as_of\n        if funds is not None and funds_reason is None",
+    ),
+    (
+        "forecast_horizon_doubled",
+        FORECAST,
+        "if numerator > 604800 * denominator:",
+        "if numerator > 1209600 * denominator:",
+    ),
+    (
+        "sample_bucket_cap_bypassed",
+        FORECAST,
+        "if sum(len(day.input_bucket_keys) for day in sample) > 200:",
+        "if sum(len(day.input_bucket_keys) for day in sample) > 10000:",
+    ),
+    (
+        "subcent_rate_displayed_as_zero",
+        FORECAST,
+        "if 0 < numerator < denominator:",
+        "if False:",
+    ),
+    (
+        "rate_display_ties_round_up",
+        FORECAST,
+        "remainder * 2 == denominator and cents % 2",
+        "remainder * 2 == denominator",
+    ),
 )
 
 
 class M7BudgetMutationTests(unittest.TestCase):
     def test_existing_pure_tests_kill_critical_budget_regressions(self) -> None:
-        """M7-CAP-MUT-001; M7-MATH-04/05/09/10/12/13/14."""
+        """M7-CAP-MUT-001; M7-MATH-03/04/05/09/10/12/13/14/15/16."""
         with tempfile.TemporaryDirectory(prefix="agentmonitor-m7-mutation-") as raw:
-            workspace = Path(raw)
+            # Preserve the backend.tests helper namespace wholly inside this copy.
+            # pyproject's '..' path must resolve here, never to the real checkout.
+            workspace = Path(raw) / "backend"
+            workspace.mkdir()
+            (workspace / "__init__.py").write_text("")
             copy2(BACKEND / "pyproject.toml", workspace / "pyproject.toml")
             copytree(
                 BACKEND / "src",
                 workspace / "src",
                 ignore=ignore_patterns("__pycache__", "*.pyc"),
             )
-            for relative in PURE_TESTS:
+            for relative in (*PURE_TESTS, *SUPPORT_TESTS):
                 target = workspace / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 copy2(BACKEND / relative, target)
@@ -90,7 +140,32 @@ class M7BudgetMutationTests(unittest.TestCase):
                 "PATH": os.defpath,
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "PYTHONHASHSEED": "0",
+                "PYTHONPATH": os.pathsep.join(
+                    (str(workspace / "src"), str(workspace.parent))
+                ),
             }
+            helper_check = _run(
+                [
+                    sys.executable,
+                    "-c",
+                    "from importlib import import_module; from pathlib import Path; "
+                    "root = Path.cwd().resolve(); "
+                    "names = ("
+                    "'backend.tests.capacity.pure.test_budget_report_selection', "
+                    "'backend.tests.capacity.pure.test_budget_daily_costs', "
+                    "'backend.tests.providers.ollama.pure.test_funds_projection'); "
+                    "assert all(Path(import_module(name).__file__).resolve()"
+                    ".is_relative_to(root) for name in names)",
+                ],
+                cwd=workspace,
+                environment=environment,
+            )
+            self.assertEqual(
+                helper_check.returncode,
+                0,
+                "Private pure-helper imports failed: "
+                + (helper_check.stdout + helper_check.stderr)[-4000:],
+            )
             report = workspace / "result.xml"
             command = [
                 sys.executable,

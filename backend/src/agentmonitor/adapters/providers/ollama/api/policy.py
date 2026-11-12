@@ -7,7 +7,13 @@ from decimal import Decimal
 from typing import Literal
 from urllib.parse import urlencode
 
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, CapacitySubjectV2
+from agentmonitor.contracts.budget_forecast_v1 import BudgetSourceEvidenceV1
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetPeriodV1,
+    BudgetReportViewV1,
+    CapacitySubjectV2,
+)
+from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
@@ -23,6 +29,79 @@ MINIMUM_INTERVAL_SECONDS = 15 * 60
 # Official endpoint limit is shared per user across keys/devices. Composition
 # must coordinate it with other local access paths; this source does not retry.
 OFFICIAL_REQUESTS_PER_MINUTE = 10
+
+
+def report_source_evidence(
+    view: BudgetReportViewV1, provenance: ObservationProvenanceV1
+) -> BudgetSourceEvidenceV1 | None:
+    """Recognize only the reviewed daily replacement snapshot semantics.
+
+    These closed version selectors intentionally do not follow a future manifest
+    automatically. New parsers must establish their own analysis semantics.
+    The endpoint supplies neither omitted-day zero proof nor a freshness bound.
+    """
+    report = view.report
+    if (
+        report.subject.provider_key != "ollama"
+        or report.source_id != SOURCE_ID
+        or report.source_category
+        not in {"self_requests_and_cost", "team_requests_and_cost"}
+        or report.cost_basis != COST_BASIS
+        or report.grouping
+        or report.completeness != "complete"
+        or report.covered_period != report.requested_period
+        or report.currency != "USD"
+        or report.empty_means_zero
+        or report.source_data_through is not None
+        or provenance.provider_key != "ollama"
+        or provenance.source_id != SOURCE_ID
+        or provenance.capability_id != "api.usage"
+        or provenance.capability_schema_version != "2.0.0"
+        or provenance.adapter_id != "agentmonitor.ollama.api-usage"
+        or provenance.adapter_version != "1.0.0"
+        or provenance.parser_version != "1.0.0"
+        or provenance.provider_protocol_version != "1.0.0"
+        or provenance.mechanism_version != "ollama-cloud-usage-docs-2026-11-11"
+        or provenance.source_class != "documented_api"
+        or provenance.collected_at != report.collected_at
+        or provenance.precision != "exact"
+        or provenance.value_kind != "provider_reported"
+        or provenance.confidence != "confirmed"
+        or provenance.fallback_lineage
+        or provenance.derivation_method is not None
+        or provenance.input_observation_ids
+        or provenance.freshness_policy_id != "ollama_usage_source_watermark_v1"
+        or provenance.freshness_deadline is not None
+        or provenance.freshness_availability.state != "unknown"
+    ):
+        return None
+    period = report.requested_period
+    days = (period.end - period.start).days
+    if (
+        days not in {7, 30}
+        or period.start
+        != period.start.replace(hour=0, minute=0, second=0, microsecond=0)
+        or period.end != period.start + timedelta(days=days)
+        or len(report.cost_buckets) != days
+    ):
+        return None
+    costs = sorted(report.cost_buckets, key=lambda bucket: bucket.period.start)
+    if any(
+        bucket.dimensions
+        or bucket.period.start != period.start + timedelta(days=index)
+        or bucket.period.end != period.start + timedelta(days=index + 1)
+        for index, bucket in enumerate(costs)
+    ):
+        return None
+    return BudgetSourceEvidenceV1(
+        view.report_id,
+        "ollama_usage_daily_snapshot_v1",
+        "1.0.0",
+        disjoint_costs=True,
+        corrections_resolved=True,
+        zero_day_coverage=False,
+        cost_freshness_deadline=None,
+    )
 
 
 def completed_period(instant: datetime, range_key: str) -> BudgetPeriodV1:

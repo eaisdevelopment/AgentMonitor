@@ -15,74 +15,39 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Monetary display path verified:** genuine retained Ollama money now agrees
-across normalized storage/reopen, exact HTTP totals, installed Overview, pinned
-detail and history. The [monetary evidence](../../evidence/m7-monetary-journey-2026-11-12.md)
-records the strict installed journey at 09:46:42 UTC on `e0ecf92`. This adds
-verification, not a new application deployment. Fresh commit/retry with original
-live authority, provider-display reconciliation and full filtered shared-pool
-totals remain separate open work. **Next integrate the prepared daily/rate
-packet**, while continuing those remaining monetary boundaries.
+**Next delivery: finish and install the observed spending-rate row.** Its domain,
+source-evidence, API/client and UI are present in the integration checkout;
+they are not installed. The stricter real-browser numeric check passed on the
+built candidate; installation, installed verification and publication remain. See the bounded
+[rate evidence](../../evidence/m7-observed-rate-2026-11-12.md). Keep the existing
+monetary dashboard running while finishing that packet. Do not restart its
+implementation or require another account confirmation.
 
-**Installed Overview repair:** `e0ecf92` keeps financial cutoffs separate from
-current registry metadata. Back/reload now passes; the latest concurrent
-Overview/setup/cloud check passed at 09:26:50 UTC. Its preceding run still had
-an intermittent setup-form failure whose cause is not established. The
-[registry-time evidence](../../evidence/m7-overview-registry-time-2026-11-12.md)
-retains both outcomes. Retain the earlier [queued-expiry repair](../../evidence/m7-queued-expiry-history-2026-11-12.md)
-too: the original expired seven-day run remains a failed collection, not success.
+Then finish full filtered totals; complete daily/balance history and supported
+breakdowns; complete the fixed provider matrix and recovery; run the existing
+full exit and publish. These outcomes use the same sixteen tickets, five stories
+and ten acceptance criteria. The catalog owns status; this worksheet owns order.
+A missing provider credential affects that provider's live lane, not unrelated
+implementation. No plan-version or owner-attestation loop is added.
 
-**Delivered first chart:** T013 source entries are installed and published at
-`c59d068`, with fourteen genuine API/table/chart entries verified. Its
-[evidence](../../evidence/m7-history-chart-2026-11-12.md) includes the installed
-series-label correction and another exact-revision pass at `e0ecf92`.
-This is not daily aggregation or completed T013. Retain the monetary display
-proof above, then integrate daily aggregation/observed rate;
-conditional exhaustion follows the same financial contract. Retain the
-delivered chart rather than restart it.
-Billing disconnect/local cleanup and status-to-financial
-refresh are installed and published at `d985cc7`; their
-[evidence](../../evidence/m7-billing-maintenance-2026-11-12.md) records 95 registry
-tests, isolated SQLite/PTY/browser Red/Green, local quality and concurrent
-authenticated installed checks. Real active-key rotation/deletion evidence
-is separate and waits only for its actual credential, not all independent work.
-The archive/restore reconnect
-path is installed at `c1c8e8d`: it retains source/history metadata, keeps
-monitoring off and requires new key setup/access verification. Its
-[evidence](../../evidence/m7-billing-reconnect-2026-11-12.md) distinguishes the
-actual isolated browser journey from read-only installed checks and unperformed
-secret deletion/replacement. Retained report discovery is installed at `540ab8b`; its
-[evidence](../../evidence/m7-source-history-2026-11-12.md) records genuine HTTP,
-built-browser and installed checks, with original scope labels and historical
-collection guards. Preserve this delivered path. Scope editing
-is installed and published at `71185cf`; its [evidence](../../evidence/m7-billing-scope-edit-2026-11-12.md)
-records real HTTP/registry/built-browser Green and installed read-only checks.
-Retain that increment, including pool refresh and the historical-selection
-collection guard; do not restart scope editing, routing or concurrent-read fixes.
-
-**Remaining monetary boundaries:** fresh commit/retry with original live
-authority, interrupted-receipt recovery, reconciliation with the matching
-provider source/display, and full filtered shared-pool totals. The retained
-storage/API/Overview/detail journey above is already verified; do not repeat it
-as an unfinished first-delivery task. Recheck affected assertions when code or
-financial meaning changes. Anthropic/OpenAI setup remains a prerequisite only
-for their own mandatory live provider assertions.
-
-The 09:09 UTC current-source check now finds seven real USD cost entries in the
-Ollama report as well as usage. Use these genuine facts for monetary storage/
-API/DOM verification and seek their matching provider display; do not continue
-assuming all available reports are counts-only. Anthropic/OpenAI access remains
-a separate prerequisite for those mandatory provider lanes.
-
-| Owner-visible checkpoint | Usable result | Remaining after it |
+| Checkpoint | Owner-visible result | What it does not prove |
 |---|---|---|
-| Working money journey | Owner setup → actual cost → Overview → detail → exact history | Remaining frozen provider coverage, lifecycle and analysis |
-| Complete M7 screens | Required providers, truthful totals/states, scope/history controls, chart, supported breakdown, forecast or real unavailable reason | Final candidate recovery/continuity and reconciliation |
-| Released M7 | Fixed exit passes on the installed candidate, GitHub revision verified, demonstrated result accepted | Explicitly deferred improvements |
+| Retained monetary journey — verified | Same genuine report in storage, Overview, detail and history | Fresh commit/recovery, provider comparison or complete filtered totals |
+| Complete M7 screens — remaining | Useful totals, required providers, daily/history views, one supported breakdown, rate and an eligible date or real unavailable reason | Final recovery/continuity and release acceptance |
+| Released M7 — remaining | Required exit checks pass on installed candidate; GitHub revision verified; result demonstrated and accepted | Deferred enhancements |
 
-These are demonstrations, not extra gates. Ticket dependencies constrain
-closure, not permission to begin independent work. Existing approval remains
-valid. No repeated owner account attestations or new plan-version ceremony.
+The installed milestone checkpoint remains `e0ecf92`, schema `v1_0734`.
+Its [monetary journey](../../evidence/m7-monetary-journey-2026-11-12.md),
+[source-entry chart](../../evidence/m7-history-chart-2026-11-12.md),
+[registry-time repair](../../evidence/m7-overview-registry-time-2026-11-12.md),
+[maintenance](../../evidence/m7-billing-maintenance-2026-11-12.md),
+[reconnect](../../evidence/m7-billing-reconnect-2026-11-12.md),
+[source history](../../evidence/m7-source-history-2026-11-12.md) and
+[scope editing](../../evidence/m7-billing-scope-edit-2026-11-12.md) are retained
+work. Use their receipts for exact verification/publication times. The source
+chart is not a daily total; the old expired seven-day run is not successful
+collection. The latest setup/Overview concurrency pass does not explain the
+preceding intermittent setup failure. Both outcomes remain in the linked evidence.
 
 ## 1. Verified starting point
 
@@ -106,24 +71,23 @@ These are bounded historical results, not a fresh runtime check or full M7 pass.
 
 ## 2. One remaining delivery sequence
 
-Retain the following eight batches inside the existing tickets. Their numbers
-identify work, not strict serial prerequisites. The batch 3 maintenance candidate
-is installed; retain its evidence. Batch 2's retained monetary display path is
-verified; continue its fresh-commit/source-comparison boundaries and **integrate
-batch 6's prepared daily/rate packet next**. Advance available
-batch 1/4 provider work independently; absent Anthropic/OpenAI access affects
-only their live evidence. Batch 5
-travels with every visible increment, not a late UI cleanup phase. Complete
-batch 7's recovery with the first genuine money, then batch 8. No need to finish
-every provider before implementing a chart or to finish a forecast before
-showing the first cost. Root serializes shared contracts, integration and
-installation, with one integration packet in flight. Each increment includes its own
-Red/Green, actual check wiring and visible installed result where applicable.
+Keep the eight existing batches below. They group ticket steps, not new tickets
+or strict serial barriers. **Current priority is batch 6's prepared rate row,
+then batch 5's full filtered totals.** Continue available provider mappings and
+receipt-recovery work independently; integrate one visible packet at a time.
+Batch 5's accessibility/navigation checks travel with each UI packet. Preserve
+installed batch 3 controls and finish only their remaining evidence.
+
+For every packet, name its existing tickets, source inputs, smallest visible
+result and failing assertion before coding. Finish Red → implementation → Green
+→ actual built browser → installation and verification for UI changes. Add the
+required selector to the existing runner alongside the feature. A missing test
+command is agent work, not an owner prerequisite.
 
 | Batch / tickets | Smallest remaining deliverable | Acceptance edge / exact dependency |
 |---|---|---|
 | 1 — T007/T009/T011 | Finish seven-day manual cloud proof when eligible and original-request/context recovery | Actual action/run/report linkage, reload and no duplicate request; retain installed 30-day proof, balance and shared cooldown. No owner setup repetition |
-| 2 — T005/available T006, T008 or T009/T010–T012/T014 | First monetary source through exact storage, Overview, detail and history | Use the existing genuine Ollama USD report for stored API/DOM proof now; a genuine collected monetary report must also survive commit/retry/reopen. Needs an admitted monetary source, not new billing enrollment or completion of every provider ticket |
+| 2 — T005/available T006, T008 or T009/T010–T012/T014 | Fresh monetary commit/retry, interrupted receipt and matching source comparison | Retain passed genuine stored-money API/DOM evidence; prove original live authority and exact commit/reopen without recollection. No duplicate billing enrollment or all-provider prerequisite |
 | 3 — T002/T010/T011 | Retain installed scope editing, report discovery, reconnect and local disconnect/cleanup; finish real rotation/deletion evidence | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history and actual secret-removal evidence |
 | 4 — T006/T007/T008/T009 | Finish frozen endpoints, both ranges, supported dimensions and bounded fairness/recovery | Each mapping has its native unit/coverage and actual source result. Unsupported, denied, unimplemented and genuine empty success remain distinct. No new provider API additions |
 | 5 — T004/T010/T011/T012 | Finish totals, navigation, refresh failure and accessibility | Compatible full-filter subtotal, one shared pool, no false zero, source/API/DOM exactness, keyboard/zoom/widths, preserved quota rows on financial error; retain delivered server sorting/concurrent-read fix |
@@ -133,29 +97,12 @@ Red/Green, actual check wiring and visible installed result where applicable.
 
 ### Concrete work packets and acceptance edges
 
-The catalog's existing `steps` are the executable work breakdown. Per packet:
-identify owner/contracts → meaningful behavioral Red → minimum producer and
-consumer change → actual Green → existing check selector → installed demonstration
-when applicable. A missing selector is implementation work in T003, never a new
-owner prerequisite. Do not leave finished work in progress solely because the
-whole milestone is unfinished; close only against that ticket's full boundary.
-
-Use the catalog's existing steps as the task list, not another backlog. Before
-starting a packet, state its ticket IDs, concrete screen/result, actual input
-dependency and exact relevant test. Finish that packet through its integrated
-result before starting another integration packet. Parallel module work may
-prepare independent, nonoverlapping changes; it does not multiply releases or
-owner setup requests. In-progress ticket status describes incomplete scope,
-not permission to keep every ticket as a simultaneous priority.
-
-| Start work with | Required before claiming that result | Existing owner / tickets |
-|---|---|---|
-| Installed maintenance controls | Retain quality/install/browser evidence; actual active-key deletion/rotation only when real credentials are available | M02/P01/P02, T002/T011/T014 |
-| One successful admitted monetary report, even if its adapter ticket is incomplete | Exact same report/context in storage, HTTP, Overview, detail and history; genuine evidence, no mock balance | M05/P01/P02, T005/T010–T012/T014 |
-| Current immutable history contracts | First source-entry chart uses those exact facts and passes its browser/install checks; daily aggregation, rate and balance series are separate remaining packets, not prerequisites for this chart | M05/P01/P02, T013 |
-| Qualified daily monetary coverage plus pure domain inputs | Exact daily aggregation and observed rate; a date additionally needs compatible funds. Actual monetary browser proof requires a genuine report; pure tests never substitute for it | M05/P01/P02, T013 |
-| Each frozen provider's existing source contract | Complete required mapping/access/range inventory for that provider; other providers do not block its implementation | A01/A02/A03/M04, T006–T009 |
-| Genuine retained financial data | Isolated receipt recovery/backup/restore and installed continuity, then final reconciliation | M04/M05/M08, T007/T014/T015 |
+The catalog's `steps`, `done_when` and `verification` fields are the work
+breakdown. Do not maintain another task tracker. Dependencies constrain whole
+ticket closure, not the start of independent steps. Pure calculations do not
+wait for credentials; live monetary comparisons do require genuine source data.
+Root serializes contracts, generated client and installation. Module preparation
+may proceed separately without creating competing deployments.
 
 Current Ollama reports provide genuine monetary facts for the first monetary
 demonstration; do not wait for another provider to verify their storage/API/DOM
@@ -224,7 +171,7 @@ selectors**, not runnable commands. Existing AUTO-M7-TEST/LIVE/BROWSER/DEPLOY/EX
 entry points remain fail-closed. T003 extends them; no second runner/registry.
 Commands owning temporary tool links run serially; app reads remain concurrent.
 
-### Exact starting files for the next two packets
+### Exact starting files for the active packets
 
 T003's missing checks are delivery work, not a later acceptance surprise. Extend
 the existing runner and tests below; do not copy their assertions into a second
@@ -236,14 +183,14 @@ not that a displayed command already proves the result.
 | Monetary stored reads — T005/T010/T012 | `backend/tests/live/ollama/test_budget_overview_live.py`, `test_budget_history_http_live.py`, `test_budget_daily_history_live.py` | Retain the passed explicit monetary HTTP case and `test_budget_monetary_persistence.py` reopen/receipt assertions. Extend full filtered shared-pool totals and planned `persistence`/`budget_http` checks; a stored copy is not fresh-provider evidence |
 | Monetary dashboard — T011/T012/T014 | `frontend/tests/browser/m7/verify_overview.mjs`, `run_budget_account.py`, `history_chart.mjs` | Retain passed `verify_overview.mjs --require-money` for Overview → detail → exact history, Back/reload and monetary identity. Finish full-filter totals and planned `detail_history`; chart geometry and a monetary subcheck alone do not close these |
 | Monetary commit — T005/T007 | `backend/src/agentmonitor/adapters/persistence/capacity/sqlite/budget_repository.py`, existing real budget schema/commit suites | Planned genuine monetary commit/retry/reopen and interrupted-receipt recovery test in the existing capacity/collection integration families. Use an actual admitted collection result; never replay a saved raw provider response as a fresh request. Wire planned `persistence`/`collection` |
-| Daily rate — T013 | Prepared `budget_daily_costs.py`/`budget_forecast.py` and their pure tests in the isolated analysis worktree; integration target is M05 capacity domain | Review and integrate the prepared packet, then publish source semantics and public DTOs before HTTP/UI consumers. Extend `PURE_TARGETS` and existing mutation suite; isolated files are not delivered code |
-| Rate on screen — T010/T011/T013 | M05 bounded report reader and planned `GetBudgetForecastV1`, planned compact `GET /budgets/{budget_id}/forecast`, generated client and existing financial detail/history components | Same pinned report/as_of, exact rate/sample/lineage and separate date reason. Page-size independence, stale-response rejection and analysis-error isolation. Extend HTTP/detail-history checks; no whole-report UI fetch, fabricated funds/date or React financial calculation |
+| Daily rate — T013 | M05 `budget_daily_costs.py`/`budget_forecast.py`, application `GetBudgetForecastV1`, `budget_forecast_v1.py` and adapter source-evidence policy are now integrated locally | Preserve recorded pure/HTTP/mutation and strict numeric built-browser evidence; finish installation, installed-page verification and public revision check. These files are not yet installed |
+| Rate on screen — T010/T011/T013 | Local `GET /budgets/{budget_id}/forecast`, generated client, `BudgetObservedRate.tsx` and `frontend/tests/browser/m7/forecast.mjs` | Require a genuine nonnull numeric rate, independent source sum/duration, same pinned context, page-size independence, reload and zero provider mutations. A null-rate pass is insufficient for this packet. Date eligibility remains separately conditional |
 | Setup failure — T011/T014 | `frontend/tests/browser/m7/verify_setup.mjs`, `verify_overview_concurrency.mjs`; registry-time evidence linked above | Preserve sanitized child-stage diagnostics through the wrapper, establish whether the failure is in UI or probe, and fix that boundary with a regression. Do not retry until green, reset owner configuration, or invent a required repetition count |
 
-The first packet ends with a recorded installed monetary journey and a specific
-disposition for the fresh-commit/source-comparison evidence. If comparison needs
-an official provider page, ask only for that exact prepared view; finish the
-independent storage/API/DOM work first. Then integrate daily rate. Remaining
+The retained monetary journey is already recorded. Finish the rate packet
+through its installed result. If source comparison needs an official provider
+page, prepare that exact view and request only the necessary authentication;
+continue independent storage/API/DOM work while it is unavailable. Remaining
 provider mappings, lifecycle, retention and recovery retain their existing batch
 checks above. Do not delay this checkpoint for Anthropic/OpenAI setup.
 
@@ -256,7 +203,9 @@ pool/lifecycle controls and current metadata with a pinned financial cutoff;
 CTR-REG-002 1.1.0 supplies resource presence. The
 [contract register](../contract-register.md) and linked increment evidence own
 their exact compatibility. Earlier versions are history, not the target for
-new consumers. Remaining additive handoffs:
+new consumers. The local rate packet adds CTR-CAP-007 2.0.0 budget contracts
+without changing quota forecasts; its installed verification is pending.
+Remaining additive handoffs:
 
 - M02/P01/P02: retain installed scope/reconnect controls and prior-scope discovery;
   remaining lifecycle actions invalidate current authority without rewriting

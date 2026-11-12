@@ -837,3 +837,20 @@ optional query parameters only while preserving every old parameter, response
 and security field. Required additions, duplicates, removals, changed existing
 parameters and non-query additions remain rejected. Generator2.0.10; no new tool
 or dependency. Pure schema Red/Green and real production generation verify it.
+
+
+### T013 observed-rate integration: 12 November
+
+Current packet publishes the budget variant of CTR-CAP-007 2.0.0 with exact
+numerator/duration, pinned sample and separate rate/date reasons. M05 owns
+`domain/budget_daily_costs.py`, `domain/budget_forecast.py` and
+`application/budget_forecast.py`; the source evidence port is composed through
+`composition/budget_analysis.py` and source-owned Ollama admission. M05 SQLite
+adds a read of already-stored provenance with receipt/digest validation, not a
+migration. P01's existing budget router adds the allocated compact endpoint;
+P02 adds a single independent rate row to financial history. The generated
+client and schema remain root-owned. Planned daily-total chart, balance series,
+breakdowns, retention and remaining provider evidence are still open in T013.
+No production date is available from currently admitted funds: current public
+components do not establish scope epoch/allocation, and source freshness is
+unknown. Pure conditional numerical results do not close numeric live evidence.

@@ -24,6 +24,10 @@ from agentmonitor.api.v1.routers.budgets import (
     reported_spend_wire,
     usage_bucket_wire,
 )
+from agentmonitor.api.v1.schemas.budget_forecast import (
+    BudgetForecastWireV1,
+    BudgetObservedRateWireV1,
+)
 from agentmonitor.api.v1.schemas.budget_overview import (
     BudgetOverviewAccessPathWireV1,
     BudgetOverviewContextWireV1,
@@ -516,4 +520,83 @@ def list_budget_reports(
             filters=filters,
         ),
         availability=availability(result.availability),
+    )
+
+
+@router.get(
+    "/budgets/{budget_id}/forecast",
+    operation_id="capacity_get_budget_forecast_v1",
+    response_model=BudgetForecastWireV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "BudgetForecastPortV1"),
+)
+def get_budget_forecast(
+    budget_id: str,
+    request: Request,
+    account_id: str,
+    report_id: str,
+    period_start: Annotated[datetime, Query()],
+    period_end: Annotated[datetime, Query()],
+    as_of: Annotated[datetime, Query()],
+) -> BudgetForecastWireV1:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(
+        request,
+        frozenset({"account_id", "report_id", "period_start", "period_end", "as_of"}),
+    )
+    for value in (budget_id, account_id, report_id):
+        require_opaque_selector(value)
+    if any(
+        v.utcoffset() != UTC.utcoffset(v) for v in (period_start, period_end, as_of)
+    ):
+        raise ProblemError(400, "invalid_filter")
+    try:
+        query = BudgetOverviewQueryV1(BudgetPeriodV1(period_start, period_end), as_of)
+    except (TypeError, ValueError):
+        raise ProblemError(400, "invalid_filter") from None
+    port = observation_ports(request).get_budget_forecast
+    if port is None:
+        raise ProblemError(503, "observation_data_unavailable")
+    try:
+        result = port(
+            OpaqueIdV1(account_id),
+            OpaqueIdV1(budget_id),
+            OpaqueIdV1(report_id),
+            period=query.period,
+            as_of=query.as_of,
+        )
+    except (CapacityQueryUnavailableV1, ValueError):
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    if result is None:
+        raise ProblemError(404, "budget_report_not_found")
+    rate = result.rate
+    evidence = result.source_evidence
+    return BudgetForecastWireV1(
+        report=report_summary_wire(result.report),
+        as_of=result.as_of,
+        rate=None
+        if rate is None
+        else BudgetObservedRateWireV1(
+            cost=_money(rate.cost),
+            covered_seconds=rate.covered_seconds,
+            period=_period(rate.period),
+            input_report_ids=[v.value for v in rate.input_report_ids],
+            input_bucket_keys=list(rate.input_bucket_keys),
+            day_count=rate.day_count,
+            display_text=rate.display_text,
+            display_rounding=rate.display_rounding,
+            display_decimal_places=rate.display_decimal_places,
+        ),
+        rate_reason=result.rate_reason,
+        exhaustion_reason=result.exhaustion_reason,
+        exhaustion_at=result.exhaustion_at,
+        funds_observed_at=result.funds_observed_at,
+        input_observation_ids=[v.value for v in result.input_observation_ids],
+        time_left_numerator=result.time_left_numerator,
+        time_left_denominator=result.time_left_denominator,
+        method_id=result.method_id,
+        method_version=result.method_version,
+        time_rounding=result.time_rounding,
+        source_policy_id=evidence.policy_id if evidence else None,
+        source_policy_version=evidence.policy_version if evidence else None,
     )

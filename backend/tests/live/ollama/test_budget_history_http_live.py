@@ -47,11 +47,15 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
         SqliteRegistryRepositoryV1,
     )
     from agentmonitor.composition.bootstrap import create_iam_application
+    from agentmonitor.composition.budget_analysis import StoredBudgetSourceEvidenceV1
     from agentmonitor.composition.budget_funds import StoredAccountBudgetFundsV1
     from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
     from agentmonitor.contracts.common_v1 import OpaqueIdV1
     from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
     from agentmonitor.foundation.application import LifecycleHooksV1
+    from agentmonitor.modules.capacity.application.budget_forecast import (
+        GetBudgetForecastV1,
+    )
     from agentmonitor.modules.capacity.application.budget_history import (
         ListBudgetHistoryV1,
     )
@@ -121,16 +125,17 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
     )
 
     selected = GetSelectedBudgetReportV1(GetAccountV1(registry), reports)
+    budget_funds = StoredAccountBudgetFundsV1(
+        CapacityScopeMembershipQueryV2(registry),
+        ListQuotaWindowsV1(SqliteCapacityRepositoryV1(reference)),
+        active_binding=active_binding,
+        get_run=runs.get_run,
+    )
     current = GetAccountBudgetCurrentV1(
         SqliteBillingConnectionRepositoryV1(reference),
         reports,
         runs,
-        StoredAccountBudgetFundsV1(
-            CapacityScopeMembershipQueryV2(registry),
-            ListQuotaWindowsV1(SqliteCapacityRepositoryV1(reference)),
-            active_binding=active_binding,
-            get_run=runs.get_run,
-        ),
+        budget_funds,
         active_binding=active_binding,
         cloud_target=SqliteCloudCredentialRegistryV1(reference).read_monitoring_target,
     )
@@ -141,6 +146,11 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
         get_account_budget_current=current,
         get_selected_budget_report=selected,
         list_budget_history=ListBudgetHistoryV1(selected),
+        get_budget_forecast=GetBudgetForecastV1(
+            selected,
+            StoredBudgetSourceEvidenceV1(reports.get_report_provenance),
+            budget_funds,
+        ),
         list_budget_reports=ListBudgetReportsV1(GetAccountV1(registry), reports),
     )
     account_id = stored.report.subject.account_id.value
@@ -170,6 +180,76 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
                 )
                 assert login[0] == 204
             jar = jars[0]
+            if require_money:
+                # This is an actual retained source report, pinned to when it
+                # was stored. It is not a fresh provider observation.
+                forecast_selection = {
+                    **selection,
+                    "as_of": stored.stored_at.isoformat(),
+                }
+                forecast_url = (
+                    f"/api/v1/budgets/{resource_id}/forecast?"
+                    + urllib.parse.urlencode(forecast_selection)
+                )
+                reading = await asyncio.to_thread(
+                    _request, origin, "GET", forecast_url, cookies=jar
+                )
+                assert reading[0] == 200, "genuine_monetary_forecast_endpoint_missing"
+                analysis = json.loads(reading[2])
+                assert analysis["report"]["report_id"] == stored.report_id.value
+                assert "cost_buckets" not in analysis["report"]
+                assert "usage_buckets" not in analysis["report"]
+                assert analysis["as_of"] == stored.stored_at.isoformat().replace(
+                    "+00:00", "Z"
+                )
+                rate = analysis["rate"]
+                assert rate is not None, "genuine_daily_rate_missing"
+                cutoff = stored.stored_at.replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                sample = [
+                    row
+                    for row in stored.report.cost_buckets
+                    if cutoff - timedelta(days=7) <= row.period.start
+                    and row.period.end <= cutoff
+                ]
+                assert len(sample) >= 3
+                assert all(row.kind == "charge" for row in sample)
+                assert rate["covered_seconds"] == len(sample) * 86400
+                assert rate["day_count"] == len(sample)
+                expected = sum(
+                    int(row.amount.amount.coefficient)
+                    * 10 ** (18 - row.amount.amount.scale)
+                    for row in sample
+                )
+                assert (
+                    int(rate["cost"]["coefficient"])
+                    * 10 ** (18 - rate["cost"]["scale"])
+                    == expected
+                )
+                assert rate["cost"]["currency"] == stored.report.currency
+                assert set(rate["input_bucket_keys"]) == {
+                    row.bucket_key for row in sample
+                }
+                assert rate["input_report_ids"] == [stored.report_id.value]
+                assert analysis["exhaustion_at"] is None
+                assert analysis["exhaustion_reason"] != "exhaustion_estimated"
+                repeated = await asyncio.to_thread(
+                    _request, origin, "GET", forecast_url, cookies=jar
+                )
+                assert repeated[0] == 200 and json.loads(repeated[2]) == analysis
+                unauthenticated = await asyncio.to_thread(
+                    _request, origin, "GET", forecast_url
+                )
+                assert unauthenticated[0] == 401
+                invalid = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "GET",
+                    forecast_url + "&cursor=forbidden",
+                    cookies=jar,
+                )
+                assert invalid[0] == 400
             full = await asyncio.to_thread(
                 _request,
                 origin,

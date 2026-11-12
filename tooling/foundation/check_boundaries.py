@@ -50,6 +50,7 @@ CONTRACT_MODULES = frozenset(
         "billing_actions_v1",
         "cloud_usage_actions_v1",
         "budget_query_v1",
+        "budget_forecast_v1",
         "provider_system_v1",
         "common_provenance_v1",
         "collection_control_v1",
@@ -86,6 +87,11 @@ SUPPORT_SYMBOLS = {
     "agentmonitor.contracts.billing_actions_v1": {
         "BillingCheckPortV1",
         "BillingCollectCommandV1",
+    },
+    "agentmonitor.contracts.budget_forecast_v1": {
+        "BudgetForecastPortV1",
+        "BudgetSourceEvidencePortV1",
+        "BudgetReportProvenancePortV1",
     },
     "agentmonitor.contracts.budget_query_v1": {
         "AccountBudgetCurrentPortV1",

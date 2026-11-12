@@ -304,3 +304,41 @@ Validation for this clarification:
 - `git diff --check`: Passed.
 
 Planning is saved locally. M7 implementation and final acceptance remain open.
+
+
+## Consolidation against the prepared rate packet
+
+Planning-only review at committed baseline `c49b6cd`, preserving the existing
+uncommitted rate implementation and generated artifacts. The owner requested
+proper UI/calculation/detail planning with make-work-first scope. This pass
+changes the existing worksheet, calculation rules, execution-plan summary and
+T013 steps; it creates no new tickets, gates, dependency or plan version.
+
+- Condensed repeated installed-history narrative and duplicate work tables.
+  The worksheet starts with the actual next deliverable: finish the locally
+  integrated rate row through strict numeric browser proof and installation,
+  then full filtered totals. Installed monetary/history controls are retained.
+- Corrected two financial ambiguities: 7/30-day coverage comes from the directly
+  admitted report, without cross-revision interval assembly; the bounded rate
+  sample permits 200 contributing source facts, distinct from 3–7 daily totals.
+  Existing M7-MATH-03/10/15 and T013 own the boundary cases.
+- Distinguished retained monetary proof from remaining fresh commit/recovery,
+  source comparison and full filtered shared-pool totals. Local API/UI code is
+  not described as installed. The stricter numeric browser result is pending.
+- Read-only independent P02 review found no additional acceptance decision gap.
+  Compact layout, money/usage units, pinned navigation, unavailable states and
+  isolated failures are already specified. Cursor recovery remains existing
+  implementation work. Independent M05 review identified the source-fact limit
+  ambiguity above; no new accounting framework is needed.
+- Retained the fixed three-provider matrix, eight work batches, sixteen tickets
+  and M7-A01..A10. No ticket status changed. Missing provider access affects its
+  live lane only; no repeated owner confirmation is introduced.
+
+Validation: `AUTO-M7-PLAN-CHECK`, `AUTO-DOCS-CHECK`, `AUTO-PLAN-CHECK` and
+`git diff --check` passed again after the evidence/catalog update, all with
+exit status 0. These checks establish document consistency,
+not implementation or milestone completion. No runtime, owner configuration,
+secrets, database, license or dependency changed in this planning pass. The
+plan changes are local until committed/published; installed revision remains
+as recorded in the worksheet. Production work already present is not claimed
+as an output of this review.

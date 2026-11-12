@@ -831,7 +831,7 @@ id = "CTR-CAP-007"
 name = "CapacityForecastV1"
 version = "1.0.0"
 producer = "PLAN-M05"
-consumers = ["PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-A03", "PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.7, 6 CTR-CAP-008, and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

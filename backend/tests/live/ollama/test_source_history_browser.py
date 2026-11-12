@@ -25,7 +25,7 @@ from backend.tests.live.ollama.test_cloud_registry_revision_admission import (
 )
 
 
-@pytest.mark.parametrize("probe", ("source_history", "history_chart"))
+@pytest.mark.parametrize("probe", ("source_history", "history_chart", "forecast"))
 def test_source_history_built_browser_on_genuine_private_snapshot(
     tmp_path: Path,
     probe: str,
@@ -43,7 +43,17 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
         ):
             continue
         report = reports.get_report(run.account_id, run.report_id)
-        if report is not None and report.report.usage_buckets:
+        if (
+            report is not None
+            and report.report.usage_buckets
+            and (
+                probe != "forecast"
+                or report.report.cost_buckets
+                and report.report.completeness == "complete"
+                and report.report.currency is not None
+                and not report.report.grouping
+            )
+        ):
             genuine.append(report)
     assert genuine, "genuine_stored_usage_required"
     selected = max(genuine, key=lambda value: (value.stored_at, value.report_id.value))
@@ -89,8 +99,14 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
             expected = (
                 "M7 SOURCE HISTORY BROWSER: PASSED"
                 if probe == "source_history"
+                else "M7 FORECAST BROWSER: PASSED"
+                if probe == "forecast"
                 else "M7 HISTORY CHART BROWSER: PASSED"
             )
             assert output.startswith(expected.encode()), "browser_output_invalid"
+            if probe == "forecast":
+                assert b"rate_available=true" in output, (
+                    "genuine_numeric_rate_not_verified"
+                )
 
     asyncio.run(exercise())

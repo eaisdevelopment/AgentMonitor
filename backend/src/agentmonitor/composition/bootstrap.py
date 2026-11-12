@@ -111,6 +111,7 @@ from agentmonitor.composition.billing_actions import BillingCheckActionsV1
 from agentmonitor.composition.billing_local_setup import InstalledBillingLocalSetupV1
 from agentmonitor.composition.billing_monitoring import BillingMonitoringActionsV1
 from agentmonitor.composition.billing_worker_supervisor import BillingWorkerSupervisorV1
+from agentmonitor.composition.budget_analysis import StoredBudgetSourceEvidenceV1
 from agentmonitor.composition.budget_funds import StoredAccountBudgetFundsV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
@@ -186,6 +187,9 @@ from agentmonitor.modules.alerting.application.rules import (
     GetAlertRuleV1,
     ListAlertRulesV1,
     UpdateAlertRuleV1,
+)
+from agentmonitor.modules.capacity.application.budget_forecast import (
+    GetBudgetForecastV1,
 )
 from agentmonitor.modules.capacity.application.budget_history import ListBudgetHistoryV1
 from agentmonitor.modules.capacity.application.budget_overview import (
@@ -584,16 +588,17 @@ def _observation_ports(
             "codex": codex_collector.read_verified_identity,
         },
     )
+    budget_funds = StoredAccountBudgetFundsV1(
+        CapacityScopeMembershipQueryV2(registry),
+        ListQuotaWindowsV1(capacity),
+        active_binding=active_budget_binding,
+        get_run=collection.get_run,
+    )
     account_budget_current = GetAccountBudgetCurrentV1(
         SqliteBillingConnectionRepositoryV1(reference),
         SqliteBudgetReportRepositoryV1(reference),
         collection,
-        StoredAccountBudgetFundsV1(
-            CapacityScopeMembershipQueryV2(registry),
-            ListQuotaWindowsV1(capacity),
-            active_binding=active_budget_binding,
-            get_run=collection.get_run,
-        ),
+        budget_funds,
         active_binding=active_budget_binding,
         cloud_target=SqliteCloudCredentialRegistryV1(reference).read_monitoring_target,
     )
@@ -670,6 +675,13 @@ def _observation_ports(
         ),
         get_selected_budget_report=selected_budget_report,
         list_budget_history=ListBudgetHistoryV1(selected_budget_report),
+        get_budget_forecast=GetBudgetForecastV1(
+            selected_budget_report,
+            StoredBudgetSourceEvidenceV1(
+                SqliteBudgetReportRepositoryV1(reference).get_report_provenance
+            ),
+            budget_funds,
+        ),
         list_budget_reports=ListBudgetReportsV1(
             get_account, SqliteBudgetReportRepositoryV1(reference)
         ),

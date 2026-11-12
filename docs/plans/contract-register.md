@@ -289,3 +289,19 @@ timestamps with the financial cutoff. M05 Overview opts into this path while
 retaining report/funds cutoff, scope/binding checks and repeated revision-consistent
 reads. Command-time guards remain unchanged. See the [continuity handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#current-registry-metadata-with-pinned-financial-time-12-november).
 No new clock, storage, endpoint, credential or owner configuration is required.
+
+
+### CTR-CAP-007 2.0.0: query-time monetary rate
+
+Approved M7 T013 adds budget-only source-evidence, observed-rate and forecast
+DTOs/ports in `budget_forecast_v1.py`. Existing quota forecast types remain
+unchanged. M05 reads an authorized immutable report and receipt-validated
+provenance through public ports; source-owned policy supplies replacement,
+disjointness, zero-day and freshness evidence. P01 exposes the planned compact
+`GET /budgets/{budget_id}/forecast`; P02 consumes its generated client with the
+same account/resource/report/interval/as_of. It contains metadata, exact rational
+rate and input references, never bucket bodies, credentials or a provider call.
+Current Ollama source evidence permits observed rate only: its existing funds
+contract lacks scope/allocation proof and costs lack a freshness watermark.
+Numeric exhaustion remains the pure conditional calculation; no date is inferred
+from unrelated funds. No schema, dependency, default-profile or secret changes.

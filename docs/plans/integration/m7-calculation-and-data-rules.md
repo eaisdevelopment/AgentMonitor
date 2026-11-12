@@ -97,8 +97,9 @@ current. When no source watermark exists, say Data through not reported and show
 the query coverage and checked time separately.
 
 Current views select the newest **complete compatible report** for the requested
-interval/grouping; they do not add repeated polls. For wider ranges use disjoint
-complete report intervals, never both the parent total and its child breakdown.
+interval/grouping; they do not add repeated polls. For seven-/thirty-day views use the directly admitted report for that range
+and its disjoint complete buckets; do not assemble wider coverage by joining
+report revisions. Never add both a parent total and its child breakdown.
 If a later complete report omits a previously returned bucket, the earlier
 bucket is no longer part of the current total. Preserve both reports in history.
 Do not use latest-row-per-bucket alone: that retains phantom spend after a
@@ -313,8 +314,14 @@ proven-disjoint cost facts within each day. Count each day and its duration once
 three model rows for one day are not three days; a daily total and its component
 rows are alternative representations, never additional cost or duration.
 Reuse the bounded report reader and daily-history aggregation; no new table or
-resampling engine. Select at most 200 normalized buckets within seven completed
-UTC days, bounded by query `as_of` (the daily method uses at most seven days).
+resampling engine. After selecting the newest qualifying contiguous daily sample
+within at most seven completed UTC days, bounded by query `as_of`, admit at most
+200 contributing source cost facts. Exceeding that bound returns an explicit
+unavailable reason; never truncate the sample or select an older one merely to
+fit. Facts outside the selected sample do not consume this limit. Three daily
+aggregates may contain many source facts; days and source facts are not the same
+count. M7-MATH-03/10/15 covers 200 accepted, 201 unavailable, and unrelated facts
+outside the selected sample.
 For an exhaustion estimate, the window ends at the eligible funds observation's
 UTC-midnight cutoff. If funds are absent, stale, incompatible, lack required
 allocation evidence or, for limit-derived headroom, enforcement evidence,
