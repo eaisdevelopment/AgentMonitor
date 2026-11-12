@@ -321,7 +321,26 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
                     value["bucket_key"],
                 )
 
-            assert rows == sorted(expected_rows, key=row_key)
+            assert [
+                {key: row[key] for key in ("kind", "cost", "usage")} for row in rows
+            ] == sorted(expected_rows, key=row_key)
+            for row in rows:
+                chart = row["chart"]
+                assert chart is not None, "genuine_daily_chart_point_missing"
+                assert row["chart_unavailable_reason"] is None
+                assert len(chart["series_key"]) == 64
+                assert 0 <= chart["magnitude_basis_points"] <= 10000
+                bucket = row["cost"] or row["usage"]
+                exact = bucket["amount"] if row["cost"] else bucket["quantity"]
+                coefficient = int(exact["coefficient"])
+                assert chart["direction"] == (
+                    "zero"
+                    if coefficient == 0
+                    else "negative"
+                    if coefficient < 0
+                    else "positive"
+                )
+                assert (chart["magnitude_basis_points"] == 0) == (coefficient == 0)
             assert (
                 "binding_id" not in first[2].decode()
                 and "binding_generation" not in first[2].decode()

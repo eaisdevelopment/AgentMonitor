@@ -696,7 +696,7 @@
       "story": "ST-BUDGET-001",
       "title": "Complete breakdowns, history chart and simple query-time forecast",
       "owner": "M05/P01/P02; M08 retention invocation (root serial integration)",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T006",
         "M7-T008",
@@ -725,7 +725,8 @@
       "done_when": "Chart/table share actual history; formulas, supported dimensions and missing-input paths pass. Known credit expiry bounds forecasts; signed adjustments plot by actual sign. Financial retention participant and existing scheduler integration pass pure cutoff and isolated real SQLite checks; no new analytics/retention framework or persistent forecast/events.",
       "verification": "Planned scoped verification: forecast/breakdown pure, persistence, HTTP and browser through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-history-chart-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S3",
@@ -737,7 +738,7 @@
       "steps": [
         "Start independent pure math and first-history chart work from existing immutable-history contracts after the current integration packet, without waiting for inaccessible providers. depends_on constrains ticket closure, not the start of this independent packet. Final coverage still includes the finite supported matrix. Red tests cover wrong signs/units/coverage, missing inputs and forecast anchoring.",
         "Publish admitted source/category plus one supported dimension and native unit through versioned adapter/P01 surfaces; P02 does not hardcode provider support. Selection reads stored data; explicit collection uses T007 exact context. No Cartesian query builder.",
-        "Use the same loaded immutable daily facts for table/chart; label unloaded pages as More history available, not zero/source gaps. Failed pages preserve both. M05 aggregates only proven-disjoint facts once per UTC day; three model rows from one day are not three days of rate history, and total-plus-components are not added. Reconcile matching complete breakdown totals/reported remainder without inventing Other or agent attribution. Balance series uses separate genuine capacity-history observations per fund component, with exact amounts, identity and original times; version only missing safe snapshot/selector fields before its consumer. Do not manufacture history from current funds. The first cost/usage chart does not wait for balance-series integration.",
+        "Ship the first source-entry chart from the same loaded immutable facts as its table; do not call separate entries daily totals or require rate completion for this packet. Label unloaded pages as More history available, not zero/source gaps. Failed pages preserve both. M05 aggregates only proven-disjoint facts once per UTC day; three model rows from one day are not three days of rate history, and total-plus-components are not added. Reconcile matching complete breakdown totals/reported remainder without inventing Other or agent attribution. Balance series uses separate genuine capacity-history observations per fund component, with exact amounts, identity and original times; version only missing safe snapshot/selector fields before its consumer. Do not manufacture history from current funds. The first cost/usage chart does not wait for balance-series integration.",
         "Implement only budget-observed-rate-v1/1.0.0 as specified in calculation section6: bounded contiguous exact monetary history, separate rate/date availability, input IDs and source/funds freshness. Query-time only; no forecast persistence/events or price estimation. Independent history-page size does not change financial identity: pin selected scope/epoch/currency/basis, state actual sample bounds and reject incompatible new-scope funds for an old-scope forecast.",
         "Run M7-MATH-03/09/10/15/16 and associated component cases: signed adjustments/gaps/zero/expiry/renewal/unknown allocation, at least three complete consecutive daily buckets, eligible funds cutoff or rate-only as_of fallback for absent/stale/incompatible funds, seven-day horizon and unchanged-input reload. Three days with two disjoint 1 USD rows each produce 2 USD/day; one day with three rows remains insufficient. Real absent inputs show a reason; numeric live evidence is conditional.",
         "M05 implements bounded 365-day report/fact retention with referenced-fact preservation; M08 invokes its public participant using existing scheduler. Verify genuine report expiry/cursor expiry with explicit future cutoff on isolated SQLite; no seeded old telemetry or host clock change.",

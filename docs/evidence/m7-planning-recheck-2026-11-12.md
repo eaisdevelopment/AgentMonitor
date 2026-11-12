@@ -266,3 +266,41 @@ Validation:
 
 Saved locally in the M7 worktree. These checks establish planning structure and
 references, not M7 completion, a new financial pass, deployment or publication.
+
+## Delivery clarification against d5c6018
+
+The owner requested deep advance planning while keeping the first implementation
+simple. Root reviewed the existing fixed scope, requirements, current worksheet,
+UI states, calculation rules and ticket dependencies. Independent read-only P02
+and M05 reviews checked the user journey and financial semantics. Existing
+uncommitted chart code and its earlier evidence were preserved, not delivered by
+this planning edit.
+
+- T013's next packet is the existing source-entry chart, independently of daily
+  aggregation/rate. The worksheet had incorrectly bundled those deliveries.
+  Source entries, daily totals and balance snapshots are explicitly distinct.
+- T013/M7-MATH-03/10/15/16 retain a qualified historical observed rate with its
+  sample dates/freshness limitation; missing fresh funds can prevent an
+  exhaustion date without suppressing that rate. This resolves contradictory
+  freshness wording, without changing the seven-day sample or financial identity.
+- T002/T007/T010–T015 now have a concise six-action owner demonstration in the
+  worksheet, linked from the execution plan. Existing provider, retention and
+  recovery checks remain required; the demonstration introduces no new gate.
+- Removed duplicated changing tracker counts from the worksheet. The catalog
+  remains the sole status source. The frozen sixteen tickets, five stories and
+  M7-A01..A10, approved scope and deferred list remain unchanged.
+
+Changed: execution plan, worksheet, UI plan, calculation rules, T013 catalog
+wording and this evidence record. No new production behavior, contract version,
+dependency, migration, license, credential or account-configuration change.
+No provider access, install, publication or live/browser success is claimed.
+
+Validation for this clarification:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed; sixteen tickets,
+  five stories, ten acceptance items traced.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed; 397 Markdown files.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed; synchronized baseline.
+- `git diff --check`: Passed.
+
+Planning is saved locally. M7 implementation and final acceptance remain open.

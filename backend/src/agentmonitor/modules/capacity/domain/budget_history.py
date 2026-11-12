@@ -19,6 +19,7 @@ from agentmonitor.modules.capacity.domain.budget_codec import (
     budget_report_digest,
     utc_text,
 )
+from agentmonitor.modules.capacity.domain.budget_history_chart import chart_rows
 
 # At most 10,000 report facts means the last continuation offset is 9,999.
 _CURSOR = re.compile(r"v1_([0-9a-f]{56})_([1-9][0-9]{0,3})\Z")
@@ -71,19 +72,21 @@ def history_result(
     ):
         raise ValueError("budget_history_context_invalid")
     report = selected.report.report
-    rows = tuple(
-        sorted(
-            (
-                *(
-                    BudgetHistoryRowV1("cost", cost, None)
-                    for cost in report.cost_buckets
+    rows = chart_rows(
+        tuple(
+            sorted(
+                (
+                    *(
+                        BudgetHistoryRowV1("cost", cost, None)
+                        for cost in report.cost_buckets
+                    ),
+                    *(
+                        BudgetHistoryRowV1("usage", None, usage)
+                        for usage in report.usage_buckets
+                    ),
                 ),
-                *(
-                    BudgetHistoryRowV1("usage", None, usage)
-                    for usage in report.usage_buckets
-                ),
-            ),
-            key=_order,
+                key=_order,
+            )
         )
     )
     fingerprint = _fingerprint(selected, query)

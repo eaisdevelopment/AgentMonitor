@@ -35,6 +35,7 @@ from agentmonitor.api.v1.schemas.budget_overview import (
     BudgetSelectedReportWireV1,
 )
 from agentmonitor.api.v1.schemas.budgets import (
+    BudgetHistoryChartPointWireV1,
     BudgetHistoryRowWireV1,
     BudgetHistoryWireV1,
     BudgetReportedSpendWireV1,
@@ -409,6 +410,15 @@ def list_budget_history(
                 kind=row.kind,
                 cost=None if row.cost is None else cost_bucket_wire(row.cost),
                 usage=None if row.usage is None else usage_bucket_wire(row.usage),
+                chart=None
+                if row.chart is None
+                else BudgetHistoryChartPointWireV1(
+                    series_key=row.chart.series_key,
+                    label=row.chart.label,
+                    magnitude_basis_points=row.chart.magnitude_basis_points,
+                    direction=row.chart.direction,
+                ),
+                chart_unavailable_reason=row.chart_unavailable_reason,
             )
             for row in result.page.items
         ],

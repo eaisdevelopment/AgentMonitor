@@ -364,6 +364,16 @@ Current funds from a different epoch cannot supply its exhaustion date without
 established compatibility. Historical rate/estimate labels remain historical.
 
 The first chart uses existing cost/usage report history, with separate units.
+Label this increment **Source entries**, not Daily total: multiple rows on one
+day are not automatically additive. Keep each series within one native unit
+and dimension context. M05 supplies visual magnitudes against the full pinned
+report so loading another page does not resize existing bars. A non-daily source
+interval remains in the exact table with its reason; do not flatten it into a
+daily point. A compact plot with horizontal scrolling is sufficient; do not
+turn every historical entry into a full-height dashboard row. Keyboard focus
+and selection expose the exact value and interval. Daily aggregate/rate and
+balance series remain distinct T013 work, with no new chart dependency.
+
 Balance snapshots are a separate input: reuse the versioned capacity-history
 query for each authorized resource/fund component, exact currency and observation
 identity/time. T010/T013 must publish any missing safe selector through the

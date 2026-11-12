@@ -268,3 +268,13 @@ dependency is added. This is approved T007 recovery work under focused M7 1.1.0.
 Pure invalid-state tests and a private snapshot of the genuine expired run
 must prove truthful repository/HTTP reads; the installed existing run must then
 be reread without recollection. Expiry is not successful provider collection.
+
+### CTR-CAP-006 2.10.0: source-entry history chart
+
+M05 adds optional per-row chart metadata to the existing immutable daily-history
+read. Exact source entries remain unchanged; magnitude is scaled within the
+full report's separate kind/unit/dimension series, independent of page size.
+P01 publishes additive wire fields and P02 renders them alongside the same
+loaded table facts. Non-daily intervals retain a table-only reason; no gaps,
+totals or monetary values are invented. See the [T013 handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#t013-first-history-chart-handoff-12-november).
+No new storage, endpoint, dependency or provider request is introduced.

@@ -344,7 +344,10 @@ try {
     ];
     const factKey = row => `${row.kind}:${(row.cost ?? row.usage).bucket_key}`;
     requireEvidence(paged.length === expectedFacts.length && new Set(paged.map(factKey)).size === expectedFacts.length, "history_fact_count_mismatch");
-    for (const fact of expectedFacts) requireEvidence(JSON.stringify(paged.find(row => factKey(row) === factKey(fact))) === JSON.stringify(fact), "history_exact_fact_mismatch");
+    for (const fact of expectedFacts) {
+      const row = paged.find(row => factKey(row) === factKey(fact));
+      requireEvidence(row !== undefined && JSON.stringify({ kind: row.kind, cost: row.cost, usage: row.usage }) === JSON.stringify(fact), "history_exact_fact_mismatch");
+    }
     for (const [key, buckets] of [["cost", selected.report.cost_buckets], ["usage", selected.report.usage_buckets]]) {
       const table = history.getByRole("region", { name: key === "cost" ? "Exact cost history" : "Exact usage history", exact: true });
       requireEvidence(await table.locator("tbody tr").count() === buckets.length, "selected_bucket_set_mismatch");

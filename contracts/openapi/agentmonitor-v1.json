@@ -3054,9 +3054,67 @@
         "title": "BudgetFundComponentWireV1",
         "type": "object"
       },
+      "BudgetHistoryChartPointWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "direction": {
+            "enum": [
+              "positive",
+              "negative",
+              "zero"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "magnitude_basis_points": {
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Magnitude Basis Points",
+            "type": "integer"
+          },
+          "series_key": {
+            "title": "Series Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "series_key",
+          "label",
+          "magnitude_basis_points",
+          "direction"
+        ],
+        "title": "BudgetHistoryChartPointWireV1",
+        "type": "object"
+      },
       "BudgetHistoryRowWireV1": {
         "additionalProperties": false,
         "properties": {
+          "chart": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetHistoryChartPointWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chart_unavailable_reason": {
+            "anyOf": [
+              {
+                "const": "source_interval_not_daily",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chart Unavailable Reason"
+          },
           "cost": {
             "anyOf": [
               {
@@ -33938,7 +33996,7 @@
     "generator_sha256": "47533b6d33c6db5be548974d68967f4dc4a6e7a630ec59b9fdd0a97500b85c4f",
     "generator_version": "2.0.13",
     "openapi_version": "3.1.0",
-    "schema_sha256": "1628551e334f778021e6159566f8798c4723c52a87ef0b90bada07a156eef161",
-    "source_sha256": "beae3d3850199bab1be0cffdf790514b3ebc1712c5fad2925d5d84365b3e5b72"
+    "schema_sha256": "ddd23964641b351f3b6adc4bc8d9cd642e2b85163c4b41067242b18407d9ad30",
+    "source_sha256": "0b80345398cfe2f8a9e460f942de800ae6612c9557e3fbde758d0b97f6c7371d"
   }
 }

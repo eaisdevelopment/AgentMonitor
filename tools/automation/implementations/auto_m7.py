@@ -49,6 +49,7 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_history_cursor.py",
     "backend/tests/capacity/pure/test_budget_history_contract.py",
     "backend/tests/capacity/pure/test_budget_daily_history.py",
+    "backend/tests/capacity/pure/test_budget_history_chart.py",
     "backend/tests/contracts/test_budget_report_contract.py",
     "backend/tests/contracts/test_budget_commit_contract.py",
     "backend/tests/contracts/test_budget_run_contract.py",
@@ -796,7 +797,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     elif args.check == "source_history":
         scope = (
-            "genuine retained report metadata and built-browser navigation; "
+            "genuine retained report metadata, built-browser navigation "
+            "and source-entry chart; "
             "no monetary reconciliation or full detail_history acceptance"
         )
     elif args.check == "overview":

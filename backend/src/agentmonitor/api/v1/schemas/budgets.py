@@ -258,10 +258,19 @@ class AccountBudgetSummaryWireV1(_ClosedV1):
     )
 
 
+class BudgetHistoryChartPointWireV1(_ClosedV1):
+    series_key: str
+    label: str
+    magnitude_basis_points: int = Field(ge=0, le=10000)
+    direction: Literal["positive", "negative", "zero"]
+
+
 class BudgetHistoryRowWireV1(_ClosedV1):
     kind: Literal["cost", "usage"]
     cost: BudgetCostBucketWireV1 | None
     usage: BudgetUsageBucketWireV1 | None
+    chart: BudgetHistoryChartPointWireV1 | None = None
+    chart_unavailable_reason: Literal["source_interval_not_daily"] | None = None
 
 
 class BudgetHistoryWireV1(_ClosedV1):

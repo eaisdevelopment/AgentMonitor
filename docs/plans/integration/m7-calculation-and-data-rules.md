@@ -315,7 +315,9 @@ An ineligible old balance must not suppress newer qualifying cost history.
 Three consecutive complete daily buckets can qualify; seven populated
 days are not mandatory. Use the newest contiguous qualifying observed interval
 and return its actual bounds; never join observations across a missing bucket.
-Freshness eligibility still applies, so an older interval is not silently current.
+Freshness determines whether evidence can support a current exhaustion estimate;
+an otherwise qualified observed rate remains available with its actual sample
+interval and freshness limitation. An older interval is never silently current.
 Known zero-cost intervals contribute duration only from explicit zero monetary
 facts or admitted complete-cost-coverage zero semantics. Request/token counts
 cannot fill monetary coverage. Unknown gaps must not be removed from the
@@ -530,6 +532,11 @@ SQLite, actual HTTP and built-browser values. Pure examples never cross I/O.
   behavior.
 - Chart geometry is approximate presentation, never a second financial
   calculation. Exact API amounts remain the table, label and tooltip authority.
+  The first chart plots source entries separately; an entry is not a daily
+  aggregate. Fix its per-series scale against the full selected report rather
+  than the loaded page. The later daily-cost calculation proves disjointness
+  and coverage before summing; it must not read plotted heights or count chart
+  entries as elapsed days. Table-only non-daily intervals are not zero days.
   Plot negative amounts below zero and positive amounts above zero; retain
   adjustment labels. An adjustment can have either sign: M7-MATH-09 covers
   cost 10 plus adjustment +2 = 12 and adjustment −2 = 8, with matching chart

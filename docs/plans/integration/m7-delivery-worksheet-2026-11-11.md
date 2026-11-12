@@ -25,8 +25,12 @@ also records failed broad concurrent continuity probes and an observed browser
 network interruption. Reverify that broader boundary; independent T013 work
 continues. This remains existing recovery scope, not a new owner prerequisite.
 
-**Next independent delivery:** the first-source history chart and rate-only
-calculation in T013. Billing disconnect/local cleanup and status-to-financial
+**Next independent delivery:** finish the existing first-source-entry history
+chart packet in T013 through its built-browser and installed checks. Its local
+draft is not a daily aggregate or a completed T013 delivery. Daily aggregation
+and observed rate are the following packet; conditional exhaustion follows the
+same financial contract. Do not hold the first chart for those calculations or
+restart its existing Red/Green work. Billing disconnect/local cleanup and status-to-financial
 refresh are installed and published at `d985cc7`; their
 [evidence](../../evidence/m7-billing-maintenance-2026-11-12.md) records 95 registry
 tests, isolated SQLite/PTY/browser Red/Green, local quality and concurrent
@@ -72,7 +76,7 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 | Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Later seven-day probe made one POST; the queued run expired before dispatch and its status/history read failed. Successful seven-day manual collection, monetary reports and remaining provider matrix are unproved |
 | Browser reliability | Prior installed concurrent Overview/setup/cloud reads passed; current expired-run/history UI passes; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Current broad concurrent probe failed; later inspection observed browser network interruption. Monetary totals, full accessibility and final acceptance remain open |
 | Source access | Read-only installed inventory at 08:11:53 UTC, 12 November: zero Anthropic/OpenAI billing connections, stored bindings or enabled billing connections | Subscription logins do not prove billing access; absence is not a provider denial |
-| Tracker | 2 done, 11 in progress, 3 planned | Counts are not percentage complete |
+| Tracker | Read current ticket states from the catalog; this worksheet does not duplicate changing counts | Counts are not percentage complete; local implementation is not installed delivery |
 
 Evidence: [resource layout](../../evidence/m7-account-resource-layout-2026-11-12.md),
 [concurrent reads](../../evidence/m7-overview-query-reliability-2026-11-12.md),
@@ -129,7 +133,8 @@ scope, not eleven simultaneous priorities.
 |---|---|---|
 | Installed maintenance controls | Retain quality/install/browser evidence; actual active-key deletion/rotation only when real credentials are available | M02/P01/P02, T002/T011/T014 |
 | One successful admitted monetary report, even if its adapter ticket is incomplete | Exact same report/context in storage, HTTP, Overview, detail and history; genuine evidence, no mock balance | M05/P01/P02, T005/T010–T012/T014 |
-| Current immutable history contracts plus pure domain inputs | Same-fact chart, exact daily aggregation and rate tests; monetary browser proof once a genuine report exists | M05/P01/P02, T013 |
+| Current immutable history contracts | First source-entry chart uses those exact facts and passes its browser/install checks; daily aggregation, rate and balance series are separate remaining packets, not prerequisites for this chart | M05/P01/P02, T013 |
+| Qualified daily monetary coverage plus pure domain inputs | Exact daily aggregation and observed rate; a date additionally needs compatible funds. Actual monetary browser proof requires a genuine report; pure tests never substitute for it | M05/P01/P02, T013 |
 | Each frozen provider's existing source contract | Complete required mapping/access/range inventory for that provider; other providers do not block its implementation | A01/A02/A03/M04, T006–T009 |
 | Genuine retained financial data | Isolated receipt recovery/backup/restore and installed continuity, then final reconciliation | M04/M05/M08, T007/T014/T015 |
 
@@ -236,6 +241,35 @@ status table here. T001/T004 are done within their own scope. T005 and provider
 success cannot close from schema/guards/pure math; T013 remains required.
 
 ## 4. Small UI contract, decided before coding
+
+### Owner demonstration, in six actions
+
+This is a short presentation of existing acceptance, not another test suite or
+approval step. Use the account labels and reports the owner actually configured.
+
+1. Open Overview and select an organization/provider: identify each financial
+   scope, spend, available funds or missing reason, interval and freshness.
+   Subscription quotas remain usable alongside it. Covers T010/T012, M7-A07/A08.
+2. Open a financial row: show the same report and amount immediately, with
+   scope and period visible. Back/reload retains the selection. Covers T011,
+   M7-A07; no scrolling past a large connection banner or unrelated agents.
+3. Open Manage connection: show the actual next setup/recovery action, including
+   host context. Existing working resources do not repeat setup. Owner performs
+   mutations; agent verifies the built workflow. Covers T002/T007, M7-A01.
+4. Inspect History: exact table and compact chart agree for one selected report;
+   units, signed entries, missing coverage and incomplete paging are explicit.
+   Covers T010/T013, M7-A06. A source-entry chart alone does not prove daily totals.
+5. Select one supported breakdown and inspect the observed spending rate.
+   Show an exhaustion estimate only with qualified inputs, otherwise its precise
+   unavailable reason. Covers T013, M7-A02/A06; no invented balance or attribution.
+6. Refresh stored readings, then inspect an eligible actual collection result:
+   distinguish the two actions, retained old values, latest outcome and retry
+   time. Verify the installed dashboard after deployment, not only a landing
+   HTTP 200. Covers T007/T014/T015, M7-A09/A10.
+
+The release also retains the already-defined retention/restore/provider checks;
+the demonstration does not replace them. A screenshot is illustration, not
+evidence that the interactions or financial calculations passed.
 
 [UI sections 2–6](m7-ui-and-user-journeys.md) own the complete state/action and
 browser matrix. Existing pages and controls are enough:

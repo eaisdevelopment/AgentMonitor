@@ -441,6 +441,33 @@ Budget history/breakdowns are distinct from quota metrics; add ports, do not
 extend old enums silently. P01 carries exact values/report IDs and stable
 snapshot cursors; P02 charts/tables share those same values and gaps.
 
+### T013 first history-chart handoff (12 November)
+
+Compatible CTR-CAP-006 2.10.0 extends each existing history row with optional
+`chart` and `chart_unavailable_reason`. `BudgetHistoryChartPointV1` carries
+`series_key`, `label`, `magnitude_basis_points` (0..10000) and `direction`
+(`positive`, `negative`, `zero`). M05 computes visual magnitude using exact
+scaled integers against the largest absolute entry in the same kind/unit/
+dimension series of the entire pinned report. Pagination never changes scale.
+This is a chart of source entries, not an aggregate across overlapping categories.
+Each point retains its row's original period, exact amount and bucket key.
+Non-daily entries have no chart point and an explicit reason. Missing days are
+not inserted or joined. Separate currencies, quantities and dimension values
+are separate selectable series. No financial arithmetic moves into React.
+
+P01 adds optional wire fields and regenerates the existing client. P02 renders
+a compact chart beside the existing exact table, with exact values, signed
+adjustment labels, keyboard-accessible series selection and explicit loaded-page
+coverage. Table/chart retain or replace the same immutable page state. Old API
+rows without chart metadata remain usable as tables. Root owns contract/domain/
+serialization/generated files; P02 owns the chart component, its style and
+existing history integration after this handoff. No new endpoint, dependency,
+storage, provider request or account configuration is needed for this increment.
+Pure exactness/page-stability tests precede code; genuine retained Ollama facts
+must match HTTP/table/chart through a real built browser. Monetary browser
+proof, daily cost aggregation/rate, balance series and dimension collection
+remain required T013 work; this chart does not close the ticket.
+
 Balance-series input is separate from `BudgetHistoryRowV1` cost/usage facts.
 Reuse the existing `capacity_list_history_v2` read and its M05 history port for
 genuine balance observations. T010/T013 must retain authorized subject/resource/

@@ -17,6 +17,15 @@
 
 ## 1. The delivery promise
 
+Read the [six-action owner demonstration](m7-delivery-worksheet-2026-11-11.md#owner-demonstration-in-six-actions)
+for the screen-level finish line. Implementation order is: finish the current
+bounded visible packet; demonstrate one genuine money journey as soon as access
+exists; finish the frozen provider and analysis coverage; verify recovery and
+release. One integration packet is active at a time. Required acceptance stays
+fixed; source limitations are disclosed rather than replaced with guessed data.
+The [ticket catalog](m7-ticket-catalog-v1.json) supplies owners, dependencies,
+test-first steps and completion evidence for each of the sixteen tickets.
+
 An existing or newly owner-configured resource shows its reported spend on
 Overview and account detail, with organization, billing scope, period and
 freshness. Existing Ollama cloud connections are reused; request only genuinely

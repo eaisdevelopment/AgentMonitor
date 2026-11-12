@@ -8,6 +8,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from agentmonitor.adapters.persistence.capacity.sqlite.budget_repository import (
     SqliteBudgetReportRepositoryV1,
 )
@@ -24,8 +25,10 @@ from backend.tests.live.ollama.test_cloud_registry_revision_admission import (
 )
 
 
+@pytest.mark.parametrize("probe", ("source_history", "history_chart"))
 def test_source_history_built_browser_on_genuine_private_snapshot(
     tmp_path: Path,
+    probe: str,
 ) -> None:
     reference = _private_real_copy(tmp_path)
     reports = SqliteBudgetReportRepositoryV1(reference)
@@ -66,7 +69,7 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
         async with _running(app) as origin:
             process = await asyncio.create_subprocess_exec(
                 "node",
-                "frontend/tests/browser/m7/source_history.mjs",
+                f"frontend/tests/browser/m7/{probe}.mjs",
                 origin,
                 cwd=Path(__file__).resolve().parents[4],
                 stdin=asyncio.subprocess.PIPE,
@@ -83,8 +86,11 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
                     process.terminate()
                     await asyncio.wait_for(process.wait(), timeout=10)
             assert process.returncode == 0, output.decode("utf-8", errors="replace")
-            assert output.startswith(b"M7 SOURCE HISTORY BROWSER: PASSED"), (
-                "browser_output_invalid"
+            expected = (
+                "M7 SOURCE HISTORY BROWSER: PASSED"
+                if probe == "source_history"
+                else "M7 HISTORY CHART BROWSER: PASSED"
             )
+            assert output.startswith(expected.encode()), "browser_output_invalid"
 
     asyncio.run(exercise())

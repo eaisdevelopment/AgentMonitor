@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { budgets, type BudgetHistoryWireV1 } from "../../shared/api/client";
 import { displayMoney, exactMoneyText, exactUsageText } from "./budgetPresentation";
 import { appendHistoryItems, historyContextKey, historyPageMatches, type HistoryContext, type HistoryProgress } from "./budgetHistoryPagination";
+import { BudgetHistoryChart } from "./BudgetHistoryChart";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -71,6 +72,7 @@ function History({ context, onExpired, showSummary = false }: Props) {
     </>}
     {value !== undefined && value.availability.state !== "available" && <p role="status">History {value.availability.state}: {readable(value.availability.reason_code)}.</p>}
     {snapshot !== null && items.length === 0 && <p>No reported usage in this interval.</p>}
+    {items.length > 0 && <BudgetHistoryChart items={items} hasMore={snapshot?.progress.nextCursor != null} busy={busy} failed={error !== null} />}
     {costs.length > 0 && <div className="table-scroll" tabIndex={0} role="region" aria-label="Exact cost history">
       <table><caption>Cost history · source intervals, exact amounts</caption>
         <thead><tr><th scope="col">Period (UTC)</th><th scope="col">Amount</th><th scope="col">Kind</th></tr></thead>

@@ -459,13 +459,40 @@ class BudgetHistoryQueryV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class BudgetHistoryChartPointV1(TechnicalValueV1):
+    """Display-only magnitude within one exact report/unit/dimension series."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.10.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    series_key: str
+    label: str
+    magnitude_basis_points: int
+    direction: Literal["positive", "negative", "zero"]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            re.fullmatch(r"[a-f0-9]{64}", self.series_key) is None
+            or not 1 <= len(self.label) <= 2048
+            or not self.label.isprintable()
+            or type(self.magnitude_basis_points) is not int
+            or not 0 <= self.magnitude_basis_points <= 10000
+            or (self.direction == "zero") != (self.magnitude_basis_points == 0)
+        ):
+            raise ValueError("budget_chart_point_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class BudgetHistoryRowV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.10.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     kind: Literal["cost", "usage"]
     cost: BudgetCostBucketV1 | None
     usage: BudgetUsageBucketV1 | None
+    chart: BudgetHistoryChartPointV1 | None = None
+    chart_unavailable_reason: Literal["source_interval_not_daily"] | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -478,6 +505,8 @@ class BudgetHistoryRowV1(TechnicalValueV1):
             and self.cost is None
         ):
             raise ValueError("budget_history_row_invalid")
+        if self.chart is not None and self.chart_unavailable_reason is not None:
+            raise ValueError("budget_history_chart_invalid")
 
 
 @dataclass(frozen=True, slots=True)
