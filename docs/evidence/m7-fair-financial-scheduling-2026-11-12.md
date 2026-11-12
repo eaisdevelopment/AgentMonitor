@@ -1,7 +1,7 @@
 # M7 financial scheduling and period isolation
 
-Status: implementation in progress in the M7 worktree; not installed or published
-by this record. M7-T007 with T003/T006/T008/T009 integration; FR-COL-004/008,
+Status: implementation `79821bfa65460d0d635698f6e72e37a95d850980` installed
+and published; bounded verification below. M7-T007 with T003/T006/T008/T009 integration; FR-COL-004/008,
 FR-BUDGET-001/006, M7-A09. Root owns composition/contracts; M04 owns persisted
 selection/atomic claim. This does not close T007 or M7.
 
@@ -100,3 +100,38 @@ credentials or timestamps are manufactured. Actual owner setup is not performed
 by these tests. No license or dependency change. The scope remains the fixed
 sixteen tickets and M7-A01..A10; finite category coverage and remaining live,
 analysis, recovery and release work are still required.
+
+## Installed and public result
+
+The canonical same-schema update passed for clean revision
+`79821bfa65460d0d635698f6e72e37a95d850980`; the original restart policy was restored.
+The service remained active with HTTP 200. Authenticated setup verified the exact
+installed revision and controls with no mutations.
+
+Parallel browser probes exposed a real financial Overview 504 (two expected
+rows, zero rendered) and a cloud-control missing result. Sequential Overview
+verification then passed source/API/DOM, both real financial rows, filters,
+financial entry, history/navigation, responsive layout and pool controls. The
+sequential cloud-control probe also passed eligibility and reload with zero
+mutations. The concurrent-read failure is retained as unresolved T012 reliability
+evidence; serial success does not prove concurrent-load reliability or explain
+the timeout. Similar earlier failures remain in the prior manual-collection
+evidence. No claim that this scheduling increment fixes that issue.
+
+At 04:56 UTC, read-only actual M04 metadata showed two successful **scheduled**
+thirty-day usage runs after service activation at 04:50:38 UTC, across two
+distinct real accounts, completed at 04:51:45 and 04:53:48 UTC. No owner preference
+was changed or provider data manufactured. These are counts-only Ollama reports,
+not live Anthropic/OpenAI money or proof of all provider/category fairness.
+
+The seven-day explicit browser action waited within its bounded allowance and
+returned `cloud_usage_rate_limited` before POST: zero POSTs, zero configuration
+requests. Authentication, controls, eligibility and reload passed; actual manual
+collection/report/balance-continuity assertions remain unexecuted for this
+attempt. Do not treat it as a successful seven-day action or ask the owner to
+repeat setup. Retry only after natural eligibility.
+
+Push preflight passed, and GitHub main was verified at the installed implementation
+revision `79821bfa65460d0d635698f6e72e37a95d850980`. A subsequent documentation-only
+receipt may advance main without changing installed production code. Full M7
+exit, all remaining ticket scope and acceptance are still unfinished.

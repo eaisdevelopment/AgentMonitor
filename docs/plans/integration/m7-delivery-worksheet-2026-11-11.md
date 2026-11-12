@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, planning re-review 12 November 2026; recorded baseline
-against installed code revision `bb43b67` on 12 November 2026. Primary owner:
+against installed code revision `79821bf` on 12 November 2026. Primary owner:
 root integration; financial semantics: M05. No new scope, approval or gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) is the only task tracker:
@@ -19,13 +19,13 @@ This re-review and its validation are recorded in the
 
 | Boundary | Recorded result | What it does not prove |
 |---|---|---|
-| Installed code | `bb43b67`, schema `v1_0734`; manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
+| Installed code | `79821bf`, schema `v1_0734`; fair queued/scheduled selection, independent 7/30-day billing intent and manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
 | Owner controls and aggregation | Pool create/join/unlink/primary-group controls, pool-aware Overview and exact attribution installed with `3c65e1d`; retained in current release | Genuine shared monetary totals, source-scope editing or every final setup case |
 | Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed at `ef8fa86`; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, complete accessibility and analysis acceptance |
 | Live data | Existing Ollama cloud balances and daily usage; demonstrated usage is counts-only | Counts are not monetary spend. No conversion or invented zero |
 | Monetary prerequisite | Latest read-only inventory records no Anthropic/OpenAI billing connections; tested owner setup request pending | No enrollment is not evidence of denied provider access |
-| Publication | GitHub main verified at installed implementation `bb43b67`; the evidence/probe follow-up is a non-production successor | Full M7 exit, current runtime re-verification or owner acceptance |
-| Latest verification | Installed Overview/history, setup and cloud controls passed at `bb43b67`; one real 30-day manual usage action passed. Seven-day manual action was rate-limited before POST; earlier failed probes are retained in cloud-manual evidence | Not successful monetary provider access |
+| Publication | GitHub main verified at installed implementation `79821bf`; documentation-only successors do not alter runtime code | Full M7 exit, current runtime re-verification or owner acceptance |
+| Latest verification | Installed serial Overview/history, setup and cloud controls passed at `79821bf`; two distinct real accounts completed scheduled 30-day usage. Seven-day manual attempt remained rate-limited before POST. Concurrent Overview 504 remains T012 reliability work; earlier 30-day manual evidence is retained | Not successful monetary provider access |
 
 Evidence: [stored-window navigation](../../evidence/m7-window-navigation-2026-11-12.md),
 [bounded history](../../evidence/m7-bounded-history-2026-11-12.md),
@@ -100,7 +100,7 @@ decisions bind those packets; they do not add a new queue or task registry.
 
 Current implementation/test progress is recorded in the
 [scheduling evidence](../../evidence/m7-fair-financial-scheduling-2026-11-12.md).
-This is not installed or full T007 completion evidence.
+The scheduling increment is installed at `79821bf`; its bounded evidence does not close T007.
 
 T007 reuses the existing persisted schedule/run timestamps and single worker.
 Select eligible work by persisted due/attempt age with stable ties, across
