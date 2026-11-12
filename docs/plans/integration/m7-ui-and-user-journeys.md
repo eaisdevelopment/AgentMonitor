@@ -1,6 +1,6 @@
 # M7 UI and user journeys
 
-- Status: Approved under focused M7 plan 1.1.0; setup metadata UI is partially implemented, the full live journey remains unfinished.
+- Status: Approved under focused M7 plan 1.1.0; installed setup/pool/Overview increments are recorded in the delivery worksheet. Full monetary/history/analysis acceptance remains unfinished.
 - Owner: P02; API contract owner P01; billing semantics M05.
 - Requirements: FR-ACC-001..004/006, FR-ORG-001..003, FR-BUDGET-001..006;
   AC-UI-002..006, AC-HIST-001, AC-LIVE-005.
@@ -160,8 +160,9 @@ Funds-only resources still have an Overview row even before a spending report
 exists. Show **No spending report** in Reported spend, retain the genuine funds
 and their observation time in Available, and link by authorized account/resource.
 Do not invent a report ID, currency context, cost basis or zero spend to make the
-link work. Such a link opens the default supported interval without a pinned
-report until one exists. A row with a report retains the immutable report/context
+link work. Such a link preserves the selected Overview interval and read cutoff without
+inventing a report selector. Only direct account URLs without financial selection
+default to seven completed days. A row with a report retains the immutable report/context
 selection described below. Counts-only reports likewise show counts in detail
 and **Spend not reported**, never money. This is T010/T011/T012, not another view.
 
@@ -176,9 +177,9 @@ and monitoring preference remain secondary labels; retain any lower-priority
 failure/fund facts in row detail. Within a priority sort by organization/name,
 then stable account/resource/context ID. This is a fixed decision table, not a
 configurable ranking engine. Unknown remaining capacity is not exhausted.
-Column headings support organization,
-state and account sorting. Monetary sorting is offered only inside one
-compatible currency/period/basis group; it never compares USD and GBP values.
+Column headings support organization, state and account sorting. These are the
+required M7 sort controls; this increment adds no monetary-sort control. Any later monetary ordering must stay inside one
+compatible currency/period/basis group and never compare USD and GBP values.
 Final account/organization/state sorting applies to the complete filtered set
 before pagination, with a stable tie-breaker and a reset cursor when sorting
 changes. A first increment may label sorting as applying only to loaded rows;

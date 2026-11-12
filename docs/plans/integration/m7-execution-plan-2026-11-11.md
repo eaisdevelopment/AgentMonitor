@@ -6,10 +6,10 @@
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
 - Current implementation and installed-state checkpoint: see the single
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
-  The worksheet records installed `93297fc`: real funds/usage Overview, shared
-  filters and immutable report drill-down passed authenticated browser checks.
-  Demonstrated usage contains counts, not costs. Canonical pool totals, monetary
-  spending and full M7 acceptance remain unfinished.
+  Recorded installed code is `46b8d9d`, schema `v1_0734`: pool controls,
+  pool-aware Overview and OpenAI cost runtime wiring are delivered increments.
+  Genuine monetary evidence, complete provider/history/analysis coverage and
+  full M7 acceptance remain unfinished. The worksheet alone owns current order.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.
@@ -93,7 +93,8 @@ The installed Ollama increment already connects cloud-graph commit fencing,
 active-lineage spend selection and shared balance/usage rate coordination; its
 genuine report contains usage counts, not costs. Reuse that work and evidence.
 Those funds/usage are now visible on the installed Overview and detail.
-Next complete canonical pool attribution/totals and the first accessible
+Retain the installed canonical pool attribution and OpenAI cost runtime. Next
+finish full-inventory sorting/history while integrating the first accessible
 monetary lane, normally Anthropic or OpenAI. No provider is dropped
 from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
@@ -119,8 +120,9 @@ Only the complete installed financial journey closes T014. Each partial
 activation preserves the existing dashboard and collectors and reports its scope.
 
 The setup command resolves the selected installed service. Candidate-only
-command tests do not prove installed enrollment. Both schema transitions are
-planned: accepted `0720 → 0731` setup, then `0731 → 0733` financial storage.
+command tests do not prove installed enrollment. Retain delivered migrations:
+`0720 → 0731` setup, `0731 → 0733` financial storage and `0733 → 0734` pool
+metadata. They are not pending actions.
 Root reuses the existing selected-revision build, migration, backup and recovery
 routines; there is no additional deployment project or approval ceremony.
 The historical failed attempt, checked diagnostic and later successful financial
@@ -151,11 +153,12 @@ code stays under `adapters/providers/{claude/anthropic_api,codex/openai_api,olla
 Capacity code stays under its domain/application/ports and SQLite adapter.
 P02 extends existing account/overview features and a budget-history component.
 
-Reuse frozen budget/usage tables where their semantics fit. Allocate additive
-M02 revisions `v1_0730` and `v1_0731` after `v1_0720`, M05 `v1_0732`, and M04 `v1_0733` for its
-run-to-report authority/receipt metadata. These revisions exist in local
-`ad7a04e`; installation at `437a232` reached `v1_0733` as recorded in the
-worksheet. Full financial acceptance remains outstanding. Preserve old migration digests.
+Reuse frozen budget/usage tables where their semantics fit. Existing additive
+M02 revisions `v1_0730`/`v1_0731`, M05 `v1_0732` and M04 `v1_0733` supply setup,
+financial storage and run-to-report authority. These were installed at `437a232`;
+pool metadata later added M02 `v1_0734`, now installed. See the worksheet and
+linked transition evidence. Full financial acceptance remains outstanding.
+Preserve old migration digests.
 Do not automatically create one-to-one tables for every field: use necessary
 additive context columns, a report-coverage relation and signed cost storage.
 No forecast storage table or parent/child job engine. The first real report
@@ -184,8 +187,9 @@ T007's existing first action is
 Read-only `GET /collection-runs/{run_id}/budget`
 (`billing_get_run_status_v1`) is also implemented through M04's public run query.
 Its additive status DTO includes actual `report_id`, account and resource;
-non-budget runs are rejected. The generated client contains 85 compatible
-operations at `b69d96a`. Real HTTP guards and built no-report/browser controls pass; a
+non-budget runs are rejected. The current installed contract/client has 91
+operations. This is compatibility metadata, not coverage. Real HTTP guards and
+built no-report/browser controls pass; a
 successful credential-backed report and populated status-to-DOM journey remain
 unverified. See [integration evidence](../../evidence/m7-billing-integration-2026-11-11.md).
 
@@ -193,10 +197,11 @@ This status GET tracks action progress separately from the pinned financial
 snapshot. On completion the UI advances read time, preserves the selected
 reporting interval and replaces report/table together. Existing run-list
 consumers remain compatible; zero-fact reports require no fabricated quota
-observations. Monitoring GET/PUT and current-generation proof now exist under CTR-REG-014
-1.4.0, with the first seven-day Anthropic due producer. Positive provider-backed
-monitoring, other-provider scheduling, thirty-day/pinned intents and Collect now
-remain T007 work; Check transport alone does not establish them.
+observations. Monitoring GET/PUT and current-generation proof exist in current
+CTR-REG-014 1.5.0, with seven-day Anthropic and OpenAI cost scheduling/worker
+wiring installed. Positive provider-backed
+monitoring, full fairness/category scheduling, thirty-day/pinned intents and
+Collect now remain T007 work; runtime wiring alone does not establish them.
 
 T002 owns account billing-connection metadata, credential status and local entry,
 disconnect/rotation eligibility and their HTTP/UI. T007 owns the executable

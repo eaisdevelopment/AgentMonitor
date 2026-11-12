@@ -109,14 +109,20 @@ during the read, current spend is unavailable/retry, not the newest old actor's
 value or funds. Expose an opaque context discriminator so P02 can invalidate
 retained current values without credential identifiers. Explicit authorized history can still select that old report, labelled
 with its original context. Confirmed compatible scope may preserve history across
-key rotation. Never combine unresolved bindings in totals or forecasts.
+key rotation. Unassociated unresolved lineages cannot establish shared identity
+for totals or forecasts. An explicit canonical owner association may select one compatible
+complete report across currently validated members; it never sums alternative
+reads, admits an old binding or proves coverage compatibility.
 T004/T005/T010 cover this under M7-MATH-04/05/10/11/15; no new history engine.
 
 A complete empty result is a real coverage record, not a fake observation.
 Return No reported usage. A derived zero aggregate is allowed only when official
 source semantics establish that empty complete coverage means zero; its input
-is the real report receipt, and it is labeled derived. Empty data with unknown
-watermark, denied access or missing pages is unavailable/partial, never zero.
+is the real report receipt, and it is labeled derived. Complete empty coverage
+stays complete even when currency or watermark is unknown. Without admitted monetary-zero semantics, show Cost not reported and
+Data through not reported as applicable; do not relabel complete coverage Partial.
+Denied access and missing pages are separate unsuccessful/incomplete outcomes,
+never monetary zero.
 Do not create dummy observation/projection/event IDs to satisfy old receipts.
 
 Publish additive budget receipt/run-view contracts because current
@@ -214,9 +220,9 @@ No new conversion or cross-provider accounting layer is required.
 Dashboard organization aggregates follow current owner grouping; moving an
 account preserves source history and does not rewrite provider ownership.
 A shared pool is assigned one primary dashboard group and counted once globally.
-M02 must publish that canonical association and primary-group attribution
-before T010 can include the pool in grouped totals. The current billing
-connection's scope and resource fields alone do not provide that association.
+M02 publishes canonical association and primary-group attribution through
+CTR-REG-014 1.5.0; pool controls/query are installed at schema0734. Billing
+connection scope/resource fields alone never establish that association.
 Unresolved rows may ship visibly with an exclusion reason during the first
 increment; implementing only those exclusions does not complete organization
 aggregation. T002 supplies the metadata, T004 proves the policy and T010/T012
@@ -254,8 +260,11 @@ two source categories that cover overlapping cost must still be excluded or
 represented as alternative views. Prefer the admitted ungrouped total, not the
 sum of every context returned by a repository.
 
-A request spanning a billing-scope change cannot become one pool total. Split
-by resource epoch and show its coverage. Moving a dashboard group changes
+Different resource epochs remain separate report contexts. A registry scope
+edit timestamp is not a provider financial boundary: never cut or prorate a daily
+bucket there. Only source-established disjoint compatible coverage can compose
+a wider interval; retained reports keep their original epoch and full interval.
+Moving a dashboard group changes
 current grouping only; historical financial scope and source identity stay
 unchanged. Currency or cost-basis changes likewise create separate compatible
 groups rather than an implicit conversion.
@@ -269,9 +278,18 @@ stream or configurable forecasting framework in M7. Return method version,
 Method `budget-observed-rate-v1/1.0.0` requires at least three complete,
 nonoverlapping cost buckets spanning ≥24 hours, same pool/currency/cost basis,
 known bucket duration, no missing coverage, no signed adjustments or unresolved
-corrections. Select at most 200 buckets from the latest seven complete UTC days.
-Known zero-usage intervals may contribute duration only from complete coverage
-evidence. Unknown gaps must not be removed from the denominator to inflate burn.
+corrections. Select at most 200 buckets within the latest seven completed UTC
+days ending at the selected funds observation's UTC-midnight cutoff, bounded
+by query `as_of`.
+For a rate without funds, use the query `as_of` cutoff and return no exhaustion
+date. Three consecutive complete daily buckets can qualify; seven populated
+days are not mandatory. Use the newest contiguous qualifying observed interval
+and return its actual bounds; never join observations across a missing bucket.
+Freshness eligibility still applies, so an older interval is not silently current.
+Known zero-cost intervals contribute duration only from explicit zero monetary
+facts or admitted complete-cost-coverage zero semantics. Request/token counts
+cannot fill monetary coverage. Unknown gaps must not be removed from the
+denominator to inflate burn.
 
 `rate = sum(bucket costs) / complete covered duration`.
 Equal positive daily costs therefore yield a positive rate. Rate zero produces
@@ -392,7 +410,7 @@ These values are solely pure no-I/O test inputs:
 | M7-MATH-09 | Cost 10 and distinct adjustment −2 | Net 8 for compatible report; forecast unavailable for adjusted sample |
 | M7-MATH-10 | USD and GBP, or parent/project duplicate rows | Separate groups; no invalid total |
 | M7-MATH-11 | Same shared pool via two keys | One total with two access paths; unresolved pool excluded |
-| M7-MATH-12 | Empty complete versus empty delayed/null-watermark | No usage/qualified derived zero versus unavailable; never conflated |
+| M7-MATH-12 | Complete empty report with unknown currency/watermark versus qualified zero or missing pages | Complete coverage remains complete; money/watermark unavailable unless admitted. Missing pages remain partial; counts never imply zero cost |
 | M7-MATH-13 | 0.004 USD | `<0.01 USD`, exact 0.004 available; not plain 0.00 |
 | M7-MATH-14 | 38/78-digit valid coefficient; cancellation; overflow | Exact conversion/sum within bounds; overflow rejected |
 | M7-MATH-15 | Partial day, gap, mixed period, revised data, missing limit | Explicit partial/no-forecast reason; no extrapolated real funds |

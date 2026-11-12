@@ -1,5 +1,57 @@
 # M7 plan refactor: findings and bounded review
 
+## 12 November review against e644912: one remaining delivery sequence
+
+The owner's request is deep planning of UI, calculations and delivery while
+keeping implementation simple. Root inspected the focused plan/catalog,
+worksheet, current contracts, runner and installed-increment evidence. Three
+read-only module reviews covered P02 journeys, M05 mathematics and delivery.
+This pass edits planning/evidence only; no new production behavior is claimed.
+
+- Consolidated competing current/next-work sequences into one worksheet with
+  recorded installed `46b8d9d`/schema0734 and public `e644912` boundaries.
+  Pool controls, migration and OpenAI runtime wiring are retained delivery,
+  not fresh prerequisites. Earlier checkpoints remain in historical evidence.
+- Defined five remaining increments and each of sixteen tickets' residual
+  output. T003 checks and T014 deployment accompany features. Missing monetary
+  enrollment affects its live lane, not independent implementation.
+- Corrected funds-only links to retain the selected interval/read cutoff.
+  Bounded required sorting to account/organization/state before pagination;
+  no new money-sorting feature. Root owns shared query/client changes.
+- Clarified complete-empty coverage versus unavailable money/watermark,
+  owner-associated pools versus unassociated bindings, and source epochs versus
+  financial bucket boundaries. A local registry edit cannot prorate spend.
+- Pinned the existing forecast sampling window to funds observation (rate-only:
+  read snapshot), with contiguous qualified history and monetary-zero evidence.
+  Missing real funds remains a truthful no-estimate result.
+- Preserved plan1.1.0, sixteen tickets, five stories, ten acceptance items,
+  existing approvals and deferred work. No implementation ticket status changed,
+  required provider was removed or new completion gate introduced.
+
+Independent bounded math/UI/delivery follow-up reviews found no material
+introduced contradiction, new gate, dependency cycle or silent scope removal.
+
+Affected owners: root, M02/M04/M05, A01/A02/A03, P01/P02, M08 retention invocation.
+Requirements/test IDs remain those in the synchronized ticket catalog, especially
+FR-BUDGET-001..006, FR-ORG-003, M7-MATH-11/12/15/16 and M7-A01..A10.
+Published contracts CTR-CAP-006 2.6.0 and CTR-REG-014 1.5.0 are unchanged;
+future additive handoffs are specified before implementation. No migration,
+secret handling, account configuration, service, dependency or license change.
+
+Live check in this review: service active and dashboard HTTP 200. Previous
+installed authenticated checks are linked evidence, not rerun passes. Product
+Red/Green does not apply to documentation edits. The pre-existing uncommitted
+sorting test is preserved separately and is not part of this planning handoff.
+Changed files: execution plan, worksheet, UI journeys, calculation rules,
+ticket catalog and this evidence. Full M7 and required live money remain open.
+
+Real-checkout validation passed: `AUTO-M7-PLAN-CHECK` (16 tickets, five stories,
+ten acceptance items), `AUTO-PLAN-CHECK` (synchronized), `AUTO-DOCS-CHECK`
+(382 Markdown files), and `git diff --check`. These checks validate planning
+integrity/references, not implementation or M7 exit. The six planning/evidence
+files are local changes; this review does not claim a new commit, push or deploy.
+
+
 ## Follow-up against e310b82: concrete finish criteria and deployment state
 
 The owner requested deep UI/calculation planning with a working-first approach.
