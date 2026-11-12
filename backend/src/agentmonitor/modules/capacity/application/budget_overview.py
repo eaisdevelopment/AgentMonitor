@@ -29,6 +29,7 @@ from agentmonitor.modules.capacity.domain.budget_overview import (
     has_subscription,
     overview_result,
     project_budget_rows,
+    requires_financial_query,
 )
 from agentmonitor.modules.capacity.domain.budget_pool_overview import (
     resolve_overview_pools,
@@ -82,8 +83,12 @@ class ListBudgetOverviewV1:
                 if any(r.registry_revision != revision for r in resources):
                     raise BudgetOverviewError("budget_overview_registry_changed")
                 snapshots[account.account_id] = resources
-                current = self._current(
-                    account.account_id, period=query.period, as_of=query.as_of
+                current = (
+                    self._current(
+                        account.account_id, period=query.period, as_of=query.as_of
+                    )
+                    if requires_financial_query(account, resources)
+                    else None
                 )
                 if account_matches(account, query) and has_subscription(
                     account,

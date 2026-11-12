@@ -95,8 +95,10 @@ retains that context alongside the existing V1 authority; `BillingBudgetAuthorit
 is the durable target/context envelope. Existing V1 and cloud admissions keep
 their meanings. This foundation was installed at `ba2717e`; the subsequent
 `ef8fa86` increment installed selected-period billing Collect now/status/
-eligibility under 2.4.0 below. Positive monetary collection, cloud manual usage
-and complete scheduling coverage remain unfinished T007 work.
+eligibility under 2.4.0 below. The subsequent 2.5.0 handoff supplies cloud manual
+actions; [2.6.0 scheduling evidence](../../../evidence/m7-fair-financial-scheduling-2026-11-12.md)
+records fair range dispatch. Positive monetary collection and
+complete provider/live/recovery coverage remain unfinished T007 work.
 
 M04 stores the tagged envelope in its existing canonical target JSON, reconstructs
 it on claim/recovery and filters latest runs by context before ordering/limit.
@@ -160,6 +162,10 @@ Evidence and remaining live boundaries are recorded in
 This handoff is not complete provider coverage or T007/T009 closure.
 
 ## 5. Minimum data model and migration
+
+Current installed storage is schema `v1_0734`; the allocation/transition notes
+below describe its implementation history, not migrations to run again. Use the
+delivery worksheet for current revision and same-schema update work.
 
 Root allocates M05 `v1_0732` after M02 owner-setup `v1_0730`/`v1_0731`, which follow
 accepted `v1_0720`; M04 `v1_0733` now supplies its captured billing

@@ -159,7 +159,9 @@
         "docs/evidence/m7-billing-integration-2026-11-11.md",
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
         "docs/evidence/m7-canonical-financial-checks-2026-11-11.md",
-        "docs/evidence/m7-overview-sorting-2026-11-12.md"
+        "docs/evidence/m7-overview-sorting-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
+        "docs/evidence/m7-overview-query-reliability-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -170,7 +172,7 @@
       ],
       "steps": [
         "Retain existing pure/mutation/metadata/schema, guard, pool-browser and historical activation evidence; a narrow pass does not close its broader lane.",
-        "For each batch in the delivery worksheet, add and test selection of its existing named checks to auto_m7; current --check accepts only guards/pool/activation. Wire real assertions alongside each feature, not in a later gate-building phase.",
+        "For each batch in the delivery worksheet, add and test selection of its existing named checks to auto_m7. Guards/pool/activation and revision-bound Overview reads are callable; full monetary Overview acceptance remains Not Run. Wire real assertions alongside each feature, not in a later gate-building phase.",
         "Keep real populated persistence/collection/HTTP/provider outcomes separate from schema/empty/guard checks. Required missing evidence fails closed; natural conditional cases retain their actual disposition.",
         "Extend the existing final runner/result with clean checkout revision, installed revision/schema, named outcomes/times and sanitized evidence references; reject mismatched or missing mandatory evidence. No new runner, short-lived owner attestation or manual codes.",
         "Route final deployment verification through existing same-schema update/recovery helpers; do not replay setup0731 or pool0734 migrations. Complete candidate/backup_recovery/installed_revision/continuity with T014.",
@@ -379,7 +381,8 @@
         "docs/evidence/m7-window-navigation-2026-11-12.md",
         "docs/evidence/m7-manual-collection-2026-11-12.md",
         "docs/evidence/m7-cloud-manual-collection-2026-11-12.md",
-        "docs/evidence/m7-fair-financial-scheduling-2026-11-12.md"
+        "docs/evidence/m7-fair-financial-scheduling-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -393,7 +396,7 @@
         "Retain installed CTR-COL-002 2.5 Ollama manual usage command/eligibility/status and shared balance/usage gate, with separate source/balance fingerprints. Real 30-day manual collection is evidenced; finish the seven-day live demonstration after natural eligibility and remaining acceptance checks. Do not rebuild the installed action or introduce fictitious profiles.",
         "Bind every request to one resource/scope/category/grouping/UTC interval and generation. Reuse idempotency on uncertain retries; status GET never collects. Queued acceptance is not verified access; publish actual report ID/outcome and persisted retry instant.",
         "Complete first-reading and positive Check/Enable/Disable flows without duplicate current reports or changing owner preferences. Rotation/scope/archive fence old commits; monitoring disabled prevents automatic work but does not invent failed history.",
-        "Schedule admitted 7/30-day ungrouped reports using exact-context latest attempts; stagger categories under existing source-wide limits. Order eligible queued and automatic work by persisted due/attempt age with stable ties across providers/accounts/ranges; invalid authority cannot strand later valid work. Preserve global Ollama cooldown, and prove continuous manual work cannot starve automatic collection. Reuse the existing worker and timestamps; no new queue or cursor table.",
+        "Retain installed CTR-COL-002 2.6 fair queued/automatic dispatch, exact-context attempts and independent 7/30-day schedules. Extend only remaining finite category/grouping contexts. Account for actual page-request demand, balance sharing and source-wide allowance before promising refresh cadence; a fifteen-minute due timer is not a full-inventory freshness guarantee. Prove sustained fairness and invalid-authority isolation without bypassing global Ollama cooldown or adding workers/queues.",
         "Carry a single deadline through authorization/pages/normalization/commit. Retry-After schedules later work. Reconcile committing receipts before recollection; expired authority fails truthfully; recollect only the exact still-admitted captured interval. Native rolling intervals cannot shift after midnight.",
         "Finish remaining category/dimension action contexts with adapters and P01; no arbitrary backfill. Context-specific latest status cannot freshen another interval/scope; account-wide credential failures remain visible separately.",
         "Prove genuine manual and browser-closed scheduled collection, later-resource fairness, safe isolated failure/restart/receipt recovery and unchanged default profiles. Integrate corresponding T003 checks; natural denied/throttled/empty cases keep conditional dispositions."
@@ -535,7 +538,9 @@
         "docs/evidence/m7-overview-sorting-2026-11-12.md",
         "docs/evidence/m7-bounded-history-2026-11-12.md",
         "docs/evidence/m7-window-navigation-2026-11-12.md",
-        "docs/evidence/m7-manual-collection-2026-11-12.md"
+        "docs/evidence/m7-manual-collection-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
+        "docs/evidence/m7-overview-query-reliability-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -552,7 +557,8 @@
         "Keep funds-only resources visible using actual cloud pools; exact balance/credit/headroom semantics, component timestamps and missing reasons survive HTTP. Backend supplies exact percentages/low flags/lineage; never infer funds from cost or combine API/subscription allowances.",
         "Prove one registry snapshot for full-filter compatible summaries, canonical-pool primary attribution, exclusions and deterministic server sort/cursors. Select the contributing authorized report tuple before group filtering; primary-only, secondary-only and combined filters count once.",
         "Keep reporting cutoff, read as_of and live run status separate. A completed matching action advances the read snapshot only, replacing report/total/history together. Compact list DTOs omit report bodies; bounded history retains exact facts and units.",
-        "Use first genuine monetary report for real IAM/HTTP/receipt/source reconciliation; do not wait for all-provider T007 closure. Forecast/breakdown and their additional typed choices remain T013. Follow UI/calculation documents for exact cases and integrate scoped checks with T003."
+        "Use first genuine monetary report for real IAM/HTTP/receipt/source reconciliation; do not wait for all-provider T007 closure. Forecast/breakdown and their additional typed choices remain T013. Follow UI/calculation documents for exact cases and integrate scoped checks with T003.",
+        "With T012, reproduce concurrent authenticated Overview/detail/setup reads while normal collection continues; profile real metadata/query cost and make the smallest measured correction. Preserve complete inventory, shared-pool evidence from secondary groups and final registry consistency checks. Do not increase the existing HTTP deadline or omit valid rows to make the check pass."
       ]
     },
     {
@@ -596,7 +602,8 @@
         "docs/evidence/m7-financial-pools-2026-11-12.md",
         "docs/evidence/m7-bounded-history-2026-11-12.md",
         "docs/evidence/m7-window-navigation-2026-11-12.md",
-        "docs/evidence/m7-manual-collection-2026-11-12.md"
+        "docs/evidence/m7-manual-collection-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -612,7 +619,8 @@
         "Keep original same-context values during refresh and failed replacement; replace report/amount/history atomically on success. Clear current values for changed account/resource/scope/period/unresolved lineage. Complete counts-only coverage displays Cost not reported, not false Partial or zero.",
         "Reconcile Check/Collect and uncertain mutations by actual original run/context/idempotency after navigation/reload/sign-in. Only owner retries mutations; selected-interval success advances as_of without changing cutoff. Render server eligibility/cooldown and distinguish balance Check from usage collection.",
         "Finish direct URL, Back/reload, safe sign-in return and expired-selection evidence with current shell. Preserve allowlisted financial/resource/filter/sort selectors; no new router or automatic action replay. Previous/Next/width keep snapshot, Refresh keeps interval, Latest moves cutoff.",
-        "Exercise partial-versus-complete retained reports, failed later pages, conflicts, setup/empty/offline/access states where real state permits; pure rules never substitute for live cases. Check keyboard, 200% zoom, required widths, long labels and LAN command-copy fallback; installed proof remains T014."
+        "Exercise partial-versus-complete retained reports, failed later pages, conflicts, setup/empty/offline/access states where real state permits; pure rules never substitute for live cases. Check keyboard, 200% zoom, required widths, long labels and LAN command-copy fallback; installed proof remains T014.",
+        "Prove API-origin to mixed-resource account transition: active published capabilities determine sections; creation purpose is only pending fallback. Retain both independent control sets and truthful missing organization-name state. Use genuine isolated registry transitions; no owner-account reconfiguration or invented telemetry."
       ]
     },
     {
@@ -642,13 +650,16 @@
       "test_ids": "M7-UI-005..006",
       "deliverable": "Shared organization/provider filters, compact API table, valid grouped backend spend summaries, bounded full-inventory/page behavior and accessibility",
       "expected_red": "The built Overview lacks independently filtered API-budget rows and keyboard-readable state.",
-      "done_when": "Real built candidate Overview exposes actual provider data and correct identity/period/coverage, shared filters and pinned detail navigation; backend compatible totals count canonical pools once across the complete filtered inventory, with explicit exclusions. Account/organization/state sorting precedes pagination; keyboard/zoom/responsive checks and independent quota failure behavior pass. Quota low-left semantics and header/footer are preserved. Empty summaries or labelled loaded-row sorting alone do not close this ticket.",
+      "done_when": "Real built candidate Overview exposes actual provider data and correct identity/period/coverage, shared filters and pinned detail navigation; backend compatible totals count canonical pools once across the complete filtered inventory, with explicit exclusions. Account/organization/state sorting precedes pagination; keyboard/zoom/responsive checks and independent quota failure behavior pass. Quota low-left semantics and header/footer are preserved. Empty summaries or labelled loaded-row sorting alone do not close this ticket. The observed concurrent Overview 504 has a passing real concurrent-read regression at the installed candidate; a serial rerun cannot close it.",
       "verification": "Planned scoped verification: overview plus accessibility through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
         "docs/evidence/m7-financial-overview-2026-11-11.md",
         "docs/evidence/m7-financial-pools-2026-11-12.md",
-        "docs/evidence/m7-overview-sorting-2026-11-12.md"
+        "docs/evidence/m7-overview-sorting-2026-11-12.md",
+        "docs/evidence/m7-fair-financial-scheduling-2026-11-12.md",
+        "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
+        "docs/evidence/m7-overview-query-reliability-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -658,6 +669,7 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
+        "Immediate known defect: reproduce the recorded concurrent Overview HTTP 504 with real authenticated concurrent Overview/detail/setup reads under ordinary collection. Verify correct API/DOM rows within the existing deadline after the minimal measured correction; serial success is not concurrency proof. Preserve same-context values with visible refresh failure and independent quota rows; integrate into the existing T003 browser scope.",
         "Retain compact Overview, shared organization/provider/resource filters, full-inventory server sorting and canonical pool controls. Red tests target remaining monetary and interaction gaps, not replacement of installed views.",
         "Render backend full-filter summaries by currency/period/cost basis, exact low decisions, excluded counts and one canonical-pool attribution. When no compatible eligible inputs exist, show totals unavailable, never zero; counts-only and complete-empty semantics are not inferred money. No monetary-sort feature.",
         "Keep funds-only and pending/disabled resources discoverable; API-only accounts do not become empty quota rows. Distinct context subrows and real report links retain authorized contributing account/resource/report and original selected interval.",

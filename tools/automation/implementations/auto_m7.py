@@ -74,6 +74,7 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_account_spend.py",
     "backend/tests/capacity/pure/test_budget_funds_lineage.py",
     "backend/tests/capacity/pure/test_budget_overview.py",
+    "backend/tests/capacity/pure/test_budget_overview_subscription.py",
     "backend/tests/capacity/pure/test_budget_overview_sort.py",
     "backend/tests/capacity/pure/test_budget_selected.py",
     "backend/tests/contracts/test_budget_overview_query.py",
@@ -370,11 +371,61 @@ def execute_lane(lane: str) -> LaneResult:
     return evaluate_lane(lane, tuple(checks))
 
 
+def execute_overview_browser(expected: str) -> LaneResult:
+    """Run current metadata/concurrency proof; monetary acceptance stays separate."""
+    metadata = _run_pytest(
+        "overview_metadata",
+        (
+            "backend/tests/integration/capacity/test_budget_overview_real_metadata.py",
+            "backend/tests/live/ollama/test_budget_overview_live.py",
+        ),
+    )
+    if metadata.status != "passed":
+        return LaneResult("browser/overview", metadata.status, (metadata,))
+    status: Status = "blocked"
+    reason = "m7_browser_toolchain_unavailable"
+    try:
+        result = subprocess.run(
+            [
+                "node",
+                "frontend/tests/browser/m7/verify_overview_concurrency.mjs",
+                expected,
+            ],
+            cwd=ROOT,
+            timeout=200,
+            check=False,
+        )
+        status = {0: "passed", 3: "blocked"}.get(result.returncode, "failed")
+        reason = "m7_concurrent_overview_reads"
+    except subprocess.TimeoutExpired:
+        status, reason = "failed", "m7_browser_timeout"
+    except OSError:
+        pass
+    concurrent = CheckResult("overview_concurrency", status, reason)
+    # These real reads can run on counts-only cloud data. They cannot certify
+    # the mandatory genuine monetary totals in the full Overview acceptance.
+    full = CheckResult("overview", "not_run", "m7_monetary_overview_required")
+    print(f"M7 CHECK overview_concurrency: {status.upper()}", flush=True)
+    print("M7 CHECK overview: NOT_RUN (m7_monetary_overview_required)", flush=True)
+    return LaneResult(
+        "browser/overview",
+        "not_run" if status == "passed" else status,
+        (metadata, concurrent, full),
+    )
+
+
 def validate_selection(lane: str, check: str | None, expected: str | None) -> None:
     """Keep partial technical guards separate from exact-revision activation."""
     if check is None and expected is None:
         return
     if lane == "browser" and check == "owner_pool_controls" and expected is None:
+        return
+    if (
+        lane == "browser"
+        and check == "overview"
+        and expected is not None
+        and re.fullmatch(r"[a-f0-9]{40}", expected) is not None
+    ):
         return
     if lane == "technical" and check in GUARD_SCOPES and expected is None:
         return
@@ -661,6 +712,7 @@ def main(argv: list[str] | None = None) -> int:
             "setup_activation",
             "financial_activation",
             "owner_pool_controls",
+            "overview",
             *GUARD_SCOPES,
         ),
     )
@@ -680,6 +732,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.check in {"setup_activation", "financial_activation"}
         else execute_pool_browser()
         if args.check == "owner_pool_controls"
+        else execute_overview_browser(args.expected_revision)
+        if args.check == "overview"
         else execute_guard(args.check)
         if args.check in GUARD_SCOPES
         else execute_lane(args.lane)
@@ -700,6 +754,11 @@ def main(argv: list[str] | None = None) -> int:
         scope = (
             "isolated built-browser owner pool metadata; "
             "no provider, money or full M7 acceptance claim"
+        )
+    elif args.check == "overview":
+        scope = (
+            "real metadata and concurrent installed Overview/setup/cloud reads; "
+            "full monetary Overview acceptance remains Not Run"
         )
     elif args.check in GUARD_SCOPES:
         scope = GUARD_SCOPES[args.check]

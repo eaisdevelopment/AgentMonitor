@@ -125,8 +125,7 @@ is the real report receipt, and it is labeled derived. Complete empty coverage
 stays complete even when currency or watermark is unknown. Without admitted monetary-zero semantics, show Cost not reported and
 Data through not reported as applicable; do not relabel complete coverage Partial.
 In particular, a complete counts-only report is not Incomplete merely because
-`spend` is absent. T004/T010/T012 must correct the current Overview classification
-that uses missing spend as a proxy for incomplete coverage: report Complete
+`spend` is absent. Retain the installed T004/T010/T012 correction: report Complete
 coverage / Cost not reported, while a genuinely missing page stays Partial.
 Denied access and missing pages are separate unsuccessful/incomplete outcomes,
 never monetary zero.
@@ -176,8 +175,9 @@ the first table query; T013 adds the chart from the same exact values.
 
 Keep a selected range's UTC cutoff fixed through pagination, table/chart reads
 and the source comparison. Crossing midnight does not silently retitle yesterday's
-report as today's selection. An explicit stored-data refresh preserves the interval, creates a new read snapshot and
-discloses missing new-day coverage until collected. This is T010/T012's existing
+report as today's selection. An explicit stored-data refresh preserves the interval,
+creates a new read snapshot and discloses missing coverage for that selected
+interval. Only Latest completed window advances the cutoff. This is T010/T012's existing
 snapshot rule and M7-MATH-15, not a new scheduling mechanism.
 
 Initial history fetch is up to 30 days where supported. Retain genuine collected
@@ -397,15 +397,32 @@ scheduler. Check initially collects the seven-day report, not every category.
 Persist distinct closed seven-/thirty-day operation families and the exact
 selected UTC interval/cutoff in the existing durable request context. Current
 billing admission now retains that context through CTR-COL-002 2.4.0; selected
-7/30-day ungrouped billing actions are installed at `ef8fa86`. Remaining T007
-work is scheduled range/category coverage and the cloud manual action. Reuse
-the installed billing context rather than rebuilding it. Recovered work uses
+7/30-day ungrouped billing actions first shipped at `ef8fa86`. The worksheet
+records subsequent installed cloud manual usage and fair 7/30-day scheduling.
+Remaining T007 work includes category/grouping coverage and outstanding live,
+sustained-fairness and recovery evidence. Reuse installed context/actions.
+Recovered work uses
 the captured intent, never the restart clock; do not falsify `requested_at` to
 represent an older cutoff. A native rolling source that cannot still serve that
 captured interval must report it as no longer collectable, not silently move it.
 No new queue or report-job schema is implied.
 Additional supported breakdowns use explicit collection and the same cooldown;
 opening or changing a view never silently enables background work.
+
+The fifteen-minute due cadence is not a freshness guarantee for every report.
+T007 records the finite automatic context inventory per shared request-budget
+scope and the admitted allowance before adding each category. Request demand is
+the sum of actual page requests across due contexts, including balance work
+where it shares that allowance. Distinct keys/access paths do not create more
+allowance for the same scope. Compare demand with the admitted request budget
+and measure service time during genuine collection; do not invent provider
+quotas or promise a full refresh cycle from the timer alone. A maximum twenty-page
+report can consume twenty requests, not one. Fair selection staggers due work;
+explicit breakdowns compete under the same limit. Publish actual source times
+and retry eligibility through existing fields. If the required inventory cannot
+meet a claimed cadence, correct the claim and report the measured constraint;
+do not add workers, violate cooldown, or silently drop mandatory categories.
+This is T007/M7-A09 resource-budget verification, not a new tuning UI or scheduler.
 
 Durable eligible work drives dispatch; an in-memory wake signal is only a hint.
 Drain admitted work fairly across successive claims, retaining one worker and

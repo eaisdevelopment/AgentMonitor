@@ -63,6 +63,29 @@ def has_subscription(
     return not has_cloud_resources and account.initial_connection_purpose != "api"
 
 
+def requires_financial_query(
+    account: AccountViewV1,
+    resources: tuple[AccountResourceViewV1, ...],
+) -> bool:
+    """Only proven subscription-only accounts can omit financial reads.
+
+    Billing enrollment adds its resource atomically. Ollama cloud authority is
+    separate from this resource list, so cloud accounts always need the query.
+    Retained non-subscription resources and ambiguous/pending metadata also do.
+    """
+    return not (
+        account.provider_key in {"claude", "codex"}
+        and account.initial_connection_purpose is None
+        # ListAccountResourcesV1 returns at most 100 rows without a next-page
+        # marker. A full list cannot establish absence of a billing resource.
+        and len(resources) < 100
+        and any(
+            r.kind == "subscription_pool" and r.lifecycle == "active" for r in resources
+        )
+        and all(r.kind == "subscription_pool" for r in resources)
+    )
+
+
 def append_inventory_page(
     previous: tuple[AccountViewV1, ...],
     page: QueryPageV1[AccountViewV1],

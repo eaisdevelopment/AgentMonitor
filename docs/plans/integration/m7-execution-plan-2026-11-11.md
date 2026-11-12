@@ -6,10 +6,8 @@
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
 - Current implementation and installed-state checkpoint: see the single
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
-  Recorded installed code is `ef8fa86`, schema `v1_0734`: pool controls,
-  pool-aware Overview, full-inventory sorting, bounded daily history, compact
-  summaries, older-window navigation, captured collection context, manual billing controls/cooldown and OpenAI cost runtime wiring are
-  delivered increments.
+  That worksheet owns the installed revision and delivered-increment list;
+  this plan does not duplicate a competing current deployment checkpoint.
   Genuine monetary evidence, complete provider/history/analysis coverage and
   full M7 acceptance remain unfinished. The worksheet alone owns current order.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
@@ -47,8 +45,8 @@ The linked discovery proves documented interfaces, not successful account access
 
 | Ticket / source | Required reports and ranges | Required single-dimension views when exposed | Current implementation boundary |
 |---|---|---|---|
-| T006 Anthropic Console analytics | Cost and usage, daily buckets, 7/30 completed UTC days; token/request measures retain their types | Workspace, safe API-key identifier, model, token category; organization/account remain source scope and owner grouping | Ungrouped cost and captured 7/30-day manual dispatch are installed; successful live costs, scheduled thirty-day coverage, usage and grouped collection remain unfinished |
-| T008 OpenAI organization | Costs plus the eleven usage categories listed below; daily 7/30-day reports | Project, safe API-key identifier, model, token category where that endpoint exposes them; time is the daily bucket | Ungrouped cost and captured 7/30-day manual dispatch are installed; successful live costs, scheduled thirty-day coverage and usage/grouped lanes remain unfinished |
+| T006 Anthropic Console analytics | Cost and usage, daily buckets, 7/30 completed UTC days; token/request measures retain their types | Workspace, safe API-key identifier, model, token category; organization/account remain source scope and owner grouping | Ungrouped cost runtime, captured manual dispatch and 7/30-day scheduling are installed; successful live costs and complete usage/grouped coverage remain unfinished |
+| T008 OpenAI organization | Costs plus the eleven usage categories listed below; daily 7/30-day reports | Project, safe API-key identifier, model, token category where that endpoint exposes them; time is the daily bucket | Ungrouped cost runtime, captured manual dispatch and 7/30-day scheduling are installed; successful live costs and complete usage/grouped coverage remain unfinished |
 | T009 Ollama cloud | Native 7d/30d self/team usage; retain actual covered bounds and partial buckets; existing balance collection | Model plus provider-reported remainder; monetary and token fields only when supplied | Self seven-day counts and balance evidence exist; remaining range/scope/model/manual paths still require completion |
 
 OpenAI's fixed usage list is **completions, embeddings, moderations, images,
@@ -150,7 +148,7 @@ genuine report contains usage counts, not costs. Reuse that work and evidence.
 Those funds/usage are now visible on the installed Overview and detail.
 Retain the installed canonical pool attribution and OpenAI cost runtime. Next
 retain the installed manual billing controls/cooldown and context-aware status;
-complete source lifecycle, Ollama manual usage and prior-scope report discovery while
+complete source lifecycle, remaining Ollama manual verification and prior-scope report discovery while
 integrating the first accessible monetary lane, normally Anthropic or OpenAI.
 No provider is dropped
 from M7. A requests-only
@@ -244,8 +242,8 @@ T007's existing first action is
 Read-only `GET /collection-runs/{run_id}/budget`
 (`billing_get_run_status_v1`) is also implemented through M04's public run query.
 Its additive status DTO includes actual `report_id`, account and resource;
-non-budget runs are rejected. The current generated contract/client checkpoint has 95
-operations; the delivery worksheet owns the current installed revision. This is compatibility metadata, not coverage. Real HTTP guards and
+non-budget runs are rejected. Generated operation counts are checkpoint evidence,
+not feature coverage; the delivery worksheet owns the current installed revision. Real HTTP guards and
 built no-report/browser controls pass; a
 successful credential-backed report and populated status-to-DOM journey remain
 unverified. See [integration evidence](../../evidence/m7-billing-integration-2026-11-11.md).
@@ -255,11 +253,12 @@ snapshot. On completion the UI advances read time, preserves the selected
 reporting interval and replaces report/table together. Existing run-list
 consumers remain compatible; zero-fact reports require no fabricated quota
 observations. Monitoring GET/PUT and current-generation proof exist in current
-CTR-REG-014 1.5.0, with seven-day Anthropic and OpenAI cost scheduling/worker
-wiring installed. Positive provider-backed
-monitoring and manual collection, full fairness/category scheduling, and Ollama
-manual usage remain T007 work. Selected 7/30-day billing intent, Collect now,
-cooldown and matching status are installed at `ef8fa86`; credential-free checks
+CTR-REG-014 1.5.0. Selected 7/30-day billing intent, Collect now, cooldown and
+matching status first shipped at `ef8fa86`; subsequent cloud manual actions and
+fair seven-/thirty-day scheduling use CTR-COL-002 2.5.0/2.6.0. Remaining T007
+work includes positive monetary monitoring/collection, full category coverage,
+sustained fairness and recovery. See the worksheet for exact live outcomes;
+credential-free checks
 and runtime wiring alone do not establish successful monetary collection.
 
 T002 owns account billing-connection metadata, credential status and local entry,
