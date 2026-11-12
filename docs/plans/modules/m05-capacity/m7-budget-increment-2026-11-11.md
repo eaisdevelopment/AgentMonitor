@@ -147,6 +147,25 @@ must not pretend several endpoint/category/time snapshots are identical.
 
 ## 8. Forecast and history design
 
+T010 publishes additive CTR-CAP-006 2.8.0 history query/row/result/port types.
+The query binds account, resource, immutable report, exact seven/thirty-day
+period, read cutoff and page size (default 50, maximum 200). Facts sort by
+period start/end, cost-or-usage kind and bucket key. Continuations bind the
+immutable report body and selection; signed HTTP cursors also bind the caller
+and expire under the existing cursor policy. Missing retained reports return
+an explicit not-found response, never a substitute latest report.
+
+P01 adds compact `GET /accounts/{account_id}/budgets` and paginated
+`GET /budgets/{budget_id}/history`. Summary metadata carries genuine fact counts;
+only history pages carry bucket bodies. Existing full-report endpoints remain
+compatible. P02 consumes the summary for headings/totals and history for tables,
+retains loaded pages on a failed continuation and resets on selection changes.
+M05 reuses the existing bounded stored-report reader (10,000 facts/16 MiB);
+no new storage schema, dependency, collection job or owner setup is needed.
+Pure query/context/paging tests precede implementation; actual retained Ollama
+reports verify SQLite/application/HTTP selection without manufactured telemetry.
+Counts-only evidence is not monetary verification or retention acceptance.
+
 GetBudgetForecastV1 queries bounded immutable facts and computes the documented
 observed-rate method; no stored forecast generation or new event consumer.
 Three complete compatible buckets over ≥24h, no unknown gaps or signed

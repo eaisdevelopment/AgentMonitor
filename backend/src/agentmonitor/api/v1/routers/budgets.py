@@ -15,7 +15,9 @@ from agentmonitor.api.v1.routers._observation import (
 from agentmonitor.api.v1.schemas.budgets import (
     AccountBudgetCurrentWireV1,
     AccountBudgetFundsWireV1,
+    AccountBudgetSummaryWireV1,
     BudgetCloudResourceCurrentWireV1,
+    BudgetCloudResourceSummaryWireV1,
     BudgetCollectionStateWireV1,
     BudgetCostBucketWireV1,
     BudgetDimensionWireV1,
@@ -23,8 +25,11 @@ from agentmonitor.api.v1.schemas.budgets import (
     BudgetPeriodWireV1,
     BudgetReportedSpendWireV1,
     BudgetReportSelectionWireV1,
+    BudgetReportSummarySelectionWireV1,
+    BudgetReportSummaryWireV1,
     BudgetReportWireV1,
     BudgetResourceCurrentWireV1,
+    BudgetResourceSummaryWireV1,
     BudgetUsageBucketWireV1,
     ExactMoneyFieldWireV1,
     ExactMoneyWireV1,
@@ -39,12 +44,17 @@ from agentmonitor.api.v1.serialization import technical_wire
 from agentmonitor.contracts.budget_query_v1 import (
     AccountBudgetCurrentV1,
     AccountBudgetFundsV1,
+    BudgetReportedSpendV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
+    BudgetCostBucketV1,
     BudgetPeriodV1,
+    BudgetReportSelectionV1,
     BudgetReportViewV1,
+    BudgetUsageBucketV1,
     ExactMoneyFieldV1,
 )
+from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
 from agentmonitor.contracts.common_quantity_v1 import ExactMoneyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.application.queries import CapacityQueryUnavailableV1
@@ -292,6 +302,18 @@ def get_account_budget(
         datetime, Query(description="Pinned UTC read instant; no provider collection.")
     ],
 ) -> AccountBudgetCurrentWireV1:
+    return account_wire(
+        _read_account_current(account_id, request, period_start, period_end, as_of)
+    )
+
+
+def _read_account_current(
+    account_id: str,
+    request: Request,
+    period_start: datetime,
+    period_end: datetime,
+    as_of: datetime,
+) -> AccountBudgetCurrentV1:
     authorize_request(request, "read:telemetry")
     reject_unknown_query(request, frozenset({"period_start", "period_end", "as_of"}))
     require_opaque_selector(account_id)
@@ -316,4 +338,161 @@ def get_account_budget(
         raise ProblemError(503, "observation_repository_unavailable") from None
     if item is None:
         raise ProblemError(404, "registry_subject_not_found")
-    return account_wire(item)
+    return item
+
+
+def report_summary_wire(item: BudgetReportViewV1) -> BudgetReportSummaryWireV1:
+    """Project metadata directly without serializing full bucket arrays."""
+    report = item.report
+    return BudgetReportSummaryWireV1(
+        report_id=item.report_id.value,
+        account_id=report.subject.account_id.value,
+        resource_id=report.subject.resource_id.value,
+        provider_key=report.subject.provider_key,
+        scope_generation=report.scope_generation,
+        scope_id=None if report.scope_id is None else report.scope_id.value,
+        scope_evidence=report.scope_evidence,
+        source_id=report.source_id,
+        source_category=report.source_category,
+        cost_basis=report.cost_basis,
+        grouping=list(report.grouping),
+        requested_period=_period(report.requested_period),
+        covered_period=None
+        if report.covered_period is None
+        else _period(report.covered_period),
+        source_data_through=report.source_data_through,
+        collected_at=report.collected_at,
+        stored_at=item.stored_at,
+        completeness=report.completeness,
+        omission_codes=list(report.omission_codes),
+        currency=report.currency,
+        empty_means_zero=report.empty_means_zero,
+        cost_bucket_count=len(report.cost_buckets),
+        usage_bucket_count=len(report.usage_buckets),
+    )
+
+
+def cost_bucket_wire(row: BudgetCostBucketV1) -> BudgetCostBucketWireV1:
+    return BudgetCostBucketWireV1(
+        bucket_key=row.bucket_key,
+        period=_period(row.period),
+        amount=_money(row.amount),
+        kind=row.kind,
+        dimensions=[
+            BudgetDimensionWireV1(kind=d.kind, value=d.value) for d in row.dimensions
+        ],
+    )
+
+
+def usage_bucket_wire(row: BudgetUsageBucketV1) -> BudgetUsageBucketWireV1:
+    return BudgetUsageBucketWireV1(
+        bucket_key=row.bucket_key,
+        period=_period(row.period),
+        quantity=ExactQuantityWireV1(
+            coefficient=row.quantity.amount.coefficient,
+            scale=row.quantity.amount.scale,
+            unit=row.quantity.unit,
+        ),
+        dimensions=[
+            BudgetDimensionWireV1(kind=d.kind, value=d.value) for d in row.dimensions
+        ],
+    )
+
+
+def reported_spend_wire(item: BudgetReportedSpendV1) -> BudgetReportedSpendWireV1:
+    return BudgetReportedSpendWireV1(
+        report_id=item.report_id.value,
+        total=None if item.total is None else _money(item.total),
+        reason_code=item.reason_code,
+    )
+
+
+def _summary_selections(
+    selections: tuple[BudgetReportSelectionV1, ...],
+) -> list[BudgetReportSummarySelectionWireV1]:
+    return [
+        BudgetReportSummarySelectionWireV1(
+            current=None if row.current is None else report_summary_wire(row.current),
+            latest_attempt=None
+            if row.latest_attempt is None
+            else report_summary_wire(row.latest_attempt),
+        )
+        for row in selections
+    ]
+
+
+def _collection_wire(
+    run: BudgetCollectionRunViewV1 | None,
+) -> BudgetCollectionStateWireV1 | None:
+    if run is None:
+        return None
+    return BudgetCollectionStateWireV1(
+        run_id=run.run_id.value,
+        state=run.state,
+        source_id=run.source_id,
+        requested_at=run.requested_at,
+        started_at=run.started_at,
+        completed_at=run.completed_at,
+        outcome_code=run.outcome_code,
+        error_code=run.error_code,
+        report_id=None if run.report_id is None else run.report_id.value,
+    )
+
+
+def account_summary_wire(item: AccountBudgetCurrentV1) -> AccountBudgetSummaryWireV1:
+    return AccountBudgetSummaryWireV1(
+        account_id=item.account_id.value,
+        period=_period(item.period),
+        as_of=item.as_of,
+        availability=availability(item.availability),
+        funds=None if item.funds is None else funds_wire(item.funds),
+        resources=[
+            BudgetResourceSummaryWireV1(
+                connection=BillingConnectionViewV1.model_validate(
+                    technical_wire(resource.connection)
+                ),
+                reports=_summary_selections(resource.reports),
+                report_availability=availability(resource.report_availability),
+                reported_spend=[
+                    reported_spend_wire(row) for row in resource.reported_spend
+                ],
+                latest_collection=_collection_wire(resource.latest_collection),
+                collection_availability=availability(resource.collection_availability),
+            )
+            for resource in item.resources
+        ],
+        cloud_resources=[
+            BudgetCloudResourceSummaryWireV1(
+                account_id=resource.target.account_id.value,
+                resource_id=resource.target.resource_id.value,
+                lifecycle=resource.target.lifecycle,
+                reports=_summary_selections(resource.reports),
+                report_availability=availability(resource.report_availability),
+                reported_spend=[
+                    reported_spend_wire(row) for row in resource.reported_spend
+                ],
+                latest_collection=_collection_wire(resource.latest_collection),
+                collection_availability=availability(resource.collection_availability),
+            )
+            for resource in item.cloud_resources
+        ],
+    )
+
+
+@router.get(
+    "/accounts/{account_id}/budgets",
+    operation_id="capacity_list_budgets_v1",
+    response_model=AccountBudgetSummaryWireV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "AccountBudgetCurrentPortV1"),
+)
+def list_account_budgets(
+    account_id: str,
+    request: Request,
+    period_start: Annotated[datetime, Query()],
+    period_end: Annotated[datetime, Query()],
+    as_of: Annotated[datetime, Query()],
+) -> AccountBudgetSummaryWireV1:
+    return account_summary_wire(
+        _read_account_current(account_id, request, period_start, period_end, as_of)
+    )

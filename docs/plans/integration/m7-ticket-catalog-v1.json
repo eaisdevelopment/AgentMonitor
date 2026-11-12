@@ -538,7 +538,8 @@
         "docs/evidence/m7-stored-funds-2026-11-11.md",
         "docs/evidence/m7-financial-overview-2026-11-11.md",
         "docs/evidence/m7-financial-pools-2026-11-12.md",
-        "docs/evidence/m7-overview-sorting-2026-11-12.md"
+        "docs/evidence/m7-overview-sorting-2026-11-12.md",
+        "docs/evidence/m7-bounded-history-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -612,7 +613,8 @@
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
         "docs/evidence/m7-stored-funds-2026-11-11.md",
         "docs/evidence/m7-financial-overview-2026-11-11.md",
-        "docs/evidence/m7-financial-pools-2026-11-12.md"
+        "docs/evidence/m7-financial-pools-2026-11-12.md",
+        "docs/evidence/m7-bounded-history-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",

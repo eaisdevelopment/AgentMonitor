@@ -18,7 +18,11 @@ from agentmonitor.api.v1.routers.budgets import (
     _money,
     _money_field,
     _period,
+    cost_bucket_wire,
+    report_summary_wire,
     report_wire,
+    reported_spend_wire,
+    usage_bucket_wire,
 )
 from agentmonitor.api.v1.schemas.budget_overview import (
     BudgetOverviewAccessPathWireV1,
@@ -30,10 +34,15 @@ from agentmonitor.api.v1.schemas.budget_overview import (
     BudgetOverviewWireV1,
     BudgetSelectedReportWireV1,
 )
-from agentmonitor.api.v1.schemas.budgets import BudgetReportedSpendWireV1
+from agentmonitor.api.v1.schemas.budgets import (
+    BudgetHistoryRowWireV1,
+    BudgetHistoryWireV1,
+    BudgetReportedSpendWireV1,
+)
 from agentmonitor.api.v1.schemas.registry import AccountViewV1
 from agentmonitor.api.v1.serialization import technical_wire
 from agentmonitor.contracts.budget_query_v1 import (
+    BudgetHistoryQueryV1,
     BudgetOverviewQueryV1,
     BudgetOverviewRowV1,
 )
@@ -308,4 +317,105 @@ def get_selected_budget_report(
             reason_code=selected.reported_spend.reason_code,
         ),
         as_of=selected.as_of,
+    )
+
+
+@router.get(
+    "/budgets/{budget_id}/history",
+    operation_id="capacity_list_budget_history_v1",
+    response_model=BudgetHistoryWireV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "BudgetHistoryPortV1"),
+)
+def list_budget_history(
+    budget_id: str,
+    request: Request,
+    account_id: str,
+    report_id: str,
+    period_start: Annotated[datetime, Query()],
+    period_end: Annotated[datetime, Query()],
+    as_of: Annotated[datetime, Query()],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    cursor: Annotated[str | None, Query(max_length=4096)] = None,
+) -> BudgetHistoryWireV1:
+    caller = authorize_request(request, "read:telemetry")
+    reject_unknown_query(
+        request,
+        frozenset(
+            {
+                "account_id",
+                "report_id",
+                "period_start",
+                "period_end",
+                "as_of",
+                "limit",
+                "cursor",
+            }
+        ),
+    )
+    for value in (budget_id, account_id, report_id):
+        require_opaque_selector(value)
+    if any(
+        v.utcoffset() != UTC.utcoffset(v) for v in (period_start, period_end, as_of)
+    ):
+        raise ProblemError(400, "invalid_filter")
+    operation = "capacity_list_budget_history_v1"
+    filters: dict[str, str | None] = {
+        "budget_id": budget_id,
+        "account_id": account_id,
+        "report_id": report_id,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "as_of": as_of.isoformat(),
+    }
+    after_key = decode_cursor(
+        request, caller, cursor, operation_id=operation, limit=limit, filters=filters
+    )
+    try:
+        query = BudgetHistoryQueryV1(
+            OpaqueIdV1(account_id),
+            OpaqueIdV1(budget_id),
+            OpaqueIdV1(report_id),
+            BudgetPeriodV1(period_start, period_end),
+            as_of,
+            limit,
+            after_key,
+        )
+    except (TypeError, ValueError):
+        raise ProblemError(400, "invalid_filter") from None
+    port = observation_ports(request).list_budget_history
+    if port is None:
+        raise ProblemError(503, "observation_data_unavailable")
+    try:
+        result = port(query)
+    except CapacityQueryUnavailableV1:
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    except ValueError as error:
+        if str(error) == "budget_history_cursor_invalid":
+            raise ProblemError(400, "invalid_cursor") from None
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    if result is None:
+        raise ProblemError(404, "budget_report_not_found")
+    return BudgetHistoryWireV1(
+        report=report_summary_wire(result.report),
+        reported_spend=reported_spend_wire(result.reported_spend),
+        as_of=result.as_of,
+        items=[
+            BudgetHistoryRowWireV1(
+                kind=row.kind,
+                cost=None if row.cost is None else cost_bucket_wire(row.cost),
+                usage=None if row.usage is None else usage_bucket_wire(row.usage),
+            )
+            for row in result.page.items
+        ],
+        page=page_meta(
+            request,
+            caller,
+            operation_id=operation,
+            limit=limit,
+            has_more=result.page.has_more,
+            next_key=result.page.next_key,
+            filters=filters,
+        ),
+        availability=availability(result.page.availability),
     )

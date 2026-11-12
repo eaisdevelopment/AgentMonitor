@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.10"
+GENERATOR_VERSION = "2.0.11"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -292,6 +292,8 @@ IAM_OPERATIONS = {
     ): "capacity_get_account_api_budget_v1",
     ("/api/v1/budgets", "get"): "capacity_list_budget_overview_v1",
     ("/api/v1/budgets/{budget_id}", "get"): "capacity_get_budget_v1",
+    ("/api/v1/accounts/{account_id}/budgets", "get"): "capacity_list_budgets_v1",
+    ("/api/v1/budgets/{budget_id}/history", "get"): "capacity_list_budget_history_v1",
     (
         "/api/v1/accounts/{account_id}/quotas/v2",
         "get",
@@ -1245,6 +1247,30 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "capacity_list_budgets_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "AccountBudgetCurrentPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AccountBudgetSummaryWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "capacity_list_budget_history_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BudgetHistoryPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetHistoryWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "capacity_list_budget_overview_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1631,7 +1657,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 91
+        or len(identifiers) != 93
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

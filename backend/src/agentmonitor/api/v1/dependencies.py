@@ -7,6 +7,7 @@ from agentmonitor.api.v1.ollama_cloud_port import OllamaCloudConnectionPortV1
 from agentmonitor.contracts.billing_actions_v1 import BillingCheckPortV1
 from agentmonitor.contracts.budget_query_v1 import (
     AccountBudgetCurrentPortV1,
+    BudgetHistoryPortV1,
     BudgetOverviewPortV1,
     BudgetSelectedReportPortV1,
 )
@@ -188,6 +189,7 @@ class ObservationApiPortsV1:
     get_account_budget_current: AccountBudgetCurrentPortV1 | None = None
     list_budget_overview: BudgetOverviewPortV1 | None = None
     get_selected_budget_report: BudgetSelectedReportPortV1 | None = None
+    list_budget_history: BudgetHistoryPortV1 | None = None
     billing_checks: BillingCheckPortV1 | None = None
     billing_monitoring: BillingMonitoringPortV1 | None = None
 

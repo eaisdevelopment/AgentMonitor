@@ -9,6 +9,7 @@ let reason = "browser_unavailable";
 let mutations = 0;
 let sourceRevision = null;
 let rowsVerified = 0;
+const renderedReadPaths = [];
 const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
 function requireEvidence(condition, code) { if (!condition) stop("failed", code); }
@@ -24,7 +25,10 @@ try {
   if (context === undefined) stop("blocked", "browser_context_unavailable");
   page = await context.newPage();
   page.setDefaultTimeout(10000);
-  page.on("request", request => { if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) mutations += 1; });
+  page.on("request", request => {
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) mutations += 1;
+    if (request.method() === "GET") renderedReadPaths.push(new URL(request.url()).pathname);
+  });
   await page.goto(origin, { waitUntil: "domcontentloaded", timeout: 10000 });
   const signIn = page.getByRole("heading", { name: "Sign in", exact: true });
   await signIn.or(page.getByRole("button", { name: "Accounts", exact: true })).first().waitFor();
@@ -224,18 +228,72 @@ try {
     requireEvidence(JSON.stringify(selected.reported_spend.total) === JSON.stringify(context.spend), "overview_detail_spend_mismatch");
     const section = page.locator(await selector("data-report-id", context.report_id));
     await section.waitFor();
+    await section.locator('[data-budget-history][aria-busy="false"]').waitFor();
     if (context.spend !== null) requireEvidence(await section.getByTitle(money(context.spend), { exact: true }).count() > 0, "detail_spend_mismatch");
-    else requireEvidence((await section.textContent()).includes(selected.reported_spend.reason_code.replaceAll("_", " ")), "detail_spend_absence_hidden");
-    for (const [key, label, buckets] of [["cost", "Show more cost rows", selected.report.cost_buckets], ["usage", "Show more usage rows", selected.report.usage_buckets]]) {
-      for (let index = 0; index < Math.ceil(buckets.length / 50); index += 1) {
-        const more = section.getByRole("button", { name: label, exact: true });
-        if (await more.count() === 0) break;
-        await more.click();
+    else {
+      const countsOnly = selected.report.currency === null && selected.report.cost_buckets.length === 0 && selected.report.usage_buckets.length > 0;
+      requireEvidence((await section.textContent()).includes(countsOnly ? "Provider did not report costs." : selected.reported_spend.reason_code.replaceAll("_", " ")), "detail_spend_absence_hidden");
+    }
+    const summaryPath = `/api/v1/accounts/${encodeURIComponent(reportAccount)}/budgets`;
+    const summaryQuery = new URLSearchParams(query);
+    summaryQuery.delete("account_id"); summaryQuery.delete("report_id");
+    const compactResponse = await page.request.get(`${origin}${summaryPath}?${summaryQuery}`, { headers: { Origin: origin } });
+    requireEvidence(compactResponse.ok(), "compact_budget_summary_missing");
+    const compact = await compactResponse.json();
+    for (const resource of [...compact.resources, ...compact.cloud_resources]) {
+      for (const selection of resource.reports) {
+        for (const report of [selection.current, selection.latest_attempt].filter(Boolean)) {
+          requireEvidence(!("cost_buckets" in report) && !("usage_buckets" in report) && Number.isInteger(report.cost_bucket_count) && Number.isInteger(report.usage_bucket_count), "summary_embeds_history_facts");
+        }
       }
-      const table = section.getByRole("region", { name: key === "cost" ? "Exact cost history" : "Exact usage history", exact: true });
+    }
+    const historyPath = `/api/v1/budgets/${encodeURIComponent(reportResource)}/history`;
+    const history = section.locator("[data-budget-history]");
+    await history.waitFor();
+    await section.locator('[data-budget-history][aria-busy="false"]').waitFor();
+    for (let index = 0; index < 200; index += 1) {
+      const more = history.getByRole("button", { name: "Load more history", exact: true });
+      if (await more.count() === 0) break;
+      requireEvidence(await more.isEnabled(), "history_continuation_disabled");
+      const response = page.waitForResponse(response => new URL(response.url()).pathname === historyPath && new URL(response.url()).searchParams.has("cursor"));
+      await more.click();
+      requireEvidence((await response).status() === 200, "history_continuation_failed");
+      await section.locator('[data-budget-history][aria-busy="false"]').waitFor();
+      if (index === 199) stop("blocked", "history_pagination_bound_exceeded");
+    }
+    requireEvidence(renderedReadPaths.includes(summaryPath) && renderedReadPaths.includes(historyPath), "ui_not_using_compact_history_reads");
+    requireEvidence(!renderedReadPaths.includes(`/api/v1/accounts/${encodeURIComponent(reportAccount)}/api-capacity`) && !renderedReadPaths.includes(`/api/v1/budgets/${encodeURIComponent(reportResource)}`), "ui_requested_unbounded_report");
+    const paged = [];
+    let cursor;
+    const seenCursors = new Set();
+    for (let index = 0; index < 10000; index += 1) {
+      const continuation = new URLSearchParams(query);
+      continuation.set("limit", "1");
+      if (cursor !== undefined) continuation.set("cursor", cursor);
+      const batch = await read(`${historyPath}?${continuation}`);
+      requireEvidence(batch.report.report_id === selected.report.report_id && batch.report.account_id === reportAccount && batch.report.resource_id === reportResource && microseconds(batch.as_of) === microseconds(selected.as_of), "history_page_context_mismatch");
+      requireEvidence(!("cost_buckets" in batch.report) && !("usage_buckets" in batch.report) && batch.items.length <= 1, "history_page_not_bounded");
+      requireEvidence(JSON.stringify(batch.reported_spend) === JSON.stringify(selected.reported_spend), "history_spend_mismatch");
+      paged.push(...batch.items);
+      if (!batch.page.has_more) { requireEvidence(batch.page.next_cursor === null, "history_terminal_cursor_invalid"); break; }
+      cursor = batch.page.next_cursor;
+      requireEvidence(typeof cursor === "string" && !seenCursors.has(cursor), "history_cursor_invalid");
+      seenCursors.add(cursor);
+      if (index === 9999) stop("blocked", "history_page_bound_exceeded");
+    }
+    const expectedFacts = [
+      ...selected.report.cost_buckets.map(cost => ({ kind: "cost", cost, usage: null })),
+      ...selected.report.usage_buckets.map(usage => ({ kind: "usage", cost: null, usage })),
+    ];
+    const factKey = row => `${row.kind}:${(row.cost ?? row.usage).bucket_key}`;
+    requireEvidence(paged.length === expectedFacts.length && new Set(paged.map(factKey)).size === expectedFacts.length, "history_fact_count_mismatch");
+    for (const fact of expectedFacts) requireEvidence(JSON.stringify(paged.find(row => factKey(row) === factKey(fact))) === JSON.stringify(fact), "history_exact_fact_mismatch");
+    for (const [key, buckets] of [["cost", selected.report.cost_buckets], ["usage", selected.report.usage_buckets]]) {
+      const table = history.getByRole("region", { name: key === "cost" ? "Exact cost history" : "Exact usage history", exact: true });
       requireEvidence(await table.locator("tbody tr").count() === buckets.length, "selected_bucket_set_mismatch");
-      for (const [index, bucket] of buckets.entries()) {
-        const cells = table.locator("tbody tr").nth(index).getByRole("cell");
+      for (const bucket of buckets) {
+        const rowSelector = await selector("data-bucket-key", bucket.bucket_key);
+        const cells = table.locator(rowSelector).getByRole("cell");
         requireEvidence(await cells.nth(0).textContent() === periodText(bucket.period) && await cells.nth(1).textContent() === (key === "cost" ? money(bucket.amount) : quantity(bucket.quantity)), "selected_exact_bucket_mismatch");
       }
     }

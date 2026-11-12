@@ -6,9 +6,11 @@ from datetime import datetime, timedelta
 from typing import ClassVar, Literal, Protocol
 
 from agentmonitor.contracts.capacity_v1 import (
+    BudgetCostBucketV1,
     BudgetPeriodV1,
     BudgetReportSelectionV1,
     BudgetReportViewV1,
+    BudgetUsageBucketV1,
     CapacityObservationProvenanceViewV1,
     CapacitySubjectV2,
     CompletenessV1,
@@ -419,3 +421,73 @@ class BudgetSelectedReportPortV1(Protocol):
         period: BudgetPeriodV1,
         as_of: datetime,
     ) -> BudgetSelectedReportV1 | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetHistoryQueryV1(TechnicalValueV1):
+    """One immutable report's facts; collection and report revisions are separate."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    report_id: OpaqueIdV1
+    period: BudgetPeriodV1
+    as_of: datetime
+    limit: int = 50
+    after_key: str | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.period.end > self.as_of
+            or self.period.end - self.period.start
+            not in {timedelta(days=7), timedelta(days=30)}
+            or any(
+                value.hour or value.minute or value.second or value.microsecond
+                for value in (self.period.start, self.period.end)
+            )
+            or type(self.limit) is not int
+            or not 1 <= self.limit <= 200
+        ):
+            raise ValueError("budget_history_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetHistoryRowV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    kind: Literal["cost", "usage"]
+    cost: BudgetCostBucketV1 | None
+    usage: BudgetUsageBucketV1 | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if not (
+            self.kind == "cost"
+            and self.cost is not None
+            and self.usage is None
+            or self.kind == "usage"
+            and self.usage is not None
+            and self.cost is None
+        ):
+            raise ValueError("budget_history_row_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetHistoryResultV1:
+    """API projects report metadata only; bucket bodies are bounded by page."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    report: BudgetReportViewV1
+    reported_spend: BudgetReportedSpendV1
+    as_of: datetime
+    page: QueryPageV1[BudgetHistoryRowV1]
+
+
+class BudgetHistoryPortV1(Protocol):
+    def __call__(self, query: BudgetHistoryQueryV1) -> BudgetHistoryResultV1 | None: ...

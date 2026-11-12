@@ -2,6 +2,11 @@ import {
   apiClient,
   apiVersion,
   type AccountBudgetCurrentWireV1,
+  type AccountBudgetSummaryWireV1,
+  type BudgetResourceSummaryWireV1,
+  type BudgetCloudResourceSummaryWireV1,
+  type BudgetReportSummaryWireV1,
+  type BudgetHistoryWireV1,
   type BudgetCloudResourceCurrentWireV1,
   type BudgetOverviewWireV1,
   type BudgetOverviewRowWireV1,
@@ -75,6 +80,11 @@ import {
 
 export type {
   AccountBudgetCurrentWireV1,
+  AccountBudgetSummaryWireV1,
+  BudgetResourceSummaryWireV1,
+  BudgetCloudResourceSummaryWireV1,
+  BudgetReportSummaryWireV1,
+  BudgetHistoryWireV1,
   BudgetCloudResourceCurrentWireV1,
   BudgetOverviewWireV1,
   BudgetOverviewRowWireV1,
@@ -587,6 +597,18 @@ export const financialPools = Object.freeze({
 });
 
 export const budgets = Object.freeze({
+  accountSummary: (
+    accountId: string,
+    query: Readonly<{ period_start: string; period_end: string; as_of: string }>,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<AccountBudgetSummaryWireV1>> =>
+    apiClient.capacity_list_budgets_v1({ path: { account_id: accountId }, query, signal }),
+  history: (
+    resourceId: string,
+    query: Readonly<{ account_id: string; report_id: string; period_start: string; period_end: string; as_of: string; limit?: number; cursor?: string }>,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<BudgetHistoryWireV1>> =>
+    apiClient.capacity_list_budget_history_v1({ path: { budget_id: resourceId }, query, signal }),
   report: (
     resourceId: string,
     query: Readonly<{ account_id: string; report_id: string; period_start: string; period_end: string; as_of: string }>,

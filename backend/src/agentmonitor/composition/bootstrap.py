@@ -186,6 +186,7 @@ from agentmonitor.modules.alerting.application.rules import (
     ListAlertRulesV1,
     UpdateAlertRuleV1,
 )
+from agentmonitor.modules.capacity.application.budget_history import ListBudgetHistoryV1
 from agentmonitor.modules.capacity.application.budget_overview import (
     ListBudgetOverviewV1,
 )
@@ -594,6 +595,9 @@ def _observation_ports(
         active_binding=active_budget_binding,
         cloud_target=SqliteCloudCredentialRegistryV1(reference).read_monitoring_target,
     )
+    selected_budget_report = GetSelectedBudgetReportV1(
+        get_account, SqliteBudgetReportRepositoryV1(reference)
+    )
     return ObservationApiPortsV1(
         CreateOrganizationV1(registry),
         EditOrganizationV1(registry),
@@ -657,9 +661,8 @@ def _observation_ports(
             financial_pools=SqliteFinancialPoolRepositoryV1(reference),
             organization=GetOrganizationV1(registry),
         ),
-        get_selected_budget_report=GetSelectedBudgetReportV1(
-            get_account, SqliteBudgetReportRepositoryV1(reference)
-        ),
+        get_selected_budget_report=selected_budget_report,
+        list_budget_history=ListBudgetHistoryV1(selected_budget_report),
         billing_local_setup=InstalledBillingLocalSetupV1(
             data_root, socket.gethostname()
         ),
