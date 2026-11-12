@@ -1,0 +1,69 @@
+# M7 queued-expiry history repair
+
+Status: local implementation verified; installation and public verification
+remain pending. T007/T009/T010/T014; FR-BUDGET-006, AC-TEST-001/003/006,
+M7-A05/A07/A09. M04 owns run semantics; P01 and the existing history UI consume
+the corrected reads. Approved focused plan 1.1.0 already includes queued expiry.
+
+## Actual failure and correction
+
+The installed seven-day manual cloud probe at `d985cc7` submitted exactly one
+collection. The run expired before dispatch; recovery correctly persisted
+`failed` / `collection_queued_expired` with null start and duration. The run DTO
+required a start/duration for every failure and rejected this legitimate record.
+Collection-history and cloud run-status reads then returned 503. No successful
+provider collection is claimed from this attempt.
+
+CTR-COL-002 2.7.0 admits this precise budget-only terminal case: completion at
+or after the deadline, null start/duration/payload/report, no observations, and
+matching queued-expiry outcome/error. Quota validation and dispatched/committed
+invariants remain unchanged. The existing rows need no rewrite or migration.
+There is no change to wire fields, account setup, credentials, provider profiles,
+dependencies or licenses. No provider request is required for this repair.
+
+## Red and Green evidence
+
+- Before production changes, the focused pure contract and genuine private
+  SQLite snapshot tests produced **14 failures and 3 passes in 5.22s**. The
+  decisive failures were valid expiry construction and reading the genuine
+  persisted run, both `collection_run_state_invalid`. Negative cases also
+  failed while constructing their valid base; they are not separate Red claims.
+- After the correction: **17 passed in 8.88s**. The genuine snapshot test uses
+  production repositories and a real authenticated HTTP server. It verifies
+  history and the original cloud run status, retaining null start/report and
+  the captured reporting context. It makes no provider request and creates no
+  substitute financial data.
+- Broader contract, quota-policy, recovery-policy and genuine HTTP regression:
+  **73 passed in 7.22s**, zero skips.
+- Existing canonical `collection_guards`: **72 passed in 27.31s**. This remains
+  bounded guard evidence, not successful collection or full recovery acceptance.
+- Read-only installed browser probe at 08:29:46 UTC on `d985cc7`: Failed,
+  `collection_read_failed`, zero mutations. This is the pre-install Red.
+- Canonical `queued_expiry_history`: **17 passed in 5.44s**; runner selection
+  tests: **3 passed**. Missing genuine expiry remains a failed prerequisite.
+- Local quality passed: 803 formatted files, 742 typed files, zero import-boundary
+  violations, 101 compatible API operations, TypeScript and production build.
+  Initial quality attempts caught a long test line and generated source-hash
+  drift; formatting and the canonical generator resolved them. Wire schema
+  hash is unchanged. Documentation and M7 planning checks passed.
+
+The existing runner exposes the bounded genuine-history check:
+
+```sh
+python -m tools.automation.implementations.auto_m7 --lane technical --check queued_expiry_history
+```
+
+Its real snapshot must contain an actual expired run; absent evidence fails,
+never skips or substitutes data. It does not accept the full recovery check.
+The installed probe takes an exact installed revision and the original manual
+run ID, and performs only authenticated GETs and history navigation:
+
+```sh
+node frontend/tests/browser/m7/verify_collection_expiry.mjs <installed-40SHA> <existing-run-id>
+```
+
+Changed files: collection contract, budget contract tests, genuine snapshot/HTTP
+test, canonical runner/selection test, read-only browser probe, contract register,
+delivery worksheet and this evidence. Follow-up: verify the same failed run on
+the installed candidate, publish/verify that revision, and continue independent
+T013 work. Successful manual seven-day collection remains a separate open item.

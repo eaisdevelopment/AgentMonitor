@@ -15,6 +15,18 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
+**Immediate repair within T007:** the real seven-day manual run expired before
+dispatch on 12 November. Its persisted `collection_queued_expired` outcome has
+no start time or duration, but the run reader rejects that legitimate state;
+run status and collection history consequently return 503. Add a failing
+regression, admit precisely the truthful pre-dispatch expiry, and verify the
+same existing run and history return readable outcomes after installation.
+Do not manufacture a start time, recollect to hide the failure, or count this as
+successful seven-day provider collection. This is batch 1's existing recovery
+scope, not a new ticket or owner prerequisite.
+The [repair evidence](../../evidence/m7-queued-expiry-history-2026-11-12.md)
+records the genuine Red and local Green; installation remains separate.
+
 **Next independent delivery:** the first-source history chart and rate-only
 calculation in T013. Billing disconnect/local cleanup and status-to-financial
 refresh are installed and published at `d985cc7`; their
@@ -59,7 +71,7 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 |---|---|---|
 | Installed implementation | `d985cc7`, schema `v1_0734`; local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
 | Public code | GitHub implementation `d985cc7`, independently verified | Later documentation-only receipts do not change installed code |
-| Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Seven-day manual success remained rate-limited before POST; monetary reports and remaining provider matrix |
+| Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Later seven-day probe made one POST; the queued run expired before dispatch and its status/history read failed. Successful seven-day manual collection, monetary reports and remaining provider matrix are unproved |
 | Browser reliability | Actual installed concurrent Overview/setup/cloud reads passed; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Monetary totals, full accessibility and final acceptance |
 | Source access | Read-only installed inventory at 08:11:53 UTC, 12 November: zero Anthropic/OpenAI billing connections, stored bindings or enabled billing connections | Subscription logins do not prove billing access; absence is not a provider denial |
 | Tracker | 2 done, 11 in progress, 3 planned | Counts are not percentage complete |
@@ -172,6 +184,10 @@ Callable now on `python3 -m tools.automation.implementations.auto_m7` with its
 admitted tool context: `--lane pure`, `mutation`, `registry_metadata`,
 `persistence_schema`; `--lane technical --check collection_guards` or
 `budget_http_guards`; `--lane browser --check owner_pool_controls`. The new
+bounded `--lane technical --check queued_expiry_history` reads an actual expired
+run from a private genuine snapshot through SQLite and authenticated HTTP;
+it does not substitute for full recovery or successful seven-day collection.
+The
 `--lane browser --check source_history` runs genuine retained-report HTTP and
 built-browser discovery in isolation; full monetary/detail-history acceptance
 remains separate.

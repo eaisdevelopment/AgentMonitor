@@ -150,6 +150,10 @@ BUDGET_HTTP_GUARD_TARGETS = (
     "backend/tests/integration/api/test_billing_monitoring_http.py",
 )
 GUARD_SCOPES = {
+    "queued_expiry_history": (
+        "genuine stored queued-expiry SQLite and authenticated HTTP reads; "
+        "no provider request or full recovery acceptance"
+    ),
     "collection_guards": (
         "pure scheduling/retry policy and real no-credential SQLite/worker guards; "
         "no successful provider collection or report commit claim"
@@ -248,6 +252,10 @@ def _run_pytest(name: str, targets: tuple[str, ...]) -> CheckResult:
 def execute_guard(check: str) -> LaneResult:
     """Execute one explicit partial boundary without accepting its parent check."""
     targets = {
+        "queued_expiry_history": (
+            "backend/tests/contracts/test_budget_run_contract.py",
+            "backend/tests/live/ollama/test_budget_queued_expiry_history.py",
+        ),
         "collection_guards": COLLECTION_GUARD_TARGETS,
         "budget_http_guards": BUDGET_HTTP_GUARD_TARGETS,
     }

@@ -255,3 +255,16 @@ It retires AgentMonitor authority before local cleanup, preserves history and
 does not revoke provider keys. The [maintenance handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#t002t011-local-disconnect-and-cleanup-handoff-12-november)
 and [bounded evidence](../evidence/m7-billing-maintenance-2026-11-12.md) distinguish
 real metadata/empty-file/browser verification from pending active-key evidence.
+
+### CTR-COL-002 2.7.0: readable budget expiry before dispatch
+
+M04's `BudgetCollectionRunViewV1` accepts the existing recovery writer's precise
+`failed` / `collection_queued_expired` terminal outcome with no start, duration,
+payload, facts or report, and completion at or after the admission deadline.
+M04 SQLite, P01 collection history and cloud usage status consume this compatible
+read correction. Quota run validation and all dispatched/committed invariants
+remain unchanged. No wire field, migration, provider request, credential or
+dependency is added. This is approved T007 recovery work under focused M7 1.1.0.
+Pure invalid-state tests and a private snapshot of the genuine expired run
+must prove truthful repository/HTTP reads; the installed existing run must then
+be reread without recollection. Expiry is not successful provider collection.

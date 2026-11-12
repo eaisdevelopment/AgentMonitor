@@ -13,7 +13,9 @@ from tools.automation.implementations.auto_m7 import validate_selection
 ROOT = Path(__file__).resolve().parents[3]
 
 
-@pytest.mark.parametrize("check", ("collection_guards", "budget_http_guards"))
+@pytest.mark.parametrize(
+    "check", ("collection_guards", "budget_http_guards", "queued_expiry_history")
+)
 def test_guard_selection_is_narrow_and_needs_no_deployment_revision(check: str) -> None:
     """Pure selection policy: guards belong only to the technical lane."""
     validate_selection("technical", check, None)

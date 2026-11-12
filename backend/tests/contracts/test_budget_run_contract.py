@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from agentmonitor.contracts import collection_control_v1 as contracts
@@ -149,3 +150,66 @@ def test_nonempty_report_also_needs_report_identity() -> None:
     current = replace(_run(), observation_ids=(OpaqueIdV1("fact"),))
     with pytest.raises(ValueError):
         replace(current, report_id=None)
+
+
+def _expired_run() -> contracts.BudgetCollectionRunViewV1:
+    current = _run()
+    return replace(
+        current,
+        state="failed",
+        started_at=None,
+        completed_at=current.deadline_at,
+        duration_ms=None,
+        payload_digest=None,
+        outcome_code="collection_queued_expired",
+        error_code="collection_queued_expired",
+        report_id=None,
+    )
+
+
+def test_budget_expired_before_dispatch_has_no_invented_execution() -> None:
+    current = _expired_run()
+    assert current.state == "failed"
+    assert current.started_at is None
+    assert current.duration_ms is None
+    assert current.report_id is None
+    assert current.observation_ids == ()
+    assert current.completed_at == current.deadline_at
+    assert replace(current, completed_at=current.deadline_at + timedelta(seconds=7))
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"completed_at": None},
+        {"completed_at": datetime(2026, 11, 11, tzinfo=UTC)},
+        {"duration_ms": 0},
+        {"payload_digest": "a" * 64},
+        {"observation_ids": (OpaqueIdV1("fact"),)},
+        {"report_id": OpaqueIdV1("report")},
+        {"state": "succeeded"},
+        {"state": "blocked"},
+        {"outcome_code": "different"},
+        {"error_code": "different"},
+        {"outcome_code": "provider_failed", "error_code": "provider_failed"},
+    ],
+)
+def test_predispatch_expiry_cannot_imply_execution_or_success(
+    change: dict[str, Any],
+) -> None:
+    current = _expired_run()
+    with pytest.raises(contracts.InvalidCollectionControlV1):
+        replace(current, **change)
+
+
+def test_budget_expiry_does_not_relax_quota_run_validation() -> None:
+    from dataclasses import fields
+
+    current = _expired_run()
+    with pytest.raises(contracts.InvalidCollectionControlV1):
+        contracts.CollectionRunViewV1(
+            **{
+                field.name: getattr(current, field.name)
+                for field in fields(contracts.CollectionRunViewV1)
+            }
+        )

@@ -1490,12 +1490,16 @@ class CollectionRunViewV1(TechnicalValueV1):
                 and _SAFE_CODE.fullmatch(self.error_code) is not None
                 and not self.observation_ids
             )
+            or self._expired_before_dispatch()
         )
         if not valid:
             raise InvalidCollectionControlV1("collection_run_state_invalid")
 
     def _has_commit_evidence(self) -> bool:
         return bool(self.observation_ids)
+
+    def _expired_before_dispatch(self) -> bool:
+        return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -1931,8 +1935,22 @@ class CloudBudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
 class BudgetCollectionRunViewV1(CollectionRunViewV1):
     """Successful billing coverage has a report even when it contains no facts."""
 
-    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     report_id: OpaqueIdV1 | None
+
+    def _expired_before_dispatch(self) -> bool:
+        """Recovery closes queued budgets without inventing provider execution."""
+        return (
+            self.state == "failed"
+            and self.outcome_code == self.error_code == "collection_queued_expired"
+            and self.started_at is None
+            and self.duration_ms is None
+            and self.completed_at is not None
+            and self.completed_at >= self.deadline_at
+            and self.payload_digest is None
+            and not self.observation_ids
+            and self.report_id is None
+        )
 
     def _has_commit_evidence(self) -> bool:
         return isinstance(self.report_id, OpaqueIdV1)
