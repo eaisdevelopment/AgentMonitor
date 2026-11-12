@@ -312,3 +312,11 @@ and retained reports stay unchanged; retired credentials and old access checks
 do not regain authority. Reconnect requires no active/pending credential. P02
 then exposes the existing local setup command and Check workflow. See the
 [bounded reconnect evidence](../evidence/m7-billing-reconnect-2026-11-12.md).
+
+CTR-REG-014 1.8.0 adds locked owner-local disconnect: exact account/resource,
+connection/scope/binding versions and account/root lease fence one revocation
+transaction. M02 retires bindings and disconnects billing atomically; composition
+holds that lock through managed-file cleanup. Failed deletion stays recorded;
+archive retains its existing reason. Optional command descriptors are read-only
+instructions, not access or deletion proof. See the
+[maintenance evidence](../evidence/m7-billing-maintenance-2026-11-12.md).

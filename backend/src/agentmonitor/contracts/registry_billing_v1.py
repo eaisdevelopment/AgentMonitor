@@ -11,7 +11,9 @@ from agentmonitor.contracts.common_v1 import (
     TechnicalValueV1,
 )
 from agentmonitor.contracts.registry_v1 import (
+    AccountCredentialLockLeaseV1,
     ActiveCredentialBindingRefV1,
+    CredentialBindingAggregateV1,
     RegistryLifecycleV1,
 )
 
@@ -255,6 +257,38 @@ class BillingLocalSetupPortV1(Protocol):
     def describe(
         self, status: AccountBillingConnectionsV1
     ) -> BillingLocalSetupV1 | None: ...
+
+    def maintenance(
+        self, status: AccountBillingConnectionsV1
+    ) -> "BillingLocalMaintenanceV1 | None": ...
+
+
+@dataclass(frozen=True, slots=True)
+class BillingLocalMaintenanceV1(TechnicalValueV1):
+    """Nonsecret local action commands; never a claim of completed revocation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.8.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    host_label: str
+    disconnect_command: str | None
+    cleanup_command: str | None
+
+
+class BillingCredentialMaintenancePortV1(Protocol):
+    """M02 atomic revocation; caller holds the lock through local secret cleanup."""
+
+    def disconnect_billing_locked(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        *,
+        expected_account_version: int,
+        expected_connection_version: int,
+        expected_scope_generation: int,
+        expected_record_version: int,
+        lock_lease: AccountCredentialLockLeaseV1,
+    ) -> CredentialBindingAggregateV1: ...
 
 
 BillingAccessPurposeV1 = Literal["verification", "monitoring"]

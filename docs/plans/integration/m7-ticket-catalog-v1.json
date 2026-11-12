@@ -110,7 +110,8 @@
         "docs/evidence/m7-financial-pools-2026-11-12.md",
         "docs/evidence/m7-account-resource-layout-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
-        "docs/evidence/m7-billing-reconnect-2026-11-12.md"
+        "docs/evidence/m7-billing-reconnect-2026-11-12.md",
+        "docs/evidence/m7-billing-maintenance-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -547,7 +548,8 @@
         "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
         "docs/evidence/m7-overview-query-reliability-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
-        "docs/evidence/m7-billing-reconnect-2026-11-12.md"
+        "docs/evidence/m7-billing-reconnect-2026-11-12.md",
+        "docs/evidence/m7-billing-maintenance-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -560,7 +562,7 @@
         "Retain installed current/account/Overview queries, funds projection, full-inventory account/organization/state sorting, compact DTOs, pinned daily-history paging and older-window selection. Add Red for remaining cases only; generate all changed API/client surfaces from typed contracts.",
         "Compose M02 authorized metadata, M04 selected-context run status and M05 exact report/funds through public ports. Distinguish report coverage from absent money: complete counts-only/unknown-currency coverage is not Incomplete solely because spend is None. Keep collection failure and original source times visible.",
         "Resolve current lineage from active authority and fence concurrent changes; confirmed compatible pools may select one eligible current report across access paths. Old binding/scope evidence is explicit history only. Publish opaque financial context rather than credential identifiers.",
-        "Complete authorized prior-scope report metadata discovery in Source history. Preserve original scope/epoch, immutable report and exact interval across pages/links; reject cross-resource selectors and report expiry without silent substitution. History GET never collects. Historical-scope collection is disabled; Latest completed window returns to current scope without collecting.",
+        "Retain installed CTR-CAP-006 2.9.0 prior-scope report discovery and finish its genuine monetary comparisons. Preserve original scope/epoch, immutable report and exact interval across pages/links; reject cross-resource selectors and report expiry without silent substitution. History GET never collects. Historical-scope collection is disabled; Latest completed window returns to current scope without collecting.",
         "Keep funds-only resources visible using actual cloud pools and timestamps/reasons. Existing fund fields are source-reported; calculated headroom additionally requires explicit compatible scope/period/currency/basis/enforcement and input-report lineage. Without those, show the observed limit and unavailable headroom. Backend supplies exact percentages/low flags; cost alone never supplies funds. This does not delay spend/history.",
         "Prove one registry snapshot for full-filter compatible summaries, canonical-pool primary attribution, exclusions and deterministic server sort/cursors. Select the contributing authorized report tuple before group filtering; primary-only, secondary-only and combined filters count once.",
         "Keep cutoff, read as_of and live status separate. Only a successful matching action advances the financial snapshot and replaces report/total/history together; failure retains facts, a different selection retains its own status. Compact list DTOs omit bodies; bounded history retains exact units. Direct admitted 7/30-day reports suffice; no generic interval assembler.",
@@ -613,7 +615,8 @@
         "docs/evidence/m7-delivery-plan-clarification-2026-11-12.md",
         "docs/evidence/m7-account-resource-layout-2026-11-12.md",
         "docs/evidence/m7-billing-scope-edit-2026-11-12.md",
-        "docs/evidence/m7-billing-reconnect-2026-11-12.md"
+        "docs/evidence/m7-billing-reconnect-2026-11-12.md",
+        "docs/evidence/m7-billing-maintenance-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -629,7 +632,7 @@
         "Keep original same-context values during refresh and failed replacement; replace report/amount/history atomically on success. Clear current values for changed account/resource/scope/period/unresolved lineage. Complete counts-only coverage displays Cost not reported, not false Partial or zero.",
         "Reconcile original Check/Collect intent and uncertain mutations without retargeting or automatic replay. Only successful completion matching the current resource/authority/category/grouping/interval advances as_of; failure preserves facts and another window completion updates its own status. Render actual cooldown/eligibility and distinguish balance Check from usage collection.",
         "Finish direct URL, Back/reload, safe sign-in return and expired-selection evidence with current shell. Preserve allowlisted financial/resource/filter/sort selectors; no new router or automatic action replay. Previous/Next/width keep snapshot, Refresh keeps interval, Latest moves cutoff. Preserve admitted category/dimension identity even before a report exists; changing it clears incompatible report/cursor selection but never changes a pending request.",
-        "Exercise partial-versus-complete retained reports, failed later pages, conflicts, setup/empty/offline/access states where real state permits; pure rules never substitute for live cases. Check keyboard, 200% zoom, required widths, long labels and LAN command-copy fallback; installed proof remains T014.",
+        "Exercise partial-versus-complete retained reports, failed later pages, conflicts, setup/empty/offline/access states where real state permits; pure rules never substitute for live cases. Check keyboard, 200% zoom, required widths, long labels and LAN command-copy fallback; installed proof remains T014. Distinguish transient retry from 400 invalid_cursor: Restart history pages rereads page one for the same report/resource/period/as_of and replaces retained rows/chart only on success. A missing report uses selection-unavailable recovery; never force a latest report merely because continuation failed.",
         "Prove API-origin to mixed-resource account transition: active published capabilities determine sections; creation purpose is only pending fallback. Retain both independent control sets and truthful missing organization-name state. Use genuine isolated registry transitions; no owner-account reconfiguration or invented telemetry."
       ]
     },
@@ -732,11 +735,11 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Start independent pure math and first-history chart work without waiting for inaccessible providers. Final coverage still includes the finite supported matrix. Red tests cover wrong signs/units/coverage, missing inputs and forecast anchoring.",
+        "Start independent pure math and first-history chart work from existing immutable-history contracts after the current integration packet, without waiting for inaccessible providers. depends_on constrains ticket closure, not the start of this independent packet. Final coverage still includes the finite supported matrix. Red tests cover wrong signs/units/coverage, missing inputs and forecast anchoring.",
         "Publish admitted source/category plus one supported dimension and native unit through versioned adapter/P01 surfaces; P02 does not hardcode provider support. Selection reads stored data; explicit collection uses T007 exact context. No Cartesian query builder.",
-        "Use the same loaded immutable daily facts for table/chart; label unloaded pages as More history available, not zero/source gaps. Failed pages preserve both. Daily monetary aggregation belongs to M05. Reconcile matching complete breakdown totals/reported remainder without inventing Other or agent attribution.",
+        "Use the same loaded immutable daily facts for table/chart; label unloaded pages as More history available, not zero/source gaps. Failed pages preserve both. M05 aggregates only proven-disjoint facts once per UTC day; three model rows from one day are not three days of rate history, and total-plus-components are not added. Reconcile matching complete breakdown totals/reported remainder without inventing Other or agent attribution. Balance series uses separate genuine capacity-history observations per fund component, with exact amounts, identity and original times; version only missing safe snapshot/selector fields before its consumer. Do not manufacture history from current funds. The first cost/usage chart does not wait for balance-series integration.",
         "Implement only budget-observed-rate-v1/1.0.0 as specified in calculation section6: bounded contiguous exact monetary history, separate rate/date availability, input IDs and source/funds freshness. Query-time only; no forecast persistence/events or price estimation. Independent history-page size does not change financial identity: pin selected scope/epoch/currency/basis, state actual sample bounds and reject incompatible new-scope funds for an old-scope forecast.",
-        "Run M7-MATH-03/09/15/16 and associated component cases: signed adjustments/gaps/zero/expiry/renewal/unknown allocation, at least three qualifying buckets, pinned funds/as_of cutoff, seven-day horizon and unchanged-input reload. Real absent inputs show a reason; numeric live evidence is conditional.",
+        "Run M7-MATH-03/09/10/15/16 and associated component cases: signed adjustments/gaps/zero/expiry/renewal/unknown allocation, at least three complete consecutive daily buckets, eligible funds cutoff or rate-only as_of fallback for absent/stale/incompatible funds, seven-day horizon and unchanged-input reload. Three days with two disjoint 1 USD rows each produce 2 USD/day; one day with three rows remains insufficient. Real absent inputs show a reason; numeric live evidence is conditional.",
         "M05 implements bounded 365-day report/fact retention with referenced-fact preservation; M08 invokes its public participant using existing scheduler. Verify genuine report expiry/cursor expiry with explicit future cutoff on isolated SQLite; no seeded old telemetry or host clock change.",
         "Integrate detail_history/persistence/HTTP/pure/mutation checks with T003 and recheck installed retention invocation in T014/T015. Charts, supported breakdowns and conditional forecast remain required M7 scope; no analytics framework."
       ]

@@ -200,6 +200,12 @@ class BillingLocalSetupV1(_ClosedV1):
     command: str
 
 
+class BillingLocalMaintenanceV1(_ClosedV1):
+    host_label: str
+    disconnect_command: str | None
+    cleanup_command: str | None
+
+
 class AccountBillingConnectionsV1(_ClosedV1):
     account_id: str
     provider_key: str
@@ -214,3 +220,4 @@ class AccountBillingConnectionsV1(_ClosedV1):
         "Stored records completion of local entry, not provider verification.",
     )
     local_setup: BillingLocalSetupV1 | None = None
+    local_maintenance: BillingLocalMaintenanceV1 | None = None

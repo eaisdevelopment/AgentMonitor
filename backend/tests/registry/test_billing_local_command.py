@@ -30,3 +30,24 @@ def test_local_command_preserves_selected_root_and_leading_dash_ids(root: str) -
 def test_local_command_rejects_unusable_directory_text(root: str) -> None:
     with pytest.raises(ValueError, match="billing_setup_data_root_invalid"):
         billing_local_command(root, OpaqueIdV1("account"), OpaqueIdV1("resource"))
+
+
+@pytest.mark.parametrize("action", ["disconnect", "cleanup"])
+def test_local_maintenance_action_is_explicit_and_keeps_exact_selectors(
+    action: str,
+) -> None:
+    command = billing_local_command(
+        "/srv/space and 'quote'",
+        OpaqueIdV1("-account"),
+        OpaqueIdV1("-resource"),
+        action=action,
+    )
+    arguments = command.split(
+        "agentmonitor.composition.billing_credential_operator ", 1
+    )[1]
+    assert shlex.split(arguments) == [
+        "--data-root=/srv/space and 'quote'",
+        "--account-id=-account",
+        "--resource-id=-resource",
+        "--action=" + action,
+    ]

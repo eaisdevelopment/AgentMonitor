@@ -7,6 +7,7 @@ import resource
 import warnings
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 
 from agentmonitor.adapters.credential_env.format import CredentialProviderKey
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
@@ -125,6 +126,78 @@ def enroll_billing_credential(
         provider_key=provider,
         target_current=target_current,
     )
+
+
+def require_billing_maintenance_target(
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    *,
+    expected: AccountBillingConnectionsV1 | None = None,
+) -> AccountBillingConnectionsV1:
+    """Cleanup remains possible after archive/disconnect, only for this resource."""
+    status = SqliteBillingConnectionRepositoryV1(reference).get(account_id)
+    if (
+        status is None
+        or status.provider_key not in {"claude", "codex"}
+        or len(status.connections) != 1
+        or status.connections[0].resource_id != resource_id
+    ):
+        raise EnrollmentError("billing_credential_target_unavailable")
+    if expected is not None:
+        _require_same_billing_target(expected, status)
+    return status
+
+
+def maintain_billing_credential(
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    env_path: Path,
+    *,
+    action: Literal["disconnect", "cleanup"],
+    selection_current: Callable[[], bool],
+    expected: AccountBillingConnectionsV1 | None = None,
+) -> None:
+    """Revoke before cleanup; a deletion failure never restores access."""
+    if action not in {"disconnect", "cleanup"}:
+        raise EnrollmentError("billing_credential_action_invalid")
+    _disable_core_dumps()
+    with account_credential_lock(reference, account_id) as lease:
+        captured = require_billing_maintenance_target(
+            reference, account_id, resource_id, expected=expected
+        )
+        if not selection_current():
+            raise EnrollmentError("credential_selection_changed")
+        repository = SqliteCredentialBindingsV1(reference)
+        if action == "disconnect":
+            state = repository.read(account_id)
+            selected = captured.connections[0]
+            repository.disconnect_billing_locked(
+                account_id,
+                resource_id,
+                expected_account_version=captured.account_record_version,
+                expected_connection_version=selected.record_version,
+                expected_scope_generation=selected.scope_generation,
+                expected_record_version=state.record_version,
+                lock_lease=lease,
+            )
+
+        def cleanup_current() -> bool:
+            lease.inherited_lock(account_id)
+            current = require_billing_maintenance_target(
+                reference, account_id, resource_id
+            )
+            return current.provider_key == captured.provider_key and selection_current()
+
+        _cleanup_pending(
+            env_path,
+            repository,
+            account_id,
+            reference._approved_root,
+            provider_key="claude" if captured.provider_key == "claude" else "codex",
+            selection_current=cleanup_current,
+        )
 
 
 def _require_credential_provider(
@@ -336,11 +409,18 @@ def _cleanup_pending(
     staging_root: Path,
     *,
     provider_key: CredentialProviderKey = "ollama",
+    selection_current: Callable[[], bool] | None = None,
 ) -> None:
+    def require_current_selection() -> None:
+        if selection_current is not None and not selection_current():
+            raise EnrollmentError("credential_selection_changed")
+
+    require_current_selection()
     state = repository.read(account_id)
     for item in state.bindings:
         if item.lifecycle != "cleanup_pending":
             continue
+        require_current_selection()
         if provider_key == "ollama":
             update_ollama_env(
                 env_path, item.binding_id.value, None, staging_root=staging_root
@@ -353,12 +433,14 @@ def _cleanup_pending(
                 provider_key=provider_key,
                 staging_root=staging_root,
             )
+        require_current_selection()
         state = repository.transition_locked(
             account_id,
             action="cleanup",
             binding_id=item.binding_id,
             expected_record_version=state.record_version,
         )
+    require_current_selection()
     release_env_location_if_unused(
         staging_root,
         env_path,

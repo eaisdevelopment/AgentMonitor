@@ -44,6 +44,16 @@
             ],
             "description": "Local entry lifecycle; null means not queried/not applicable. Stored records completion of local entry, not provider verification."
           },
+          "local_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingLocalMaintenanceV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "local_setup": {
             "anyOf": [
               {
@@ -2296,6 +2306,44 @@
           "cleanup_required"
         ],
         "title": "BillingCredentialStatusV1",
+        "type": "object"
+      },
+      "BillingLocalMaintenanceV1": {
+        "additionalProperties": false,
+        "properties": {
+          "cleanup_command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleanup Command"
+          },
+          "disconnect_command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disconnect Command"
+          },
+          "host_label": {
+            "title": "Host Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "host_label",
+          "disconnect_command",
+          "cleanup_command"
+        ],
+        "title": "BillingLocalMaintenanceV1",
         "type": "object"
       },
       "BillingLocalSetupV1": {
@@ -33890,7 +33938,7 @@
     "generator_sha256": "47533b6d33c6db5be548974d68967f4dc4a6e7a630ec59b9fdd0a97500b85c4f",
     "generator_version": "2.0.13",
     "openapi_version": "3.1.0",
-    "schema_sha256": "fda3db6003bc1937dc2bac8b1c39570130d5651965768dd438db3e9d6cd6e6e7",
-    "source_sha256": "d82937b140318822fa383554ee2f69e61b8e7573cbecd901df160b4901545661"
+    "schema_sha256": "1628551e334f778021e6159566f8798c4723c52a87ef0b90bada07a156eef161",
+    "source_sha256": "fa008fcf5e58321744669bb35d62dc2303ee35ada5a091c1322bfa7ddf9b5175"
   }
 }

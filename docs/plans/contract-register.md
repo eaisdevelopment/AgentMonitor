@@ -248,3 +248,10 @@ Additive CTR-REG-014 1.7.0 publishes explicit restored-account reconnect through
 the existing billing port, with account/connection/scope fencing and replay
 protection. It reopens only metadata, never retired credentials or access proof;
 see the [current handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#t002t010t011-restored-billing-connection-handoff-12-november).
+
+Additive CTR-REG-014 1.8.0 publishes locked local billing disconnect and optional
+host-local disconnect/cleanup command descriptors on the existing status GET.
+It retires AgentMonitor authority before local cleanup, preserves history and
+does not revoke provider keys. The [maintenance handoff](modules/m05-capacity/m7-budget-increment-2026-11-11.md#t002t011-local-disconnect-and-cleanup-handoff-12-november)
+and [bounded evidence](../evidence/m7-billing-maintenance-2026-11-12.md) distinguish
+real metadata/empty-file/browser verification from pending active-key evidence.

@@ -124,6 +124,15 @@ fails, report it without claiming the old key was removed. The owner need not
 recreate the account. T007 completes Check connection → Enable API monitoring
 → Waiting for first reading; T014 proves the installed command/host journey.
 
+**Disconnect or clean up local credentials** contains the published host-local
+commands. Disconnect stops AgentMonitor's billing access before cleanup and
+preserves history; it does not revoke the provider key. Cleanup retries only
+recorded retired entries, including for archived accounts, and leaves an active
+replacement key alone. Commands remain selectable when clipboard permission is
+unavailable. Displaying or copying one never claims it executed. Refresh billing
+status reads the actual result; successful changed authority must also invalidate
+the current financial view, while a failed read retains prior facts and times.
+
 ## 3. Overview: compact, understandable rows
 
 Keep subscription quotas and API billing as two labeled sections with one
@@ -279,9 +288,9 @@ The installed history table uses server-paged daily facts from a pinned report:
 period, exact amount/currency, coverage and report provenance. Retain that query,
 authorized report selection and explicit cursor/expiry behavior. The existing
 `list_reports` query describes report revisions, not a daily-spend series;
-revisions belong in expandable Source history. Remaining work extends these
-installed components to prior-scope discovery and genuine monetary acceptance,
-not another pagination implementation. The
+revisions belong in expandable Source history. Prior-scope discovery is already
+installed under CTR-CAP-006 2.9.0; retain it and extend genuine monetary and
+naturally available prior-scope verification. The
 financial detail identity resolves to the canonical billing resource; each
 current financial context supplies its immutable report ID. History and its
 pages stay on that report until explicit refresh. If retention removed it,
@@ -326,6 +335,19 @@ and returns to the current resource scope; it still does not collect. Never
 submit current credentials for the old scope merely because its report is open.
 Use existing lists/controls, without a calendar or report-builder dependency.
 
+History recovery distinguishes transport failure, rejected continuation and a
+missing retained report. A transient error retries the same page. For
+`400 invalid_cursor`, offer **Restart history pages**: request page one with the
+same account/resource/report/period/`as_of`, without the rejected cursor. Keep
+the old rows and chart, visibly marked, until the replacement succeeds; replace
+them together rather than append duplicates. This is a read, not Collect or
+Refresh view. If the report itself is no longer available, retain the explicit
+selection-unavailable message and let the owner choose another retained report
+or Latest completed window. Do not retry a permanently rejected cursor forever
+or silently replace the selected report with the latest one. T010/T011 cover
+the real rejected-cursor HTTP response and built recovery within existing
+history checks; no pagination framework is required.
+
 Start with the exact table in the first usable slice; chart and forecast arrive
 in the later M7 enhancement slice. They are still required before M7 closes.
 Keep source/diagnostic detail out of the primary table unless it explains a state.
@@ -340,6 +362,17 @@ That independence concerns pagination, not identity: a forecast stays in the
 selected report's financial scope/epoch and states its actual sample interval.
 Current funds from a different epoch cannot supply its exhaustion date without
 established compatibility. Historical rate/estimate labels remain historical.
+
+The first chart uses existing cost/usage report history, with separate units.
+Balance snapshots are a separate input: reuse the versioned capacity-history
+query for each authorized resource/fund component, exact currency and observation
+identity/time. T010/T013 must publish any missing safe selector through the
+existing API before P02 consumes it; do not infer a balance time series from
+spend, the current funds card or repeated page loads. Included/purchased credits
+stay separate. Balance-series delivery does not block the first cost chart.
+Each plotted point has the same exact observation in its accessible table;
+unknown intervals remain gaps. This is a bounded history projection, not a
+new financial storage system.
 
 Usage breakdown has one source/category selector followed by one supported
 dimension selector. Adapters/P01 publish the admitted combinations, native units

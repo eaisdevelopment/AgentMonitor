@@ -202,6 +202,16 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
             assert str(tmp_path) in setup["command"]
             assert "agentmonitor-dashboard.service" in setup["command"]
             assert "/worktrees/" not in setup["command"]
+            maintenance = json.loads(listed[2]).get("local_maintenance")
+            assert maintenance is not None, "billing_local_maintenance_missing"
+            assert maintenance["host_label"] == setup["host_label"]
+            assert maintenance["cleanup_command"] is None
+            assert "--action=disconnect" in maintenance["disconnect_command"]
+            assert "--account-id=" + account_id in maintenance["disconnect_command"]
+            assert (
+                "--resource-id=" + connected["resource_id"]
+                in maintenance["disconnect_command"]
+            )
             unchanged = await asyncio.to_thread(
                 _request,
                 origin,

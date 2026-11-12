@@ -6,6 +6,7 @@ from pathlib import Path
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import (
     AccountBillingConnectionsV1,
+    BillingLocalMaintenanceV1,
     BillingLocalSetupV1,
 )
 
@@ -21,19 +22,31 @@ _INSTALLED_ENTRY = (
 
 
 def billing_local_command(
-    data_root: str, account_id: OpaqueIdV1, resource_id: OpaqueIdV1
+    data_root: str,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    *,
+    action: str = "store",
 ) -> str:
     """Quote complete arguments; leading '-' IDs cannot become CLI flags."""
     if not Path(data_root).is_absolute() or any(
         ord(character) < 32 or ord(character) == 127 for character in data_root
     ):
         raise ValueError("billing_setup_data_root_invalid")
+    if action not in {"store", "disconnect", "cleanup"}:
+        raise ValueError("billing_credential_action_invalid")
     arguments = (
         "--data-root=" + data_root,
         "--account-id=" + account_id.value,
         "--resource-id=" + resource_id.value,
     )
-    return _INSTALLED_ENTRY + " " + shlex.join(arguments)
+    return (
+        _INSTALLED_ENTRY
+        + " "
+        + shlex.join(
+            arguments if action == "store" else (*arguments, "--action=" + action)
+        )
+    )
 
 
 class InstalledBillingLocalSetupV1:
@@ -58,5 +71,48 @@ class InstalledBillingLocalSetupV1:
             host_label=self._host_label,
             command=billing_local_command(
                 self._data_root, status.account_id, status.connections[0].resource_id
+            ),
+        )
+
+    def maintenance(
+        self, status: AccountBillingConnectionsV1
+    ) -> BillingLocalMaintenanceV1 | None:
+        if (
+            status.provider_key not in {"claude", "codex"}
+            or len(status.connections) != 1
+        ):
+            return None
+        connection = status.connections[0]
+        disconnect = (
+            status.account_lifecycle != "archived"
+            and connection.lifecycle in {"pending", "active"}
+        )
+        cleanup = (
+            status.credential_status is not None
+            and status.credential_status.cleanup_required
+        )
+        if not disconnect and not cleanup:
+            return None
+        return BillingLocalMaintenanceV1(
+            host_label=self._host_label,
+            disconnect_command=(
+                billing_local_command(
+                    self._data_root,
+                    status.account_id,
+                    connection.resource_id,
+                    action="disconnect",
+                )
+                if disconnect
+                else None
+            ),
+            cleanup_command=(
+                billing_local_command(
+                    self._data_root,
+                    status.account_id,
+                    connection.resource_id,
+                    action="cleanup",
+                )
+                if cleanup
+                else None
             ),
         )

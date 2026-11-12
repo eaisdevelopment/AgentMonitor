@@ -138,10 +138,14 @@ states, sorting, controls, pagination, responsive and accessibility behavior.
 
 ## 4. Delivery slices and checkpoints
 
-Ticket dependencies express prerequisites, not permission to hide all UI until
-all backend work is finished. Each slice ends with the indicated running result.
+These are delivery stages, not five serial implementation barriers. The
+[worksheet](m7-delivery-worksheet-2026-11-11.md#2-one-remaining-delivery-sequence)
+alone owns current work order. Catalog dependencies constrain ticket closure;
+its steps name smaller handoffs that allow independent work to start. In
+particular T013's math and first-source chart can start before all provider
+tickets close. Each stage ends with the indicated running result.
 
-| Slice | Tickets in execution order | Demonstration / exit |
+| Slice | Contributing tickets | Demonstration / exit |
 |---|---|---|
 | S0: known prerequisites | T001; start T003; T004 exactness; T002 owner setup | Plan/contract freeze, scoped test commands, tested setup UI; known access needs identified once |
 | S1: first usable dashboard | First available provider T006/T008/T009 → T005 → T007 → T010 → T011 → T012; T014 deployment | One existing or newly owner-configured resource goes through collection, exact history table, Overview/detail and installed browser. No numeric-forecast prerequisite |
@@ -153,10 +157,10 @@ The installed Ollama increment already connects cloud-graph commit fencing,
 active-lineage spend selection and shared balance/usage rate coordination; its
 genuine report contains usage counts, not costs. Reuse that work and evidence.
 Those funds/usage are now visible on the installed Overview and detail.
-Retain the installed canonical pool attribution and OpenAI cost runtime. Next
-retain the installed manual billing controls/cooldown and context-aware status;
-complete source lifecycle, remaining Ollama manual verification and prior-scope report discovery while
-integrating the first accessible monetary lane, normally Anthropic or OpenAI.
+Retain the installed canonical pool attribution, OpenAI cost runtime, manual
+billing controls/cooldown, context-aware status and prior-scope report discovery.
+Outstanding source lifecycle, Ollama manual verification and monetary proof are
+ordered in the worksheet, normally using Anthropic or OpenAI for the first money.
 No provider is dropped
 from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first

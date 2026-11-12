@@ -129,6 +129,10 @@ try {
   requireEvidence(reconnectOperation?.operationId === "registry_reconnect_billing_connection_v1", "billing_reconnect_contract_missing");
   const reconnectInput = contract.components?.schemas?.ReconnectBillingConnectionInputV1;
   requireEvidence(reconnectInput?.additionalProperties === false && ["expected_account_version", "expected_scope_generation"].every(field => reconnectInput.required?.includes(field)), "billing_reconnect_contract_invalid");
+  const maintenanceInput = contract.components?.schemas?.BillingLocalMaintenanceV1;
+  requireEvidence(contract.components?.schemas?.AccountBillingConnectionsV1?.properties?.local_maintenance !== undefined
+    && maintenanceInput?.additionalProperties === false
+    && ["host_label", "disconnect_command", "cleanup_command"].every(field => maintenanceInput.required?.includes(field)), "billing_maintenance_contract_missing");
   checks.scope_contract = "passed";
 
   stage = "continuity";

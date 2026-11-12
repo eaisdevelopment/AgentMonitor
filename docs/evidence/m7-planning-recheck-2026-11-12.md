@@ -219,3 +219,50 @@ Validation for this consolidation:
 Saved locally in the M7 worktree. No installed/public revision changed and no
 production completion is claimed. The implementation goal remains unfinished;
 the worksheet names the next implementation packet and fixed completion scope.
+
+## Working-first refinement at f786ea0
+
+Planning review against committed `f786ea0`, preserving the separate uncommitted
+billing-maintenance candidate. Root checked the real daily-history UI, cursor
+error contract, capacity-history route and calculation handoff. Independent
+read-only M05 and P02 reviews found four concrete acceptance ambiguities:
+
+| Existing ticket / scenario | Clarified decision | Rejected alternative |
+|---|---|---|
+| T013, M7-MATH-03/10/15 | Count complete UTC days after proven-disjoint daily aggregation; multiple model rows are not multiple days | Duplicate duration or a rate from one day's rows |
+| T013, M7-MATH-03/15/16 | Ineligible funds use rate-only query cutoff; keep selected financial identity and omit exhaustion date | Stale or unrelated balance suppresses useful recent cost rate |
+| T010/T013, M7-UI-004 | Cost/usage chart uses report history; balance series reuses scoped capacity observations with a versioned snapshot handoff | Manufacture balance history from spend/current funds |
+| T010/T011, M7-UI-003/004 | Rejected continuation restarts the same report from page one; unavailable report is a different recovery | Retry invalid cursor forever or silently select latest |
+
+The worksheet now separates implementation-start inputs from ticket closure and
+keeps one integration packet in flight. Finish the existing candidate, prioritize
+the first monetary journey when access exists, otherwise advance independent
+first-source chart/rate work. UI acceptance travels with each packet. The
+execution-plan stage table no longer supplies a competing serial work order;
+stale prior-scope discovery instructions now retain the installed implementation.
+Catalog steps carry these decisions without new tickets, status changes,
+dependency edges, provider endpoints, acceptance IDs or repeated approval.
+
+Scope remains sixteen tickets/five stories/M7-A01..A10. No production change,
+live test, deployment, provider configuration, credential read, migration,
+dependency or license change was performed by this planning review. No new
+runtime contract version is published here. Proposed missing balance snapshot
+fields must use the existing producer/consumer synchronization before code.
+The current maintenance implementation and its separate test evidence predate
+this review; installed/public delivery of that candidate remains outstanding.
+
+Bounded follow-up review confirmed the UI changes and corrected one math phrase:
+enforcement evidence is required for limit-derived headroom, not for an
+authoritative cash balance's component-depletion estimate. No broader feature
+review or additional acceptance inventory was opened.
+
+Validation:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed; sixteen tickets,
+  five stories and ten acceptance items traced.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed; 396 Markdown files.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed; synchronized baseline.
+- `git diff --check`: Passed.
+
+Saved locally in the M7 worktree. These checks establish planning structure and
+references, not M7 completion, a new financial pass, deployment or publication.

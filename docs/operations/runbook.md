@@ -1386,6 +1386,21 @@ Provider logins and credentials remain separate. The
 [actual successful login record](../evidence/m6-dashboard-corrections-2026-11-04.md)
 documents HTTP 204 followed by an authenticated HTTP 200.
 
+### Disconnect API billing or retry local cleanup
+
+Open the account's **API billing setup** section and expand **Disconnect or
+clean up local credentials**. Copy the required command and run it on the
+displayed AgentMonitor host as the user running its service. The command already
+selects the account/resource; do not add keys or passwords to its arguments.
+
+**Disconnect** stops AgentMonitor API monitoring, retires its local credential
+bindings, then removes their managed entries. It retains history and does not
+revoke the key at the provider or touch subscription profiles. If removal cannot
+finish, access remains disconnected and **Cleanup required** stays visible.
+**Cleanup** retries only recorded retired entries, including after account
+archive; it does not disconnect an active replacement key. Copying either
+command does not execute it. Use **Refresh billing status** after running it.
+
 ### Restore an archived API billing account
 
 Open the account in **Accounts**, expand **Edit account** and choose **Restore

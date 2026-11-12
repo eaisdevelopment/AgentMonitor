@@ -99,6 +99,44 @@ not claim actual key deletion/replacement or successful provider access. Those
 remain distinct lifecycle acceptance within the same existing tickets. No
 schema, dependency, secret custody or provider-profile change is required.
 
+### T002/T011 local disconnect and cleanup handoff (12 November)
+
+Within the existing owner-local credential lifecycle, CTR-REG-014 1.8.0 adds
+`BillingCredentialMaintenancePortV1.disconnect_billing_locked` and a nullable
+`BillingLocalMaintenanceV1` descriptor to the existing billing-status GET.
+The descriptor carries only host label and copyable disconnect/cleanup commands.
+The installed operator accepts `--action=store|disconnect|cleanup`; omitted action
+retains store. This is the existing local entry point, not another HTTP writer,
+terminal launcher, account selector, job or secret custody mechanism.
+
+M02 validates the actual account lock lease, exact account/resource/provider
+relationship and captured account/connection/scope/binding versions in one
+transaction. It retires active/pending bindings with owner_disconnected reason
+and sets billing disconnected/disabled using existing invalidation machinery.
+The no-binding case still disconnects metadata; repeating a disconnected action
+does not advance generations. Scope, pool membership and report history remain.
+The shared archive helper retains account_archived semantics.
+
+Composition holds the same lock across capture, revocation and cleanup. It
+reuses the protected managed-env writer for recorded cleanup_pending entries,
+revalidating selected file authority before each removal. Failure after revocation
+never restores access and leaves cleanup outstanding. Cleanup permits archived
+or disconnected accounts, validates the selected resource/provider, and cannot
+prepare or activate a credential. Disconnect/cleanup print selected provider,
+account and group, accept no key argument and never ask for a replacement key.
+The owner executes the explicit action command locally; no extra attestation.
+
+P02 shows compact disconnect/cleanup instructions beside existing local setup,
+including the actual host and selectable command where clipboard is unavailable.
+Refresh billing status reconciles local completion. A returned command does not
+mean cleanup succeeded. Existing reconnect remains the route back to setup.
+Real SQLite/PTY/managed-empty-file tests prove metadata revocation and retry
+mechanics without inserting a made-up secret; actual stored-key deletion/rotation
+remains separately identified until genuine owner-supplied credentials exist.
+Built-browser tests verify visible action commands and state-specific availability.
+No migration, dependency, provider call, profile access or owner configuration
+change is authorized for the coding agent by this packet.
+
 ## 2. Actual source inventory and hazards
 
 - `capacity_v1.py` has a four-field reserved BudgetViewV1; preserve it and add
@@ -370,13 +408,18 @@ Counts-only evidence is not monetary verification or retention acceptance.
 
 GetBudgetForecastV1 queries bounded immutable facts and computes the documented
 observed-rate method; no stored forecast generation or new event consumer.
-Three complete compatible buckets over ≥24h, no unknown gaps or signed
-adjustments, at most 200 buckets from seven complete days. Cost sum divided by
+Three complete consecutive UTC daily buckets, no unknown gaps or signed
+adjustments, within the bounded seven-day sample. Reuse daily-history aggregation
+over proven-disjoint facts; count each day's duration once. Multiple model rows
+in one day do not satisfy the three-day minimum. Cost sum divided by
 covered duration; not subtraction of independent buckets. Authoritative compatible
 remaining/headroom is required for an as-of exhaustion estimate. Nonpositive remaining
 returns the observed zero/exceeded state with no calculated date. A zero rate
 means No consumption in the observed interval, with no exhaustion date. Missing
-funds/limits prevent a date but not an otherwise qualified observed rate. Rate and exhaustion have separate availability. Matching funds/cost coverage and source/funds freshness must be established
+funds/limits prevent a date but not an otherwise qualified observed rate. Stale,
+incompatible or unallocatable funds also use the rate-only query-cutoff sample,
+within the selected financial identity; they must not pin that rate to an old
+funds cutoff. Rate and exhaustion have separate availability. Matching funds/cost coverage and source/funds freshness must be established
 before a date is returned. When multiple funding components share a spending
 stream, individual depletion requires source-established allocation; recent retrieval alone is insufficient. The linked rules define
 rounding, horizons and renewal handling.
@@ -384,12 +427,11 @@ rounding, horizons and renewal handling.
 The existing report-history repository lists revisions for an exact requested
 interval. T010's installed CTR-CAP-006 2.8.0 supplies bounded daily-fact paging
 from a
-known immutable report; T013 reuses it for the chart. Remaining historical
-scope discovery needs a bounded authorized metadata query over retained reports
-(original scope epoch, interval, source, observation/collection times and report
-ID), consumed by Source history. Reuse existing report-list machinery; version
-the minimal additive query before implementation. Known-report paging alone
-does not discover old scopes. Revision rows are provenance, not additive spend.
+known immutable report; T013 reuses it for the chart. CTR-CAP-006 2.9.0 retained
+report discovery is installed; preserve the handoff above and its
+[genuine source-history evidence](../../../evidence/m7-source-history-2026-11-12.md).
+Remaining monetary reconciliation extends that path, not a second metadata
+query or history screen. Revision rows are provenance, not additive spend.
 Latest M04 run
 state is a separate query input: a failed run can have no M05 report. Current
 selection must consider every compatible revision within its declared query
@@ -398,6 +440,24 @@ bounds, not only a first history page; overflow stays explicit unavailable.
 Budget history/breakdowns are distinct from quota metrics; add ports, do not
 extend old enums silently. P01 carries exact values/report IDs and stable
 snapshot cursors; P02 charts/tables share those same values and gaps.
+
+Balance-series input is separate from `BudgetHistoryRowV1` cost/usage facts.
+Reuse the existing `capacity_list_history_v2` read and its M05 history port for
+genuine balance observations. T010/T013 must retain authorized subject/resource/
+fund-component, currency, original observation ID/time and pinned read cutoff;
+the current route chooses `as_of` at request time, so assess and version the
+minimal additive snapshot/selector handoff before its financial-chart consumer.
+No new balance table, provider read or synthesized observation. If a source has
+no retained balance, show that reason without blocking the cost-history chart.
+Test exact stored observation → HTTP → table/point identity separately from
+cost report → cost table/bar identity. Current balance cards do not prove that
+historical series exists.
+
+Daily-history rejected continuation is not report loss. T010/T011 distinguish
+the existing `400 invalid_cursor` from unavailable retained history. Restart the
+same report/period/`as_of` at page one on explicit owner action, atomically replace
+loaded rows after success, and retain them on failure. No collection, latest
+report substitution, cursor API redesign or new storage is needed.
 
 ### First account application view (T010)
 

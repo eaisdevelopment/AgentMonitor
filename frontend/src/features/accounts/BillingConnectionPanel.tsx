@@ -5,6 +5,7 @@ import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, curr
 import { FinancialPoolPanel } from "./FinancialPoolPanel";
 import { BillingScopeControls } from "./BillingScopeControls";
 import { BillingReconnectControl } from "./BillingReconnectControl";
+import { BillingLocalMaintenance } from "./BillingLocalMaintenance";
 
 type BillingState =
   | Readonly<{ kind: "loading" }>
@@ -188,6 +189,10 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
   const panel = useRef<HTMLElement>(null);
   const financialRead = useRef(onFinancialRead);
   financialRead.current = onFinancialRead;
+  const scopeMutation = useRef(onScopeMutation);
+  scopeMutation.current = onScopeMutation;
+  const lastStatusAuthority = useRef<string | null>(null);
+  const financialRefreshRequested = useRef(false);
   const mutating = useRef(false);
   const reading = useRef(false);
   const mounted = useRef(false);
@@ -195,6 +200,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
   expiredHandler.current = onExpired;
   const credentialStatus = state.kind === "ready" ? state.status.credential_status : null;
   const localSetup = state.kind === "ready" ? state.status.local_setup : null;
+  const localMaintenance = state.kind === "ready" ? state.status.local_maintenance : null;
 
   useEffect(() => {
     mounted.current = true;
@@ -233,7 +239,22 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
           setState({ kind: "error", message: "Billing connection status did not match this account. Refresh to try again." });
           return;
         }
-        setState({ kind: "ready", status: result.data, readRevision: revision });
+        const status = result.data;
+        const authority = JSON.stringify([status.account_id, status.provider_key, status.account_record_version, status.account_lifecycle,
+          [...status.connections].sort((left, right) => left.resource_id.localeCompare(right.resource_id)).map(connection => [
+            connection.resource_id, connection.record_version, connection.scope_id, connection.scope_generation,
+            connection.scope_evidence, connection.lifecycle, connection.monitoring_preference,
+          ]), status.credential_status === undefined ? "unavailable" : status.credential_status?.active_generation ?? null]);
+        const changedAuthority = lastStatusAuthority.current !== null && lastStatusAuthority.current !== authority;
+        lastStatusAuthority.current = authority;
+        const requestedFinancialRead = financialRefreshRequested.current;
+        financialRefreshRequested.current = false;
+        setState({ kind: "ready", status, readRevision: revision });
+        // Local commands and another tab may change authority without changing
+        // this account prop. Failed reads never reach this invalidation path.
+        // onScopeMutation already advances both authority and read revisions.
+        if (changedAuthority && scopeMutation.current !== undefined) scopeMutation.current();
+        else if (changedAuthority || requestedFinancialRead) financialRead.current();
       } catch {
         if (!controller.signal.aborted) setState({ kind: "error", message: "The local billing registry is unavailable. Refresh to try again." });
       } finally {
@@ -248,6 +269,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
     const onReturn = () => {
       if (document.visibilityState !== "visible" || mutating.current || reading.current) return;
       reading.current = true;
+      financialRefreshRequested.current = true;
       setRevision((current) => current + 1);
     };
     window.addEventListener("focus", onReturn);
@@ -469,6 +491,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
         <button type="button" className="quiet-button" onClick={() => { void copyCommand(); }}>Copy setup command</button>
         {copyStatus && <p role="status">{copyStatus}</p>}
       </details>}
+      {localMaintenance != null && <BillingLocalMaintenance key={account.account_id} maintenance={localMaintenance} />}
       {state.status.can_add_connection && <form onSubmit={(event) => { void create(event); }}>
         <label htmlFor="billing-scope">Provider billing scope (optional)</label>
         <input id="billing-scope" value={scopeId} onChange={(event) => setScopeId(event.target.value)} maxLength={128} pattern="[A-Za-z0-9][A-Za-z0-9_.:\-]*" autoComplete="off" disabled={busy} aria-describedby="billing-scope-help" />
@@ -477,6 +500,9 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
       </form>}
     </>}
     <p>Credentials are configured on the computer hosting AgentMonitor, as the user running its service. This page does not accept API keys.</p>
-    <button type="button" className="quiet-button" disabled={busy || state.kind === "loading"} onClick={() => setRevision((current) => current + 1)}>Refresh billing status</button>
+    <button type="button" className="quiet-button" disabled={busy || statusReading || state.kind === "loading"} onClick={() => {
+      financialRefreshRequested.current = true;
+      setRevision((current) => current + 1);
+    }}>Refresh billing status</button>
   </section>;
 }

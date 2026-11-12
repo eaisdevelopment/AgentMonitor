@@ -15,8 +15,14 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Next independent delivery:** owner-facing billing disconnect/local cleanup and
-remaining real rotation evidence (T002/T011). The archive/restore reconnect
+**Next independent delivery:** integrate the existing owner-facing billing
+disconnect/local cleanup candidate (T002/T011), then the first-source history
+chart and rate-only calculation in T013. The maintenance candidate has isolated
+SQLite/PTY/browser [evidence](../../evidence/m7-billing-maintenance-2026-11-12.md)
+but is not yet installed or published; final quality,
+installed checks and delivery remain. Real active-key rotation/deletion evidence
+is separate and waits only for its actual credential, not all independent work.
+The archive/restore reconnect
 path is installed at `c1c8e8d`: it retains source/history metadata, keeps
 monitoring off and requires new key setup/access verification. Its
 [evidence](../../evidence/m7-billing-reconnect-2026-11-12.md) distinguishes the
@@ -69,11 +75,16 @@ These are bounded historical results, not a fresh runtime check or full M7 pass.
 
 ## 2. One remaining delivery sequence
 
-Retain the following eight batches inside the existing tickets. They are not
-strict serial prerequisites: batch 3 is the next independent packet, batch 2
-preempts it when real monetary access is ready, and independent pure/provider
-mapping work can proceed while another live lane waits. Root serializes shared
-contracts, integration and installation. Each increment includes its own
+Retain the following eight batches inside the existing tickets. Their numbers
+identify work, not strict serial prerequisites. Finish the bounded candidate
+already in flight (batch 3); batch 2 takes priority as soon as monetary access is
+ready. Otherwise start batch 6's pure rate/daily-chart work using existing
+history contracts, alongside available batch 1/4 provider verification. Batch 5
+travels with every visible increment, not a late UI cleanup phase. Complete
+batch 7's recovery with the first genuine money, then batch 8. No need to finish
+every provider before implementing a chart or to finish a forecast before
+showing the first cost. Root serializes shared contracts, integration and
+installation, with one integration packet in flight. Each increment includes its own
 Red/Green, actual check wiring and visible installed result where applicable.
 
 | Batch / tickets | Smallest remaining deliverable | Acceptance edge / exact dependency |
@@ -95,6 +106,30 @@ consumer change → actual Green → existing check selector → installed demon
 when applicable. A missing selector is implementation work in T003, never a new
 owner prerequisite. Do not leave finished work in progress solely because the
 whole milestone is unfinished; close only against that ticket's full boundary.
+
+Use the catalog's existing steps as the task list, not another backlog. Before
+starting a packet, state its ticket IDs, concrete screen/result, actual input
+dependency and exact relevant test. Finish that packet through its integrated
+result before starting another integration packet. Parallel module work may
+prepare independent, nonoverlapping changes; it does not multiply releases or
+owner setup requests. Eleven tickets marked in progress describe incomplete
+scope, not eleven simultaneous priorities.
+
+| Start work with | Required before claiming that result | Existing owner / tickets |
+|---|---|---|
+| Current tested maintenance candidate | Quality, clean install and actual rendered status; active-key deletion/rotation only when real credentials are available | M02/P01/P02, T002/T011/T014 |
+| One successful admitted monetary report, even if its adapter ticket is incomplete | Exact same report/context in storage, HTTP, Overview, detail and history; genuine evidence, no mock balance | M05/P01/P02, T005/T010–T012/T014 |
+| Current immutable history contracts plus pure domain inputs | Same-fact chart, exact daily aggregation and rate tests; monetary browser proof once a genuine report exists | M05/P01/P02, T013 |
+| Each frozen provider's existing source contract | Complete required mapping/access/range inventory for that provider; other providers do not block its implementation | A01/A02/A03/M04, T006–T009 |
+| Genuine retained financial data | Isolated receipt recovery/backup/restore and installed continuity, then final reconciliation | M04/M05/M08, T007/T014/T015 |
+
+The known external setup dependency for the first monetary demonstration is
+genuine admitted Anthropic or OpenAI billing access. The recorded
+inventory is absent setup, not an observed permission denial. The owner uses
+the existing dashboard/local key-entry flow; the agent does not create accounts,
+change groups or enable monitoring on the owner's behalf. Report an exact
+failed action if access is denied later. Do not assume that condition now or
+repeat the pending setup request while independent work remains.
 
 ### Fair scheduling: narrowed implementation decision
 
@@ -155,15 +190,21 @@ CTR-REG-002 1.1.0 resource presence. Scope editing is installed under
 CTR-REG-014 1.6.0; its evidence is linked above. Retained-report discovery is installed under CTR-CAP-006 2.9.0
 ([evidence](../../evidence/m7-source-history-2026-11-12.md)). Remaining additive handoffs:
 
-- M02/P01/P02: scope/lifecycle controls invalidate old current authority without
-  rewriting original reports; M05/P01 provides authorized prior-scope discovery.
+- M02/P01/P02: retain installed scope/reconnect controls and prior-scope discovery;
+  remaining lifecycle actions invalidate current authority without rewriting
+  original reports. Extend their existing monetary/lifecycle evidence.
 - M05/P01: source-reported limits are distinct from headroom derived using a
   compatible report; publish input lineage before deriving it. Spend/history
   does not wait for an unavailable balance endpoint.
 - Adapters/M04/P01/P02: admitted category/dimension/interval selection exists
   even before a report. Reuse the current action, status and route allowlist;
   selection changes never retarget an in-flight request.
-- M05/P01/P02: chart uses the existing immutable history; forecast/breakdown
+- M05/P01/P02: cost/usage chart uses existing immutable report history; separate
+  balance series reuses authorized capacity observations through the versioned
+  history API, never spend or a current card. Preserve source/component identity
+  and add only missing snapshot selectors. Rejected daily-history cursors restart
+  the same report from page one; they do not mean that report was deleted.
+  Forecast/breakdown
   fields carry scope, units, inputs and reasons. No React financial aggregation,
   forecast storage, interval-stitching engine or new dependency.
 

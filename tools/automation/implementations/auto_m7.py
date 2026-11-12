@@ -99,6 +99,11 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/registry/test_billing_connections.py",
     "backend/tests/integration/registry/test_billing_credential_binding.py",
     "backend/tests/integration/registry/test_billing_reconnect.py",
+    "backend/tests/integration/registry/test_billing_disconnect.py",
+    "backend/tests/integration/registry/test_billing_local_maintenance.py",
+    "backend/tests/integration/registry/test_billing_enrollment_guards.py",
+    "backend/tests/registry/test_billing_local_command.py",
+    "backend/tests/registry/test_billing_credential_operator.py",
     "backend/tests/integration/api/test_billing_reconnect_http.py",
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )

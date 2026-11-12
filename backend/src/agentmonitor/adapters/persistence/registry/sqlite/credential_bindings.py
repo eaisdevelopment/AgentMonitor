@@ -25,6 +25,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
+    AccountCredentialLockLeaseV1,
     ActiveCredentialBindingRefV1,
     CloudMonitoringTargetV1,
     CredentialBindingAggregateV1,
@@ -777,15 +778,29 @@ def archive_bindings_in_transaction(
     connection: Connection, account_id: OpaqueIdV1
 ) -> None:
     """Fence and retire nonterminal bindings under the caller's account write lock."""
+    _retire_bindings_in_transaction(connection, account_id, reason="account_archived")
+
+
+def _retire_bindings_in_transaction(
+    connection: Connection,
+    account_id: OpaqueIdV1,
+    *,
+    reason: Literal["owner_disconnected", "account_archived"],
+) -> CredentialBindingAggregateV1:
+    """Revoke binding and billing authority in the same existing transaction."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
     old = _load(connection, account_id)
     new = disconnect_active_credential_binding(
-        old, expected_record_version=old.record_version, reason_code="account_archived"
+        old, expected_record_version=old.record_version, reason_code=reason
     )
     invalidate_billing_monitoring_in_transaction(
         connection, account_id, disconnected=True
     )
     if new == old:
-        return
+        return new
     updated = connection.exec_driver_sql(
         "UPDATE reg_credential_binding_state SET record_version=?,binding_generation=? "
         "WHERE account_id=? AND record_version=? AND binding_generation=?",
@@ -802,12 +817,13 @@ def archive_bindings_in_transaction(
     expected = sum(item.lifecycle in {"pending", "active"} for item in old.bindings)
     changed = connection.exec_driver_sql(
         "UPDATE reg_credential_binding SET lifecycle='cleanup_pending', "
-        "reason_code='account_archived' WHERE account_id=? "
+        "reason_code=? WHERE account_id=? "
         "AND lifecycle IN ('pending','active')",
-        (account_id.value,),
+        (reason, account_id.value),
     )
     if changed.rowcount != expected:
         raise CredentialBindingRepositoryErrorV1("credential_binding_conflict")
+    return new
 
 
 class SqliteCloudCredentialRegistryV1:
@@ -1014,6 +1030,94 @@ class SqliteCredentialBindingsV1:
                         ).scalar_one()
                     )
         except (SqlitePolicyError, SQLAlchemyError):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_unavailable"
+            ) from None
+
+    def disconnect_billing_locked(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        *,
+        expected_account_version: int,
+        expected_connection_version: int,
+        expected_scope_generation: int,
+        expected_record_version: int,
+        lock_lease: AccountCredentialLockLeaseV1,
+    ) -> CredentialBindingAggregateV1:
+        """Revoke selected billing authority; the caller retains its cleanup lock."""
+        if (
+            not isinstance(account_id, OpaqueIdV1)
+            or not isinstance(resource_id, OpaqueIdV1)
+            or type(lock_lease) is not AccountCredentialLockLeaseV1
+            or any(
+                type(value) is not int or value < 1
+                for value in (
+                    expected_account_version,
+                    expected_connection_version,
+                    expected_scope_generation,
+                )
+            )
+            or type(expected_record_version) is not int
+            or expected_record_version < 0
+        ):
+            raise CredentialBindingRepositoryErrorV1(
+                "billing_disconnect_command_invalid"
+            )
+
+        def require_lock() -> None:
+            inherited = lock_lease.inherited_lock(account_id)
+            self._reference.validate()
+            root = os.stat(self._reference._approved_root, follow_symlinks=False)
+            if (root.st_dev, root.st_ino) != inherited.descriptor_identity(account_id)[
+                4:
+            ]:
+                raise CredentialBindingRepositoryErrorV1("credential_lock_invalid")
+
+        require_lock()
+        try:
+            with open_sqlite_database(self._reference, "runtime_read_write") as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT a.provider_key,a.lifecycle AS account_lifecycle,"
+                            "a.record_version AS account_version,b.record_version AS connection_version,"
+                            "b.scope_generation FROM reg_account a JOIN reg_billing_connection b "
+                            "ON b.account_id=a.account_id WHERE a.account_id=? AND b.resource_id=?",
+                            (account_id.value, resource_id.value),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if (
+                        row is None
+                        or row["provider_key"] not in {"claude", "codex"}
+                        or row["account_lifecycle"]
+                        not in {"pending", "active", "disabled"}
+                    ):
+                        raise CredentialBindingRepositoryErrorV1(
+                            "billing_disconnect_target_unavailable"
+                        )
+                    old = _load(connection, account_id)
+                    if (
+                        row["account_version"] != expected_account_version
+                        or row["connection_version"] != expected_connection_version
+                        or row["scope_generation"] != expected_scope_generation
+                        or old.record_version != expected_record_version
+                    ):
+                        raise CredentialBindingRepositoryErrorV1(
+                            "billing_disconnect_version_conflict"
+                        )
+                    result = _retire_bindings_in_transaction(
+                        connection,
+                        account_id,
+                        reason="owner_disconnected",
+                    )
+                    require_lock()
+                    connection.commit()
+                    return result
+        except (SqlitePolicyError, SQLAlchemyError, OSError):
             raise CredentialBindingRepositoryErrorV1(
                 "credential_binding_unavailable"
             ) from None

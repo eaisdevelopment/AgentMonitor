@@ -24,6 +24,11 @@ def test_billing_operator_help_has_account_resource_selectors() -> None:
     assert "--account-id" in result.stdout
     assert "--resource-id" in result.stdout
     assert "--data-root" in result.stdout
+    assert (
+        "--action" in result.stdout
+        and "disconnect" in result.stdout
+        and "cleanup" in result.stdout
+    )
     assert "--api-key" not in result.stdout
 
 

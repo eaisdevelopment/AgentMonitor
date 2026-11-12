@@ -297,13 +297,22 @@ stream or configurable forecasting framework in M7. Return method version,
 `as_of`, exact input report IDs, coverage, assumptions and availability reason.
 
 Method `budget-observed-rate-v1/1.0.0` requires at least three complete,
-nonoverlapping cost buckets spanning ≥24 hours, same pool/currency/cost basis,
+consecutive UTC **daily** cost buckets, same pool/currency/cost basis,
 known bucket duration, no missing coverage, no signed adjustments or unresolved
-corrections. Select at most 200 buckets within the latest seven completed UTC
-days ending at the selected funds observation's UTC-midnight cutoff, bounded
-by query `as_of`.
-For a rate without funds, use the query `as_of` cutoff and return no exhaustion
-date. Three consecutive complete daily buckets can qualify; seven populated
+corrections. M05 first selects compatible report coverage and aggregates only
+proven-disjoint cost facts within each day. Count each day and its duration once:
+three model rows for one day are not three days; a daily total and its component
+rows are alternative representations, never additional cost or duration.
+Reuse the bounded report reader and daily-history aggregation; no new table or
+resampling engine. Select at most 200 normalized buckets within seven completed
+UTC days, bounded by query `as_of` (the daily method uses at most seven days).
+For an exhaustion estimate, the window ends at the eligible funds observation's
+UTC-midnight cutoff. If funds are absent, stale, incompatible, lack required
+allocation evidence or, for limit-derived headroom, enforcement evidence,
+calculate the rate-only view against the query `as_of`
+UTC-midnight cutoff within the selected financial identity, and return no date.
+An ineligible old balance must not suppress newer qualifying cost history.
+Three consecutive complete daily buckets can qualify; seven populated
 days are not mandatory. Use the newest contiguous qualifying observed interval
 and return its actual bounds; never join observations across a missing bucket.
 Freshness eligibility still applies, so an older interval is not silently current.
@@ -495,6 +504,9 @@ Additional cases within the same IDs (no new acceptance inventory):
 | M7-MATH-03/15/16 | Three complete days at 2 USD/day; no balance/limit | Rate 2 USD/day with sample bounds; no exhaustion date; Remaining funds not reported |
 | M7-MATH-07/08/15/16 | Included credits 10 USD, purchased 30 USD; whole-pool rate 2 USD/day; allocation unknown | Show components and rate separately; no component date, assumed combined balance or account-stop claim |
 | M7-MATH-15/16 | Same complete costs fetched twice; source watermark unknown | Later retrieval alone cannot enable an exhaustion date or move a previously pinned estimate |
+| M7-MATH-03/10/15 | Three model cost rows in one complete day | One daily bucket; insufficient history for a rate, regardless of row count |
+| M7-MATH-03/10/15 | Three consecutive complete days; two proven-disjoint rows of 1 USD each per day | Total 6 USD over three days; rate 2 USD/day, with each day's duration counted once |
+| M7-MATH-03/15/16 | Three recent qualifying days at 2 USD/day; selected funds stale or from another scope | Rate 2 USD/day in the selected cost scope with sample dates; no exhaustion date; stale/unrelated funds do not move the rate-only sample backward |
 
 Existing test families also cover native-range alignment and DST boundaries
 (M7-MATH-15), no eligible subtotal versus a genuine zero (M7-MATH-12), scope-epoch

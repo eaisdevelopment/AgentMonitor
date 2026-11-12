@@ -7,7 +7,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    SqliteCredentialBindingsV1,
+)
+from agentmonitor.adapters.persistence.registry.sqlite.repository import (
+    SqliteRegistryRepositoryV1,
+)
+
 from backend.tests.integration.api.test_iam_http import _installation, _running
+from backend.tests.integration.registry.test_billing_credential_binding import (
+    _account,
+    _archive,
+    _billing_connection,
+)
 
 ROOT = Path(__file__).resolve().parents[4]
 STAGES = {
@@ -21,6 +34,15 @@ STAGES = {
     "billing_reconnect_controls",
     "billing_reconnect_reconcile",
     "billing_reconnect_archived",
+    "billing_local_disconnect",
+    "billing_local_clipboard_fallback",
+    "billing_local_archived_cleanup",
+    "billing_status_financial_refresh",
+    "billing_focus_financial_refresh",
+    "billing_status_failure_retention",
+    "billing_status_external_change",
+    "billing_status_summary_response",
+    "billing_status_scope_render",
     "pool_controls_missing",
     "collection_controls_missing",
     "collection_context_read_only",
@@ -50,10 +72,24 @@ STAGES = {
 async def run() -> None:
     with tempfile.TemporaryDirectory(prefix="agentmonitor-pool-browser-") as directory:
         app, credential = _installation(Path(directory))
+        # Real interrupted enrollment metadata, then actual archive. No key,
+        # provider identity, access proof or telemetry is supplied to this test.
+        reference = DatabaseRefV1(Path(directory) / "agentmonitor.db", Path(directory))
+        cleanup_account = _account(reference, "claude")
+        _billing_connection(reference, cleanup_account)
+        SqliteCredentialBindingsV1(reference).transition(
+            cleanup_account.account_id, action="prepare", expected_record_version=0
+        )
+        SqliteRegistryRepositoryV1(reference).edit_account(_archive(cleanup_account))
         async with _running(app) as origin:
             result = await asyncio.to_thread(
                 subprocess.run,
-                ["node", str(Path(__file__).with_name("financial_pools.mjs")), origin],
+                [
+                    "node",
+                    str(Path(__file__).with_name("financial_pools.mjs")),
+                    origin,
+                    cleanup_account.account_id.value,
+                ],
                 input=credential,
                 cwd=ROOT,
                 capture_output=True,

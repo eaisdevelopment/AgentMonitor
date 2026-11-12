@@ -27,6 +27,7 @@ from agentmonitor.api.v1.schemas.registry import (
     AssignAccountOrganizationInputV1,
     BillingConnectionViewV1,
     BillingCredentialStatusV1,
+    BillingLocalMaintenanceV1,
     BillingLocalSetupV1,
     ChangeBillingScopeInputV1,
     CreateBillingConnectionInputV1,
@@ -822,6 +823,7 @@ def get_billing_connections(
     # as a strong representation validator.
     setup_port = observation_ports(request).billing_local_setup
     setup = None if setup_port is None else setup_port.describe(status)
+    maintenance = None if setup_port is None else setup_port.maintenance(status)
     return AccountBillingConnectionsV1(
         account_id=status.account_id.value,
         provider_key=status.provider_key,
@@ -836,6 +838,15 @@ def get_billing_connections(
             else BillingLocalSetupV1(
                 host_label=setup.host_label,
                 command=setup.command,
+            )
+        ),
+        local_maintenance=(
+            None
+            if maintenance is None
+            else BillingLocalMaintenanceV1(
+                host_label=maintenance.host_label,
+                disconnect_command=maintenance.disconnect_command,
+                cleanup_command=maintenance.cleanup_command,
             )
         ),
         credential_status=(
