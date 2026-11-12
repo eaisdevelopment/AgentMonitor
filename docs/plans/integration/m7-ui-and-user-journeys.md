@@ -479,10 +479,12 @@ Pure presentation rules can test label decisions; no fake network responses.
 
 Specifically verify an account created for API billing that later has an active
 subscription resource: both sections and their independent controls must appear.
-The installed creation-intent routing does not establish this transition.
-The local T002/T011 draft adds a derived resource-presence field, but has no
-installed acceptance yet; a generic claim that routing is installed cannot
-close this remaining case. Use authoritative published resource/capability state,
+The `edbe2fc` increment adds the derived resource-presence field and passes pure
+routing, genuine registry/API and installed subscription-page checks; see
+[bounded evidence](../../evidence/m7-account-resource-layout-2026-11-12.md).
+No live owner API-origin account was reconfigured to induce a new subscription
+transition. Keep that observation distinct from the composed policy/producer/UI
+coverage; this increment does not close all account lifecycle acceptance. Use authoritative published resource/capability state,
 with creation intent only for the pending fallback. If a minimal additive API
 classification is needed, synchronize M02/P01 before its P02 consumer. Exercise
 metadata transitions on an isolated genuine registry copy; do not enroll or

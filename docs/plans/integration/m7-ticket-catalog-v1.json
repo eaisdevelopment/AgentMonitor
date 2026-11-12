@@ -616,7 +616,7 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Retain existing account views, billing controls, server-paged history, window navigation and allowlisted URL handling. Resource-presence routing and paginated organization assignment have local verification; use linked account-resource-layout evidence for installed status. Retain these regressions while finishing lifecycle/history cases; do not treat bounded routing evidence as complete T011.",
+        "Retain existing account views, billing controls, server-paged history, window navigation and allowlisted URL handling. Resource-presence routing and paginated organization assignment are installed at edbe2fc with bounded account-resource-layout evidence; retain its explicit live-transition limit. Retain these regressions while finishing lifecycle/history cases; do not treat bounded routing evidence as complete T011.",
         "Financial links on mixed accounts bring the selected financial heading into view; ordinary account entry preserves subscription layout. Put scope/period/state/spend/funds first with a compact connection line and expandable source details.",
         "Complete source lifecycle and authorized old-scope selection: immutable historical scope remains in the heading; current connection scope and funds have separate labels/times. Funds-only links preserve interval/read cutoff without invented report IDs.",
         "Keep original same-context values during refresh and failed replacement; replace report/amount/history atomically on success. Clear current values for changed account/resource/scope/period/unresolved lineage. Complete counts-only coverage displays Cost not reported, not false Partial or zero.",

@@ -1,7 +1,7 @@
 # M7 account resource layout and organization selection
 
-Status: local T002/T011 increment under verification; installed/public evidence
-is recorded below only after activation. M7 remains open. Owning producer M02,
+Status: bounded T002/T011 increment installed and published at `edbe2fc`.
+M7 remains open. Owning producer M02,
 API P01, UI P02; root integrates the approved focused plan 1.1.0.
 
 Requirements: FR-ACC-001/002/004, FR-ORG-001/002, FR-BUDGET-001;
@@ -103,3 +103,29 @@ passed. These results do not cover full monetary M7 acceptance or publication.
 
 Canonical M7 pure selection also passed: 737 backend policy tests and twelve
 presentation suites, including the new resource-layout policy.
+
+
+## Installed and public result
+
+Implementation revision `edbe2fc96a6c561d81a5a5c04f9695aa22e75959` was installed
+through the existing selected current-schema updater. It passed readiness and
+restored the original restart policy. The user service was active and the
+dashboard returned HTTP 200. Schema remains v1_0734.
+
+The exact-revision canonical Overview selection ran four actual metadata checks
+and concurrent authenticated Overview/setup/cloud probes. All three probes
+passed at 05:45:43 UTC, including the new resource field and actual subscription
+page in setup. They performed no configuration mutations. The broader selection
+correctly exited 3: full monetary Overview remained Not Run with
+`m7_monetary_overview_required`. No claim of full M7 completion is made.
+
+Push preflight passed. `git push github HEAD:main` succeeded and `git ls-remote
+github refs/heads/main` returned the exact implementation revision above.
+The staged scan had two generic-key findings; both were exact old/new generated
+OpenAPI artifact checksums verified against Git artifact bytes, with no unresolved
+finding or suppression. A documentation-only successor records this verification;
+it does not change the installed implementation.
+
+Next independent work is T002/T010/T011 source-scope/lifecycle controls and
+original-scope history discovery. T002/T011 remain in progress. The fixed full
+M7 provider, monetary, analysis, recovery and release scope is unchanged.

@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, planning re-review 12 November 2026; recorded baseline
-against installed code revision `cd4f566` on 12 November 2026. Primary owner:
+against installed code revision `edbe2fc` on 12 November 2026. Primary owner:
 root integration; financial semantics: M05. No new scope, approval or gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) is the only task tracker:
@@ -19,11 +19,18 @@ records the immediate reliability priority and corrections to stale instructions
 
 ## Read this first: next result and finish line
 
-The next independent result is **correct account detail for API-only and mixed
-accounts**, including the real organization label (T002/T011). A local draft
-exists, but it is not installed or accepted. Finish its contract, meaningful
-Red/Green and built-browser evidence before calling it delivered. Do not restart
-the already-delivered concurrent Overview correction.
+Account resource routing and organization selection are installed at `edbe2fc`
+(T002/T011). The existing pages now use published subscription-resource presence,
+show truthful unavailable organization names, and retain assignments while
+loading later organization pages. [Evidence](../../evidence/m7-account-resource-layout-2026-11-12.md)
+separates real metadata/API/browser coverage from the pure API-origin transition
+policy; no live owner account was reconfigured for a test.
+
+The next independent result is **source-scope/lifecycle controls and correctly
+labelled retained history** (T002/T010/T011). Current BillingConnectionPanel has
+creation-time scope input but no Change scope control. Complete this existing
+packet through public contracts; do not restart resource routing or the delivered
+concurrent Overview correction.
 
 The first genuine monetary report takes priority as soon as its source is
 accessible: one account/resource, one complete interval, the same exact amount
@@ -57,12 +64,12 @@ introduced by these checkpoints.
 
 | Boundary | Recorded result | What it does not prove |
 |---|---|---|
-| Installed code | `cd4f566`, schema `v1_0734`; fair queued/scheduled selection, independent 7/30-day billing intent and manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
+| Installed code | `edbe2fc`, schema `v1_0734`; resource-based account sections and paginated organization selection; fair queued/scheduled selection, independent 7/30-day billing intent and manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
 | Owner controls and aggregation | Pool create/join/unlink/primary-group controls, pool-aware Overview and exact attribution installed with `3c65e1d`; retained in current release | Genuine shared monetary totals, source-scope editing or every final setup case |
 | Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed at `ef8fa86`; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, complete accessibility and analysis acceptance |
 | Live data | Existing Ollama cloud balances and daily usage; demonstrated usage is counts-only | Counts are not monetary spend. No conversion or invented zero |
 | Monetary prerequisite | Latest read-only inventory records no Anthropic/OpenAI billing connections; tested owner setup request pending | No enrollment is not evidence of denied provider access |
-| Publication | GitHub main verified at installed implementation `cd4f566`; documentation-only successors do not alter runtime code | Full M7 exit, current runtime re-verification or owner acceptance |
+| Publication | GitHub main verified at installed implementation `edbe2fc`; documentation-only successors do not alter runtime code | Full M7 exit, current runtime re-verification or owner acceptance |
 | Latest verification | Installed serial Overview/history, setup and cloud controls passed at `79821bf`; two distinct real accounts completed scheduled 30-day usage. Seven-day manual attempt remained rate-limited before POST. Concurrent Overview/setup/cloud reads passed after the query correction at `cd4f566`; earlier 30-day manual evidence is retained | Not successful monetary provider access |
 
 Evidence: [stored-window navigation](../../evidence/m7-window-navigation-2026-11-12.md),
@@ -106,12 +113,11 @@ registry consistency and the existing HTTP deadline. Full monetary acceptance
 remains unfinished. Serial tool-environment ownership does not prohibit
 concurrent app reads.
 
-Next independent packet: finish verification, integration and installation of
-the **local, uncommitted** T002/T011 mixed-account routing draft. Existing routing
-remains installed; the API-origin → active-subscription transition does not yet
-have installed acceptance. The first genuine monetary report remains the
-priority whenever owner billing access becomes available; no repeated setup
-request is needed.
+Next independent packet: T002/T010/T011 source-scope/lifecycle controls and
+original-scope history discovery. The account resource-layout increment is
+installed and published; retain its regression coverage. The first genuine
+monetary report remains the priority whenever owner billing access becomes
+available; no repeated setup request is needed.
 
 | Order / existing tickets | Smallest remaining result and owner | Required demonstration before moving the result to delivered |
 |---|---|---|
@@ -301,7 +307,7 @@ requirements, dependencies and evidence. No ticket is closed by this review.
 | T008 A02 | Real OpenAI cost success and remaining frozen usage/dimensions/ranges; retain installed cost runtime wiring |
 | T009 A03 | Complete admitted cloud usage ranges/model breakdown/manual collection and source comparison; reuse existing key/pool/balance/usage evidence |
 | T010 M05/P01 | Retain installed full-list sorting and bounded pinned daily history; retain installed older-window selection; finish prior-scope report discovery and remaining funds/state/context API cases; genuine populated monetary reconciliation |
-| T011 P02 | Retain installed older-window controls; finish API-origin account gaining subscription resources, scope/collection interactions, retained-value failure behavior, direct URL/sign-in return and remaining accessibility checks |
+| T011 P02 | Retain installed older-window controls; retain installed resource-presence routing and organization paging; finish scope/collection interactions, retained-value failure behavior, direct URL/sign-in return and remaining accessibility checks |
 | T012 P02 | Retain the installed concurrent-read correction and server sorting/table/filters; finish full-filter totals with genuine money, navigation and quota-failure isolation |
 | T013 M05/P01/P02, M08 invocation | One-dimension breakdown, exact chart, small conditional forecast and financial retention using existing scheduler |
 | T014 root/M08 | Complete monetary installed journey, recovery and existing collector continuity; retain delivered schema0734/update/browser proof |
