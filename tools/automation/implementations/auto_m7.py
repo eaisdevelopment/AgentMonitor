@@ -501,6 +501,7 @@ def execute_overview_browser(expected: str) -> LaneResult:
         "overview_metadata",
         (
             "backend/tests/integration/capacity/test_budget_overview_real_metadata.py",
+            "backend/tests/live/ollama/test_budget_read_efficiency.py",
             "backend/tests/live/ollama/test_budget_overview_live.py",
             "backend/tests/live/ollama/test_budget_overview_history_snapshot.py",
             "backend/tests/live/ollama/test_budget_history_http_live.py",

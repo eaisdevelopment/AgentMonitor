@@ -3525,7 +3525,7 @@ class SqliteRegistryRepositoryV1:
     ) -> tuple[AccountResourceViewV1, ...]:
         try:
             with open_sqlite_database(
-                self._database_ref, "runtime_read_write"
+                self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
                     revision = _current_revision(connection)

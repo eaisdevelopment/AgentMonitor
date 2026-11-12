@@ -15,13 +15,14 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Next delivery: finish and install the observed spending-rate row.** Its domain,
-source-evidence, API/client and UI are present in the integration checkout;
-they are not installed. The stricter real-browser numeric check passed on the
-built candidate; installation, installed verification and publication remain. See the bounded
-[rate evidence](../../evidence/m7-observed-rate-2026-11-12.md). Keep the existing
-monetary dashboard running while finishing that packet. Do not restart its
-implementation or require another account confirmation.
+**Next delivery: install the bounded Overview read-efficiency correction and
+verify concurrent pages.** The rate packet is installed at `4c6a63d` and its
+strict numeric browser check passed; the existing concurrent Overview/setup/cloud
+check reproduced timeouts. The [read-efficiency evidence](../../evidence/m7-overview-query-reliability-2026-11-12.md)
+records the actual 504, meaningful Red/Green and unchanged financial/authority
+results. Do not treat the dashboard's HTTP200 or serial rate pass as concurrent
+acceptance. See [rate evidence](../../evidence/m7-observed-rate-2026-11-12.md).
+No owner configuration or confirmation is required for this correction.
 
 Then finish full filtered totals; complete daily/balance history and supported
 breakdowns; complete the fixed provider matrix and recovery; run the existing
@@ -36,7 +37,8 @@ implementation. No plan-version or owner-attestation loop is added.
 | Complete M7 screens — remaining | Useful totals, required providers, daily/history views, one supported breakdown, rate and an eligible date or real unavailable reason | Final recovery/continuity and release acceptance |
 | Released M7 — remaining | Required exit checks pass on installed candidate; GitHub revision verified; result demonstrated and accepted | Deferred enhancements |
 
-The installed milestone checkpoint remains `e0ecf92`, schema `v1_0734`.
+The installed implementation is `4c6a63d`, schema `v1_0734`; concurrent-read
+acceptance is open. Earlier bounded checks at `e0ecf92` remain historical evidence.
 Its [monetary journey](../../evidence/m7-monetary-journey-2026-11-12.md),
 [source-entry chart](../../evidence/m7-history-chart-2026-11-12.md),
 [registry-time repair](../../evidence/m7-overview-registry-time-2026-11-12.md),
@@ -53,7 +55,7 @@ preceding intermittent setup failure. Both outcomes remain in the linked evidenc
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `e0ecf92`, schema `v1_0734`; current-metadata Overview reads, source-entry chart plus readable queued expiry, local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary reconciliation, complete lifecycle/analysis and final candidate continuity |
+| Installed implementation | `4c6a63d`, schema `v1_0734`; observed-rate row (strict numeric browser passed, concurrent continuity open), current-metadata Overview reads, source-entry chart plus readable queued expiry, local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary reconciliation, complete lifecycle/analysis and final candidate continuity |
 | Public code | See the registry-time delivery receipt for the verified GitHub revision | Documentation/probe-only successors do not change installed code |
 | Live reports | Genuine Ollama balances, usage and now daily USD costs; one manual 30-day report and scheduled 30-day reports on two real resources | Successful seven-day manual collection, monetary source comparison and remaining Anthropic/OpenAI matrix are unproved; the old expired run is not a success |
 | Browser reliability | Latest installed concurrent Overview/setup/cloud reads passed on `e0ecf92`; chart API/table/geometry passed on all fourteen entries | Prior setup-form failure remains recorded without an established cause. Monetary reconciliation, full accessibility and final acceptance remain open |
@@ -72,8 +74,8 @@ These are bounded historical results, not a fresh runtime check or full M7 pass.
 ## 2. One remaining delivery sequence
 
 Keep the eight existing batches below. They group ticket steps, not new tickets
-or strict serial barriers. **Current priority is batch 6's prepared rate row,
-then batch 5's full filtered totals.** Continue available provider mappings and
+or strict serial barriers. **Current priority is batch 5's reproduced concurrent-read correction,
+then its full filtered totals.** Continue available provider mappings and
 receipt-recovery work independently; integrate one visible packet at a time.
 Batch 5's accessibility/navigation checks travel with each UI packet. Preserve
 installed batch 3 controls and finish only their remaining evidence.

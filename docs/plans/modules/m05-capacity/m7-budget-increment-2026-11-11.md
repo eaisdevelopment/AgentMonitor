@@ -854,3 +854,26 @@ breakdowns, retention and remaining provider evidence are still open in T013.
 No production date is available from currently admitted funds: current public
 components do not establish scope epoch/allocation, and source freshness is
 unknown. Pure conditional numerical results do not close numeric live evidence.
+
+
+### T010/T012 concurrent-read efficiency correction (12 November)
+
+Installed rate candidate `4c6a63d` passes its numeric rate browser check, but the
+existing simultaneous Overview/setup/cloud check reproduces timeouts. A separate
+three-page diagnostic observed budget Overview HTTP 504 at its unchanged ten-second
+deadline. A private genuine-copy profile identifies repeated SQLite setup:
+81 opens for one Overview, including twelve redundant billing-status reads and
+26 SELECT-only resource reads opened in writable mode. This is evidence for a
+bounded correction, not proof that it alone explains the full concurrent failure.
+
+Root removes only the preliminary billing-status lookup inside composition's
+`active_budget_binding`: the binding repository already validates account/provider/
+billing eligibility in its transaction. Only its exact unavailable-account error
+maps to no binding; other errors propagate. M02 changes only
+`list_account_resources` to the existing read-only database mode. Preserve all
+before/after binding, scope, cloud, resource and registry revision fences.
+No cache, new connection pool, timeout increase, contract/schema/dependency or
+provider operation is introduced. Real private-copy regressions observe duplicate
+reads and SQL write pragmas before the correction, then verify the same genuine
+DTOs and authorization cases. Repeat the actual concurrent built-browser failure
+on the installed candidate; serial timings alone cannot close this correction.

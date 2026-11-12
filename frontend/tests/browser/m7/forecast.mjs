@@ -3,6 +3,8 @@ const installed = origin === "http://127.0.0.1:43110";
 let page, stage = "origin", mutations = 0, forecastReads = 0, historyPages = 0, rateAvailable = false;
 let status = "failed";
 const renderedPaths = [];
+const requestDiagnostics = [];
+let errorKind = null;
 const check = condition => { if (!condition) throw new Error(); };
 const instant = value => value.replace(/(?:\.(\d{1,6}))?Z$/, (_, fraction) => `.${(fraction ?? "").padEnd(6, "0")}Z`);
 const exact = value => {
@@ -39,7 +41,19 @@ try {
     }
   });
   async function read(path) {
-    const response = await page.request.get(origin + path, { headers: { Origin: origin }, timeout: 10000 });
+    const started = Date.now();
+    const family = /\/forecast(?:\?|$)/.test(path) ? "forecast"
+      : /\/reports(?:\?|$)/.test(path) ? "report_list"
+      : path.startsWith("/api/v1/operations/") ? "version"
+      : /^\/api\/v1\/budgets\?/.test(path) ? "overview" : "selected_report";
+    let response;
+    try {
+      response = await page.request.get(origin + path, { headers: { Origin: origin }, timeout: 10000 });
+      requestDiagnostics.push({ family, status: response.status(), elapsed_ms: Date.now() - started });
+    } catch (error) {
+      requestDiagnostics.push({ family, status: null, elapsed_ms: Date.now() - started });
+      throw error;
+    }
     if (response.status() === 401) { stage = "authentication_required"; throw new Error(); }
     check(response.ok()); return response.json();
   }
@@ -160,8 +174,10 @@ try {
   stage = "read_only"; check(mutations === 0);
   status = "passed";
   console.log(`M7 FORECAST BROWSER: PASSED rate_available=${rateAvailable} history_continuations=${historyPages}`);
-} catch {
+} catch (error) {
+  errorKind = error?.name === "TimeoutError" || /timeout/i.test(error?.message ?? "") ? "timeout" : "assertion_or_error";
   console.log(`M7 FORECAST BROWSER: FAILED — ${stage}`);
+  console.log(JSON.stringify({ error_kind: errorKind, requests: requestDiagnostics.slice(-10) }));
 } finally {
   if (page) await page.close().catch(() => { status = "failed"; });
 }

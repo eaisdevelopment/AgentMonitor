@@ -79,6 +79,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
     SqliteOrganizationProviderCoverageRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    CredentialBindingRepositoryErrorV1,
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
 )
@@ -553,19 +554,19 @@ def _observation_ports(
             return False
 
     registry = SqliteRegistryRepositoryV1(reference)
-    billing_registry = SqliteBillingConnectionRepositoryV1(reference)
 
     def active_budget_binding(
         account_id: OpaqueIdV1,
     ) -> ActiveCredentialBindingRefV1 | None:
-        status = billing_registry.get(account_id)
-        if status is None or (
-            status.provider_key != "ollama" and not status.connections
-        ):
-            return None
-        return resolve_active_credential_binding(
-            SqliteCredentialBindingsV1(reference).read(account_id)
-        )
+        # The binding read checks account/provider/billing eligibility in its
+        # own transaction; a separate billing-status read duplicates that work.
+        try:
+            binding = SqliteCredentialBindingsV1(reference).read(account_id)
+        except CredentialBindingRepositoryErrorV1 as error:
+            if str(error) == "credential_binding_account_unavailable":
+                return None
+            raise
+        return resolve_active_credential_binding(binding)
 
     coverage = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)

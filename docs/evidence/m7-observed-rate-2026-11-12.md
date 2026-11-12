@@ -108,3 +108,25 @@ build. Foundation boundary tests passed 191 cases in 11.34s. Subsequent changes
 were the stricter browser assertion and planning clarification. All three
 planning/documentation commands and Git diff/preflight passed. Installation and
 installed-page verification remain the next boundary, not implied by this pass.
+
+
+## Installed rate and concurrent-read failure
+
+Clean candidate `4c6a63db8c8a7b465b6592e2ebb79fa69f81441c` was installed by
+`auto_m6_current_update.py --expected-revision=...`; readiness and original restart
+policy restoration passed. Authenticated versions confirmed that revision and
+the dashboard returned HTTP 200. The strict installed `forecast.mjs` check then
+passed `rate_available=true`, zero mutations and zero history continuations.
+This verifies genuine numeric rate, source inputs, display and reload on the
+installed candidate; it is not full T013 or M7 acceptance.
+
+The first simultaneous rate plus three-page check failed selected-report reading,
+Overview and cloud rendering; setup passed and network-change errors were recorded.
+Separate actual API reads returned 200 for versions, Overview, selected report
+and forecast. The rate probe gained sanitized route-family/status/timing diagnostics
+before the successful isolated rate pass. Repeating the original three-page
+concurrency check still failed, so this is not dismissed as transient network noise.
+A further Overview/accounts/detail diagnostic recorded `/api/v1/budgets` HTTP504
+at 10005ms and account-budget reads up to 5484ms. The service stayed active with
+zero restarts. Publication/continuity completion remains pending the correction;
+HTTP200 and the numeric rate pass do not close that failure.

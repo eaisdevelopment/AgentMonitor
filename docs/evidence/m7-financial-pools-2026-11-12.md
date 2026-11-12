@@ -210,3 +210,32 @@ history/sorting/analysis coverage and the fixed M7 exit. The next independent
 implementation packet is the missing OpenAI runtime composition; its source and
 protected credential reader already exist. Administrative owner enrollment is
 still required for that live source, not for implementing its missing wiring.
+
+
+## Genuine monetary full-filter verification increment
+
+New `test_budget_pool_totals_live.py` and `pool_totals.mjs` compare unchanged
+real retained reports through production composition and isolated M02 metadata
+commands. No owner account, key, live database or provider is changed. Private
+pool associations are explicitly owner-asserted test metadata, not inferred
+provider identities or invented telemetry.
+
+Current retained dataset supplies one eligible monetary resource (nonzero) and
+a second current counts-only resource. The available-data direct check passed:
+**1 passed, 2 deselected in 46.05s**, covering distinct/shared/unlinked metadata
+phases, primary-only/secondary-only/both filters, exact nonempty totals, missing
+currency/overlap exclusions, immutable source facts and limit-one pagination
+with the monetary contribution on a later page. Early expectation corrections
+distinguished per-report cost-not-reported from pool currency-unavailable and
+scope-specific exclusion counts; they are not production defect fixes.
+
+The separate two-populated-money scenario records its genuine prerequisite
+failure; it is conditional additional evidence, not a new requirement for owner
+setup or manufactured spend. Never call it passed from the available scenario.
+The built-browser probe's first attempt failed because its own CDP process did
+not exit (1 failed, 2 deselected, 219.38s); source review also corrected admitted
+millisecond UTC-Z URL serialization and group ordering. These are test-only
+corrections. The corrected first-phase/browser runs remain in progress at this
+record. Full T012, accessibility and installed concurrent continuity are not
+claimed complete by these tests. Runner integration follows actual bounded
+browser evidence, using the existing Overview lane.
