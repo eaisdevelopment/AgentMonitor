@@ -9,7 +9,7 @@ let reason = "browser_unavailable";
 let mutations = 0;
 let sourceRevision = null;
 let rowsVerified = 0;
-const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", responsive: "not_run", read_only: "not_run" };
+const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
 function requireEvidence(condition, code) { if (!condition) stop("failed", code); }
 try {
@@ -144,7 +144,7 @@ try {
       }
       if (row.contexts.length === 0) requireEvidence((await dom.textContent()).includes("No spending report"), "missing_report_not_explained");
     }
-    if (expected.summary_reason !== null) requireEvidence((await financial.textContent()).includes(`Spend totals unavailable: ${expected.summary_reason.replaceAll("_", " ")}`), "unavailable_totals_hidden");
+    if (expected.summary_reason !== null) requireEvidence((await financial.textContent()).includes(`${expected.summaries.length ? "Spend subtotals are partial" : "Spend totals unavailable"}: ${expected.summary_reason.replaceAll("_", " ")}`), "unavailable_totals_hidden");
     const summary = financial.locator('[aria-label="Reported spend summaries"]');
     for (const [index, item] of expected.summaries.entries()) {
       const line = summary.locator("p").nth(index);
@@ -158,6 +158,7 @@ try {
     return expected;
   }
   let expected = await reconcile();
+  const allFinancialRows = expected.items;
   if (!expected.items.some(row => row.funds.length > 0 || row.contexts.length > 0)) stop("blocked", "real_financial_readings_required");
   checks.overview = "passed";
   const quotaSort = quota.getByRole("columnheader", { name: "Quota left", exact: true });
@@ -190,7 +191,7 @@ try {
     await orgControls.getByRole("button", { name: organization.name, exact: true }).click();
     requireEvidence((await organizationRead).status() === 200, "organization_filter_read_failed");
     expected = await reconcile();
-    requireEvidence(expected.items.every(row => row.account.organization_id === organizationId), "shared_organization_filter_mismatch");
+    requireEvidence(expected.items.every(row => row.account.organization_id === organizationId || row.primary_organization_id === organizationId || row.access_paths?.some(path => path.account.organization_id === organizationId)), "shared_organization_filter_mismatch");
   }
   await resources.selectOption("api");
   checks.filters = "passed";
@@ -198,10 +199,12 @@ try {
   if (row === undefined) stop("blocked", "filtered_financial_link_unavailable");
   const before = new URL(page.url());
   const dom = financial.locator(await selector("data-financial-row", row.row_id));
+  const reportAccount = row.contexts[0]?.report_account_id ?? row.account.account_id;
+  const reportResource = row.contexts[0]?.report_resource_id ?? row.resource_id;
   await dom.getByRole("button").first().click();
-  await page.waitForURL(url => url.pathname === `/accounts/${encodeURIComponent(row.account.account_id)}`);
+  await page.waitForURL(url => url.pathname === `/accounts/${encodeURIComponent(reportAccount)}`);
   const detail = new URL(page.url());
-  requireEvidence(detail.searchParams.get("budget_resource") === row.resource_id, "detail_resource_selector_lost");
+  requireEvidence(detail.searchParams.get("budget_resource") === reportResource, "detail_resource_selector_lost");
   requireEvidence(detail.searchParams.get("budget_report") === (row.contexts[0]?.report_id ?? null), "detail_report_selector_lost");
   requireEvidence(microseconds(detail.searchParams.get("budget_start")) === microseconds(expected.period.start) && microseconds(detail.searchParams.get("budget_end")) === microseconds(expected.period.end), "detail_period_lost");
   requireEvidence(microseconds(detail.searchParams.get("budget_as_of")) === microseconds(expected.as_of), "detail_cutoff_lost");
@@ -210,9 +213,9 @@ try {
   requireEvidence(new URL(page.url()).search === detail.search, "detail_selectors_lost_on_reload");
   if (row.contexts[0] !== undefined) {
     const context = row.contexts[0];
-    const query = new URLSearchParams({ account_id: row.account.account_id, report_id: context.report_id, period_start: detail.searchParams.get("budget_start"), period_end: detail.searchParams.get("budget_end"), as_of: detail.searchParams.get("budget_as_of") });
-    const selected = await read(`/api/v1/budgets/${encodeURIComponent(row.resource_id)}?${query}`);
-    requireEvidence(selected.report.report_id === context.report_id && selected.report.account_id === row.account.account_id && selected.report.resource_id === row.resource_id && microseconds(selected.as_of) === microseconds(expected.as_of), "selected_report_context_mismatch");
+    const query = new URLSearchParams({ account_id: reportAccount, report_id: context.report_id, period_start: detail.searchParams.get("budget_start"), period_end: detail.searchParams.get("budget_end"), as_of: detail.searchParams.get("budget_as_of") });
+    const selected = await read(`/api/v1/budgets/${encodeURIComponent(reportResource)}?${query}`);
+    requireEvidence(selected.report.report_id === context.report_id && selected.report.account_id === reportAccount && selected.report.resource_id === reportResource && microseconds(selected.as_of) === microseconds(expected.as_of), "selected_report_context_mismatch");
     requireEvidence(JSON.stringify(selected.reported_spend.total) === JSON.stringify(context.spend), "overview_detail_spend_mismatch");
     const section = page.locator(await selector("data-report-id", context.report_id));
     await section.waitFor();
@@ -247,6 +250,29 @@ try {
     requireEvidence(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "overview_horizontal_overflow");
   }
   checks.responsive = "passed";
+  let poolsVerified = 0;
+  for (const candidate of allFinancialRows.filter(item => item.resource_id !== null)) {
+    await page.goto(`${origin}/accounts/${encodeURIComponent(candidate.account.account_id)}`, { waitUntil: "domcontentloaded" });
+    for (const scope of candidate.account.provider_key === "ollama" ? ["self", "team"] : ["billing"]) {
+      const control = page.locator(`details[data-financial-pool="${scope}"]`).filter({ has: page.locator(`select[id="pool-primary-${candidate.resource_id}-${scope}"]`) });
+      // Inputs mount only after expansion, so first locate by the stable
+      // selector when there is exactly one resource on this account.
+      const candidates = page.locator(`details[data-financial-pool="${scope}"]`);
+      await candidates.first().waitFor();
+      for (const item of await candidates.all()) if (!(await item.getAttribute("open"))) await item.locator("summary").click();
+      await control.getByRole("button", { name: "Refresh pool status", exact: true }).waitFor();
+      await page.waitForFunction(({ id }) => document.getElementById(id)?.closest("div[aria-busy]")?.getAttribute("aria-busy") === "false", { id: `pool-primary-${candidate.resource_id}-${scope}` });
+      const configuration = await read(`/api/v1/accounts/${encodeURIComponent(candidate.account.account_id)}/financial-pools/${encodeURIComponent(candidate.resource_id)}/${scope}`);
+      requireEvidence(configuration.account_id === candidate.account.account_id && configuration.resource_id === candidate.resource_id && configuration.selector === scope, "pool_context_mismatch");
+      requireEvidence(await control.getByRole("alert").count() === 0, "pool_choices_unavailable");
+      requireEvidence(await control.getByRole("button", { name: "Create distinct billing pool", exact: true }).isEnabled() === configuration.can_assign, "pool_create_eligibility_mismatch");
+      requireEvidence(await control.locator("input[type=password], input[type=secret]").count() === 0, "unexpected_pool_secret_input");
+      requireEvidence(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "pool_horizontal_overflow");
+      poolsVerified += 1;
+    }
+  }
+  if (poolsVerified === 0) stop("blocked", "real_pool_controls_required");
+  checks.pool_controls = "passed";
   requireEvidence(mutations === 0, "unexpected_mutation_request");
   status = "passed";
   reason = "real_overview_api_dom_navigation_verified";

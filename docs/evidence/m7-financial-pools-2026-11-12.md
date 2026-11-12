@@ -165,3 +165,48 @@ tests; the scoped existing M7 runner and isolated built-browser harness; focused
 module/worksheet documentation. Owner configuration and provider profiles are
 unchanged. Installed activation, authenticated installed controls, genuine
 shared monetary totals and public revision are not claimed by this local packet.
+
+## Installed and published increment at 3c65e1d
+
+The preceding local limitation is superseded for installation and read-only
+screen verification by this execution, not for monetary provider evidence.
+Clean revision `3c65e1d91f096fd4fe31c7cdee10f4d59ef80823` was retained with build
+digest `719b2d6d5e3046606aefce48e47a787ba4b3211d0d2ded41ecae3902c4ef3c9d`.
+The real isolated0733→0734 preparation and backup reopen passed without blockers.
+Seven focused preparation/browser-selector regression tests also passed.
+
+Canonical `auto_m7 --lane deploy --check financial_activation
+--expected-revision=3c65e1d91f096fd4fe31c7cdee10f4d59ef80823` ran from the
+sealed fixed release. Its eight operational checks passed: controller, actual
+start, installed revision/loopback, restored restart policy, operator/worker
+commands, LAN and final postcheck. Exit3 correctly retains separate full
+authenticated-financial, collector-continuity and backup-recovery acceptance;
+this is not a full deploy or M7 pass.
+
+On12 November00:32UTC the authenticated installed probes passed:
+
+- `node frontend/tests/browser/m7/verify_overview.mjs`: two real financial rows,
+  API/DOM equality, filters, exact report drill-down/Back/reload, three viewport
+  widths and existing cloud self/team pool controls; zero unsafe requests.
+- `node frontend/tests/browser/m7/verify_setup.mjs 3c65e1d91f096fd4fe31c7cdee10f4d59ef80823`:
+  actual build revision, setup form, Overview, promotion/support/footer
+  continuity;39 requests, zero unsafe requests. No owner configuration changed.
+
+The existing Overview probe now understands shared-report ownership and checks
+installed pool control eligibility against the real metadata API. It does not
+create/join pools in owner data. Full mutation behavior was proved only in the
+isolated real browser workflow above. Actual monetary totals remain unverified.
+
+GitHub `main` was fast-forwarded from `f7a1799` to `3c65e1d`; `git ls-remote`
+confirmed the exact public head. The read-only push preflight passed. Pinned
+Gitleaks8.30.0 scanned that commit range with full redaction: raw exit1, thirteen
+generic-key findings. Each was independently matched to the SHA-256 of its
+commit's generated OpenAPI artifact (twelve declarations and one documentation
+hash); no credential finding or suppression. This is reviewed scan evidence,
+not an unqualified clean scan or full release-security claim.
+
+Remaining: actual provider-backed money and shared totals, full collection/
+history/sorting/analysis coverage and the fixed M7 exit. The next independent
+implementation packet is the missing OpenAI runtime composition; its source and
+protected credential reader already exist. Administrative owner enrollment is
+still required for that live source, not for implementing its missing wiring.
