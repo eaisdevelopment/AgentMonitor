@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, planning re-review 12 November 2026; recorded baseline
-against installed code revision `ef8fa86` on 12 November 2026. Primary owner:
+against installed code revision `bb43b67` on 12 November 2026. Primary owner:
 root integration; financial semantics: M05. No new scope, approval or gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) is the only task tracker:
@@ -19,13 +19,13 @@ This re-review and its validation are recorded in the
 
 | Boundary | Recorded result | What it does not prove |
 |---|---|---|
-| Installed code | `ef8fa86`, schema `v1_0734`; compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
+| Installed code | `bb43b67`, schema `v1_0734`; manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
 | Owner controls and aggregation | Pool create/join/unlink/primary-group controls, pool-aware Overview and exact attribution installed with `3c65e1d`; retained in current release | Genuine shared monetary totals, source-scope editing or every final setup case |
 | Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed at `ef8fa86`; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, complete accessibility and analysis acceptance |
 | Live data | Existing Ollama cloud balances and daily usage; demonstrated usage is counts-only | Counts are not monetary spend. No conversion or invented zero |
 | Monetary prerequisite | Latest read-only inventory records no Anthropic/OpenAI billing connections; tested owner setup request pending | No enrollment is not evidence of denied provider access |
-| Publication | Last verified GitHub main `7083e43`, a documentation-only successor of installed implementation `ef8fa86`; this planning edit is local | Full M7 exit, current runtime re-verification or owner acceptance |
-| Latest verification | Installed Overview/history and setup/shell probes passed at `ef8fa86`; see stored-window evidence; one preceding unlocalized browser failure is retained there | Not successful monetary provider access |
+| Publication | GitHub main verified at installed implementation `bb43b67`; the evidence/probe follow-up is a non-production successor | Full M7 exit, current runtime re-verification or owner acceptance |
+| Latest verification | Installed Overview/history, setup and cloud controls passed at `bb43b67`; one real 30-day manual usage action passed. Seven-day manual action was rate-limited before POST; earlier failed probes are retained in cloud-manual evidence | Not successful monetary provider access |
 
 Evidence: [stored-window navigation](../../evidence/m7-window-navigation-2026-11-12.md),
 [bounded history](../../evidence/m7-bounded-history-2026-11-12.md),
@@ -37,6 +37,12 @@ Evidence: [stored-window navigation](../../evidence/m7-window-navigation-2026-11
 Reuse those increments. Do not rebuild pool controls, rewire OpenAI, rerun initial
 migrations or request completed cloud setup again. Current ticket counts are two
 done, eleven in progress and three planned; they are not a completion percentage.
+
+The manual cloud increment is now installed at `bb43b67`; see
+[cloud manual collection](../../evidence/m7-cloud-manual-collection-2026-11-12.md).
+It demonstrated one real 30-day self-usage action through reload, report rendering
+and balance continuity, plus financial entry focus and counts-only classification.
+This is bounded progress inside batch 1, not complete T007/T009 or monetary evidence.
 
 The installed collection-control increment is recorded in [manual collection evidence](../../evidence/m7-manual-collection-2026-11-12.md): selected-period action/eligibility,
 cooldown projection and original-request UI reconciliation passed bounded integration and installed continuity checks at `ef8fa86`. It is

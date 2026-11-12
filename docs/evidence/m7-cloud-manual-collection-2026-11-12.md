@@ -1,7 +1,8 @@
 # M7 manual Ollama usage collection
 
-Status: local implementation, integration verification in progress. Not installed
-or published. T004 pure-domain scope is closed below; no other ticket or
+Status: installed implementation `bb43b67e7262af8d86f1320734ce08b57990f58c`;
+bounded live and browser verification passed below. Publication verification is
+recorded separately from installation. T004 pure-domain scope is closed below; no other ticket or
 milestone closure. T007/T009/T011, with T004/T010/T012
 counts-only state correction; FR-COL-004/008, FR-BUDGET-001/004,
 M7-A02/A05/A07/A08/A09. Root integration owns this handoff.
@@ -81,8 +82,9 @@ focuses its heading; ordinary account entry retains its existing layout.
 
 ## Limits and follow-up
 
-The local action still needs final integration review, installed browser Green,
-actual provider collection and balance-continuity evidence. T007 fair scheduling
+The installed action passed bounded integration review, browser Green, a real
+30-day self-usage collection and balance-continuity checks. This is not full
+provider/category/dimension or monetary source reconciliation. T007 fair scheduling
 and wider provider coverage remain unfinished. Genuine monetary acceptance is
 separate. No live success is inferred from pure or empty-storage checks.
 
@@ -127,3 +129,53 @@ reconciliation under T013/T015. No required milestone scope was removed.
 T004 is done on its own pure/mutation boundary; forecasts, report persistence,
 real monetary/provider comparisons and UI acceptance remain separate unfinished
 work. This does not mark M7-A02 or the milestone accepted.
+
+## Installed verification at bb43b67
+
+- Same-schema canonical `auto_m6_current_update.py --expected-revision=bb43b67e7262af8d86f1320734ce08b57990f58c`
+  returned candidate readiness verified and original restart policy restored.
+  No migration or owner configuration was changed.
+- Installed setup probe passed exact revision, authentication, Overview/setup
+  surface, continuity and read-only checks with zero unsafe requests.
+- Cloud control probe passed real eligibility/context and reload, with no POST.
+- Actual 30-day self-usage probe passed: exactly one UI POST, accepted run/status
+  after reload, resulting report readable in the API and rendered in the DOM,
+  unchanged selected interval and retained balance components. Zero configuration
+  requests. This does not establish a monetary report or full provider coverage.
+- Final Overview probe passed both real financial rows, API/DOM order and values,
+  filters, financial entry focus/order, history windows, Back/reload, responsive
+  layouts, pool controls and ordinary-entry refresh. Zero unsafe requests.
+- An earlier post-update Overview attempt failed `financial_row_set_mismatch`;
+  its cause was not established. Later instrumented attempts reconciled both
+  rows. The subsequent visibility assertion failed with heading top -0.109375
+  CSS pixels while focus and document order were correct. The probe now allows
+  one CSS pixel of scroll rounding, matching existing overflow tolerance; it
+  still requires focus, heading visibility and ordering. Final 768px entry top
+  -0.28125 passed that bounded tolerance. No product behavior was changed to
+  satisfy this measurement correction.
+- Runner regression checks passed 14 tests plus 2 subtests in 289.22 seconds.
+  They verify real narrow checks execute while the incomplete full technical
+  lane still reports missing boundaries, not milestone success.
+
+T004 independent focused audit used the shared backend pytest with
+`-c backend/pyproject.toml -p no:cacheprovider -q --tb=short` over capacity pure
+`test_budget_exact_arithmetic`, `test_budget_money`, `test_budget_report_selection`,
+`test_budget_current_selection`, `test_budget_aggregation`,
+`test_budget_account_spend`, `test_budget_pool_overview`, `test_budget_overview`,
+and contract `test_budget_report_contract`, `test_budget_commit_contract`,
+`test_budget_run_contract`: 179 passed in 1.41 seconds. Calculation rules section 9
+and the existing T013 reconciliation step retain breakdown/remainder ownership.
+
+The seven-day probe passed controls, eligibility and reload checks, but its
+collection attempt was Blocked by actual `cloud_usage_rate_limited`; zero POSTs
+were made. This is not a seven-day manual collection pass. Existing scheduled
+usage evidence and the successful 30-day manual action remain separate. The
+canonical probe accepts `--range=7d` to recheck when eligible; no owner action or
+budget reset is required.
+
+GitHub `main` was pushed and independently read back as
+`bb43b67e7262af8d86f1320734ce08b57990f58c`, matching the installed implementation.
+This evidence/probe follow-up is a successor containing no production-code change;
+it does not require reinstalling the identical implementation. Full M7 remains
+open with two of sixteen ticket scopes closed; monetary/provider breadth,
+lifecycle, fair dispatch, analysis and full exit work remain in the catalog.

@@ -4,6 +4,8 @@
 // no account, key, monitoring or provider-profile configuration is submitted.
 const origin = "http://127.0.0.1:43110";
 const collect = process.argv.includes("--collect");
+const rangeKey = process.argv.includes("--range=7d") ? "7d" : "30d";
+const days = rangeKey === "7d" ? 7 : 30;
 let page, status = "blocked", reason = "browser_unavailable", revision = null;
 let stage = "browser", posts = 0, unsafe = 0;
 const checks = { authentication: false, controls: false, eligibility: false, reload: false, collection: false, report: false, balance_continuity: false };
@@ -38,7 +40,7 @@ try {
   const inventory = await read("/api/v1/accounts?provider_key=ollama&limit=200");
   requireEvidence(inventory.page?.has_more === false, "account_selection_requires_paging");
   const now = new Date(), end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const start = new Date(end.getTime() - 30 * 86400000);
+  const start = new Date(end.getTime() - days * 86400000);
   const period = { period_start: start.toISOString(), period_end: end.toISOString(), as_of: now.toISOString() };
   let selected, fallback;
   for (const account of inventory.items.filter(value => value.lifecycle === "active" && value.is_effective_monitoring_enabled)) {
@@ -48,7 +50,7 @@ try {
       const candidate = { account, resource, summary };
       fallback ??= candidate;
       if (!collect) { selected = candidate; break; }
-      const eligibility = await read(`/api/v1/accounts/${encodeURIComponent(account.account_id)}/cloud-usage/${encodeURIComponent(resource.resource_id)}/collection-eligibility?${new URLSearchParams({ scope: "self", range_key: "30d", interval_start: period.period_start, interval_end: period.period_end })}`);
+      const eligibility = await read(`/api/v1/accounts/${encodeURIComponent(account.account_id)}/cloud-usage/${encodeURIComponent(resource.resource_id)}/collection-eligibility?${new URLSearchParams({ scope: "self", range_key: rangeKey, interval_start: period.period_start, interval_end: period.period_end })}`);
       if (eligibility.can_collect) { selected = candidate; break; }
     }
   }
@@ -56,7 +58,7 @@ try {
   if (!selected) stop("blocked", "active_cloud_resource_required");
   const { account, resource, summary } = selected;
   const path = `/api/v1/accounts/${encodeURIComponent(account.account_id)}/cloud-usage/${encodeURIComponent(resource.resource_id)}`;
-  const reportContext = { scope: "self", range_key: "30d", interval_start: period.period_start, interval_end: period.period_end };
+  const reportContext = { scope: "self", range_key: rangeKey, interval_start: period.period_start, interval_end: period.period_end };
   const query = new URLSearchParams({ budget_resource: resource.resource_id, budget_start: period.period_start, budget_end: period.period_end, budget_as_of: period.as_of });
   const address = `${origin}/accounts/${encodeURIComponent(account.account_id)}?${query}`;
   stage = "controls";
@@ -69,7 +71,7 @@ try {
   checks.controls = true;
   stage = "eligibility";
   let eligibility = await read(path + "/collection-eligibility?" + new URLSearchParams(reportContext));
-  requireEvidence(eligibility.account_id === account.account_id && eligibility.resource_id === resource.resource_id && eligibility.report_context.scope === "self" && eligibility.report_context.range_key === "30d", "cloud_eligibility_context_mismatch");
+  requireEvidence(eligibility.account_id === account.account_id && eligibility.resource_id === resource.resource_id && eligibility.report_context.scope === "self" && eligibility.report_context.range_key === rangeKey, "cloud_eligibility_context_mismatch");
   requireEvidence(Date.parse(eligibility.report_context.interval_start) === start.getTime() && Date.parse(eligibility.report_context.interval_end) === end.getTime(), "cloud_eligibility_interval_mismatch");
   checks.eligibility = true;
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -93,7 +95,7 @@ try {
     if (response.status() === 429) stop("blocked", "concurrent_provider_cooldown");
     requireEvidence(response.status() === 202, "cloud_collection_not_accepted");
     const admitted = await response.json();
-    requireEvidence(admitted.account_id === account.account_id && admitted.resource_id === resource.resource_id && admitted.report_context.range_key === "30d", "cloud_run_context_mismatch");
+    requireEvidence(admitted.account_id === account.account_id && admitted.resource_id === resource.resource_id && admitted.report_context.range_key === rangeKey, "cloud_run_context_mismatch");
     await page.reload({ waitUntil: "domcontentloaded" });
     await control.waitFor();
     let run = admitted;
@@ -127,5 +129,5 @@ try {
 } finally {
   if (page) await page.close().catch(() => {});
 }
-console.log(JSON.stringify({ status, reason, stage, revision, scope: collect ? "one_real_cloud_usage_action" : "cloud_usage_read_only_controls", checks, posts, unsafe }));
+console.log(JSON.stringify({ status, reason, stage, revision, scope: collect ? "one_real_cloud_usage_action" : "cloud_usage_read_only_controls", range: rangeKey, checks, posts, unsafe }));
 process.exit(status === "passed" ? 0 : status === "blocked" ? 3 : 1);

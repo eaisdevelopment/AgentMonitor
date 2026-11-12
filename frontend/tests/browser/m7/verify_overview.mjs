@@ -11,6 +11,9 @@ let sourceRevision = null;
 let rowsVerified = 0;
 let stage = "overview";
 let errorKind = null;
+let rowSetDiagnostic = null;
+let entryDiagnostic = null;
+const overviewResponseStatuses = [];
 const renderedReadPaths = [];
 const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
@@ -27,6 +30,7 @@ try {
   if (context === undefined) stop("blocked", "browser_context_unavailable");
   page = await context.newPage();
   page.setDefaultTimeout(10000);
+  page.on("response", response => { if (new URL(response.url()).pathname === "/api/v1/budgets") overviewResponseStatuses.push(response.status()); });
   page.on("request", request => {
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) mutations += 1;
     if (request.method() === "GET") renderedReadPaths.push(new URL(request.url()).pathname);
@@ -119,6 +123,11 @@ try {
       if (index === 99) stop("blocked", "dom_pagination_bound_exceeded");
     }
     const actualRowIds = await financial.locator("[data-financial-row]").evaluateAll(rows => rows.map(row => row.getAttribute("data-financial-row")));
+    if (actualRowIds.length !== expected.items.length) rowSetDiagnostic = {
+      expected_rows: expected.items.length, rendered_rows: actualRowIds.length,
+      refresh_error_visible: (await financial.textContent()).includes("could not be refreshed") || (await financial.textContent()).includes("readings are unavailable"),
+      overview_response_statuses: overviewResponseStatuses,
+    };
     requireEvidence(actualRowIds.length === expected.items.length, "financial_row_set_mismatch");
     requireEvidence(actualRowIds.every((id, index) => id === expected.items[index].row_id), "financial_server_order_mismatch");
     for (const row of expected.items) {
@@ -224,15 +233,19 @@ try {
     await page.getByRole("heading", { name: "API usage & spend", exact: true }).waitFor();
     try { await page.waitForFunction(() => document.activeElement?.id === "budget-account-title", undefined, { timeout: 3000 }); }
     catch { stop("failed", "financial_entry_focus_missing"); }
-    requireEvidence(await page.evaluate(() => {
+    entryDiagnostic = await page.evaluate(() => {
       const heading = document.getElementById("budget-account-title");
       const activity = document.getElementById("account-activity-title");
       const quota = document.getElementById("quota-title");
       const box = heading.getBoundingClientRect();
-      return box.top >= 0 && box.bottom <= innerHeight && activity !== null && quota !== null &&
-        Boolean(heading.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING) &&
-        Boolean(heading.compareDocumentPosition(quota) & Node.DOCUMENT_POSITION_FOLLOWING);
-    }), "financial_entry_not_visible_before_subscription");
+      return { top: box.top, bottom: box.bottom, height: innerHeight,
+        activity_present: activity !== null, quota_present: quota !== null,
+        before_activity: activity !== null && Boolean(heading.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING),
+        before_quota: quota !== null && Boolean(heading.compareDocumentPosition(quota) & Node.DOCUMENT_POSITION_FOLLOWING) };
+    });
+    // scrollIntoView rounds to device pixels; allow the same one-CSS-pixel
+    // tolerance used by the overflow checks, without relaxing focus/order.
+    requireEvidence(entryDiagnostic.top >= -1 && entryDiagnostic.bottom <= entryDiagnostic.height + 1 && entryDiagnostic.before_activity && entryDiagnostic.before_quota, "financial_entry_not_visible_before_subscription");
   }
   stage = "financial_entry";
   await financialEntry();
@@ -462,4 +475,4 @@ try {
   checks.read_only = page === undefined ? "not_run" : mutations === 0 ? "passed" : "failed";
   if (mutations !== 0) { status = "failed"; reason = "unexpected_mutation_request"; }
 }
-process.stdout.write(JSON.stringify({ record_type: "agentmonitor.m7_overview_probe.v1", status, reason_code: reason, stage, error_kind: errorKind, source_revision: sourceRevision, checks, rows_verified: rowsVerified, unsafe_requests: mutations, observed_at: new Date().toISOString() }) + "\n", () => process.exit(status === "passed" ? 0 : status === "failed" ? 1 : 3));
+process.stdout.write(JSON.stringify({ record_type: "agentmonitor.m7_overview_probe.v1", status, reason_code: reason, stage, error_kind: errorKind, source_revision: sourceRevision, checks, rows_verified: rowsVerified, row_set_diagnostic: rowSetDiagnostic, entry_diagnostic: entryDiagnostic, unsafe_requests: mutations, observed_at: new Date().toISOString() }) + "\n", () => process.exit(status === "passed" ? 0 : status === "failed" ? 1 : 3));
