@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Local credential-file coordination lock; never publish it.
+/.ollama-env.lock
 
 # Python
 __pycache__/

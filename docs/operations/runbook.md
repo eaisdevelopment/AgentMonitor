@@ -128,3 +128,25 @@ helpers that select a fixed workstation are not portable installation commands.
 Report problems with the revision, provider/version, time, displayed error code
 and sanitized reproduction. Keep keys, passwords, provider files, raw responses
 and complete databases out of reports; see [Security](../../SECURITY.md).
+
+## Clean development caches
+
+From the repository root, preview ignored test and static-analysis caches:
+
+```bash
+git clean -ndX -- .pytest_cache .mypy_cache .ruff_cache backend/.pytest_cache backend/.mypy_cache backend/.ruff_cache test-results frontend/test-results frontend/playwright-report
+```
+
+After reviewing the listed paths and confirming no test or build is using them,
+remove the same selection:
+
+```bash
+git clean -fdX -- .pytest_cache .mypy_cache .ruff_cache backend/.pytest_cache backend/.mypy_cache backend/.ruff_cache test-results frontend/test-results frontend/playwright-report
+```
+
+Keep the explicit path list: an unrestricted `git clean -fdX` can remove ignored
+credentials, local databases and other valuable files. Preserve installed
+releases, provider profiles, recovery backups and required verification records.
+Before removing an old Git worktree, retain its commit on a branch or archive
+reference, preserve uncommitted work, and check that no running process or shared
+tool dependency uses its directory. Use `git worktree remove` without forcing it.
