@@ -53,6 +53,9 @@ from agentmonitor.modules.collection_control.application.queries import (
     GetLatestSourceRunV1,
     source_poll_is_due_v1,
 )
+from agentmonitor.modules.collection_control.application.source_recovery import (
+    RecoverExpiredSourceRunsV1,
+)
 from agentmonitor.modules.provider_system.application.gateway import (
     get_manifest_fingerprint_v1,
 )
@@ -301,6 +304,29 @@ class CodexDashboardCollectorV1:
                 now,
                 account_id=target[0].account_id,
             )
+            recovery_at = datetime.now(UTC)
+            if (
+                latest is not None
+                and latest.state == "running"
+                and latest.deadline_at <= recovery_at
+            ):
+                RecoverExpiredSourceRunsV1(self._collection)(
+                    provider_key="codex",
+                    capability_id="subscription.quota",
+                    source_id=CODEX_RATE_LIMITS_SOURCE_ID,
+                    as_of=recovery_at,
+                    owner_stale_before=recovery_at - timedelta(seconds=120),
+                    recovery_instance_id=OpaqueIdV1(
+                        "codex-recovery-" + uuid.uuid4().hex
+                    ),
+                )
+                latest = GetLatestSourceRunV1(self._collection)(
+                    "codex",
+                    "subscription.quota",
+                    CODEX_RATE_LIMITS_SOURCE_ID,
+                    recovery_at,
+                    account_id=target[0].account_id,
+                )
             minimum_ms = _quota_minimum_interval_ms()
             action = codex_tick_provider_action_v1(
                 source_poll_due=source_poll_is_due_v1(

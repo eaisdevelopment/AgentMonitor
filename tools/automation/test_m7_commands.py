@@ -7,31 +7,35 @@ import sys
 import unittest
 from pathlib import Path
 
-from tools.automation.implementations.auto_m7 import CheckResult, evaluate_lane
+from tools.automation.implementations.auto_m7 import (
+    REQUIRED_CHECKS,
+    CheckResult,
+    evaluate_lane,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class M7CanonicalExecutionTests(unittest.TestCase):
-    def test_canonical_technical_command_reports_executed_and_missing_boundaries(self):
-        """M7-GATE-001: a catalog placeholder cannot substitute for execution."""
+    def test_canonical_technical_command_executes_every_required_boundary(self):
+        """M7-GATE-001: require actual complete technical execution."""
         result = subprocess.run(
             [sys.executable, "tools/automation/run.py", "AUTO-M7-TEST"],
             cwd=ROOT,
             capture_output=True,
             text=True,
-            timeout=180,
+            # Full technical execution now includes real expiry and receipt
+            # recovery; retain each child bound within the aggregate budget.
+            timeout=1650,
             check=False,
         )
-        if "NOT_RUN" in result.stdout:
-            self.assertNotEqual(result.returncode, 0)
-        self.assertIn("M7 CHECK pure:", result.stdout)
-        self.assertIn("M7 CHECK registry_metadata:", result.stdout)
-        self.assertNotIn(
-            "M7 CHECK registry_metadata: NOT_RUN (m7_boundary_runner_not_implemented)",
-            result.stdout,
-        )
-        self.assertIn("M7 CHECK registry_http:", result.stdout)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for name in REQUIRED_CHECKS["technical"]:
+            self.assertIn(f"M7 CHECK {name}: PASSED", result.stdout)
+        for name in ("collection_guards", "queued_expiry_history", "receipt_recovery"):
+            self.assertIn(f"M7 COLLECTION PROOF {name}: PASSED", result.stdout)
+        self.assertIn("AUTO-M7-TEST: PASSED (operational_limited)", result.stdout)
+        self.assertNotIn("M7 CHECK collection: NOT_RUN", result.stdout)
 
 
 class M7CompletionPolicyTests(unittest.TestCase):

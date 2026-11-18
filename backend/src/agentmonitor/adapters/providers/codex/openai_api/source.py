@@ -1,4 +1,4 @@
-"""Official cost GET, callable only inside the supervised billing worker.
+"""Official organization report GETs in the supervised billing worker only.
 
 The composition root owns a dedicated process and hard 120-second lifetime.
 Each request additionally has a hard SIGALRM bound, including DNS/TLS/header
@@ -16,7 +16,7 @@ import signal
 import ssl
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -34,16 +34,32 @@ from agentmonitor.adapters.providers.codex.openai_api.policy import (
     REPORT_SECONDS,
     REQUEST_SECONDS,
     SOURCE_ID,
+    USAGE_SOURCE_ID,
     OpenAICostRequestV1,
+    OpenAIUsageRequestV1,
     bounded_deadline,
     decimal_number,
     money_from_number,
     request_path,
 )
+from agentmonitor.adapters.providers.codex.openai_api.usage_mapping import (
+    GROUP_FIELDS,
+    OpenAIUsageMeasuresV1,
+    bucket_key,
+    dimensions_for_grouping,
+    usage_buckets,
+    usage_mapping,
+)
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCostBucketV1,
+    BudgetDimensionV1,
     BudgetPeriodV1,
     BudgetReportInputV1,
+    BudgetUsageBucketV1,
+)
+from agentmonitor.contracts.common_quantity_v1 import (
+    CanonicalDecimalV1,
+    ExactQuantityV1,
 )
 
 State = Literal[
@@ -84,6 +100,23 @@ class OpenAICostSourceV1(Protocol):
         authorization: OpenAICostAuthorizationV1 | None,
         deadline_monotonic: float | None = None,
     ) -> OpenAICostResultV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class OpenAIUsageResultV1(OpenAICostResultV1):
+    """Usage-only report result; no currency or balance inference."""
+
+
+class OpenAIUsageSourceV1(Protocol):
+    """One captured usage category through root's existing sealed grant."""
+
+    def __call__(
+        self,
+        request: OpenAIUsageRequestV1,
+        *,
+        authorization: OpenAICostAuthorizationV1 | None,
+        deadline_monotonic: float | None = None,
+    ) -> OpenAIUsageResultV1: ...
 
 
 class _WorkerRequired(ValueError):
@@ -371,18 +404,15 @@ _NULL_FIELDS = frozenset(
 )
 
 
-def _bucket(
+def _bucket_header(
     value: object, request: OpenAICostRequestV1
-) -> tuple[BudgetPeriodV1, BudgetCostBucketV1 | None, bool]:
+) -> tuple[BudgetPeriodV1, list[object]]:
     if (
         not isinstance(value, dict)
-        or set(value)
-        != {
-            "object",
-            "start_time",
-            "end_time",
-            "results",
-        }
+        # OpenAI documents added JSON properties as backward compatible.
+        # Consume only the required bucket fields; extra metadata never enters
+        # the financial report or changes its period/dimension validation.
+        or not {"object", "start_time", "end_time", "results"} <= set(value)
         or value["object"] != "bucket"
     ):
         raise ValueError("openai_cost_bucket_invalid")
@@ -397,42 +427,118 @@ def _bucket(
     ):
         raise ValueError("openai_cost_bucket_period_invalid")
     results = value["results"]
-    if not isinstance(results, list) or len(results) > 1:
-        raise ValueError("openai_cost_ungrouped_result_invalid")
-    if not results:
-        return period, None, False
-    result = results[0]
+    if not isinstance(results, list) or len(results) > MAX_ROWS:
+        raise ValueError("openai_report_results_invalid")
+    if request.grouping in ((), ("token_category",)) and len(results) > 1:
+        raise ValueError("openai_report_ungrouped_result_invalid")
+    return period, results
+
+
+def _dimensions(
+    result: dict[str, object],
+    request: OpenAICostRequestV1,
+    fields: tuple[str, ...],
+) -> tuple[BudgetDimensionV1, ...]:
+    grouping = () if request.grouping == ("token_category",) else request.grouping
+    selected = GROUP_FIELDS[grouping[0]] if grouping else None
+    if any(result.get(key) is not None for key in fields if key != selected):
+        raise ValueError("openai_report_unrequested_dimension")
+    value = result.get(selected) if selected else None
+    if value is not None and type(value) is not str:
+        raise ValueError("openai_report_dimension_invalid")
+    return dimensions_for_grouping(grouping, value)
+
+
+def _cost_result(
+    result: object,
+    period: BudgetPeriodV1,
+    request: OpenAICostRequestV1,
+) -> BudgetCostBucketV1 | None:
     if (
         not isinstance(result, dict)
-        or set(result) - (_NULL_FIELDS | {"object", "amount"})
+        # Additional response properties are backward compatible in OpenAI's
+        # API. Only admitted money and dimension fields are consumed below;
+        # extra metadata is neither attributed nor retained.
         or result.get("object") != "organization.costs.result"
-        or any(result.get(key) is not None for key in _NULL_FIELDS)
     ):
         raise ValueError("openai_cost_result_invalid")
+    dimensions = _dimensions(result, request, tuple(_NULL_FIELDS))
     if "amount" not in result:
-        return period, None, True
+        return None
     amount = result["amount"]
     if not isinstance(amount, dict) or set(amount) - {"value", "currency"}:
         raise ValueError("openai_cost_amount_invalid")
     if set(amount) != {"value", "currency"}:
-        return period, None, True
+        return None
     money = money_from_number(amount["value"], amount["currency"])
-    return (
-        period,
-        BudgetCostBucketV1(
-            bucket_key="daily_" + period.start.strftime("%Y%m%d"),
-            period=period,
-            amount=money,
-            dimensions=(),
-            kind="adjustment" if int(money.amount.coefficient) < 0 else "charge",
-        ),
-        False,
+    return BudgetCostBucketV1(
+        bucket_key=bucket_key(period, dimensions),
+        period=period,
+        amount=money,
+        dimensions=dimensions,
+        kind="adjustment" if int(money.amount.coefficient) < 0 else "charge",
     )
+
+
+def _usage_result(
+    result: object,
+    period: BudgetPeriodV1,
+    request: OpenAIUsageRequestV1,
+) -> tuple[BudgetUsageBucketV1, ...]:
+    mapping = usage_mapping(request.category)
+    fields = mapping.required + mapping.optional
+    if (
+        not isinstance(result, dict)
+        or result.get("object") != mapping.result_object
+        or set(result) - {"object", *fields, *mapping.dimension_fields}
+        or not set(mapping.required) <= set(result)
+    ):
+        raise ValueError("openai_usage_result_invalid")
+    dimensions = _dimensions(result, request, mapping.dimension_fields)
+    quantities = []
+    for field in sorted(fields):
+        if field not in result:
+            continue
+        value = result[field]
+        if value is None and field in mapping.nullable:
+            continue
+        if type(value) is not int:
+            raise ValueError("openai_usage_quantity_invalid")
+        quantities.append(ExactQuantityV1(CanonicalDecimalV1(str(value), 0), field))
+    measures = OpenAIUsageMeasuresV1(request.category, tuple(quantities))
+    return usage_buckets(
+        period,
+        measures,
+        dimensions,
+        token_categories=request.grouping == ("token_category",),
+    )
+
+
+def _bucket(
+    value: object,
+    request: OpenAICostRequestV1,
+    remaining_rows: int,
+) -> tuple[BudgetPeriodV1, tuple[BudgetCostBucketV1 | BudgetUsageBucketV1, ...], bool]:
+    period, results = _bucket_header(value, request)
+    rows: list[BudgetCostBucketV1 | BudgetUsageBucketV1] = []
+    unavailable = False
+    for result in results:
+        if isinstance(request, OpenAIUsageRequestV1):
+            rows.extend(_usage_result(result, period, request))
+        else:
+            cost = _cost_result(result, period, request)
+            if cost is None:
+                unavailable = True
+            else:
+                rows.append(cost)
+        if len(rows) > remaining_rows:
+            raise ValueError("openai_report_rows_exceeded")
+    return period, tuple(rows), unavailable
 
 
 def _report(
     request: OpenAICostRequestV1,
-    rows: list[BudgetCostBucketV1],
+    rows: Sequence[BudgetCostBucketV1 | BudgetUsageBucketV1],
     periods: set[datetime],
     omissions: set[str],
     *,
@@ -443,7 +549,13 @@ def _report(
     # or monetary zero. Missing days in a nonempty report are not interpolated.
     if periods and len(periods) != (request.period.end - request.period.start).days:
         omissions.add("daily_coverage_incomplete")
-    currencies = {row.amount.currency for row in rows}
+    usage = isinstance(request, OpenAIUsageRequestV1)
+    expected_type = BudgetUsageBucketV1 if usage else BudgetCostBucketV1
+    if any(not isinstance(row, expected_type) for row in rows):
+        raise ValueError("openai_report_row_category_invalid")
+    currencies = {
+        row.amount.currency for row in rows if isinstance(row, BudgetCostBucketV1)
+    }
     if len(currencies) > 1:
         raise ValueError("openai_cost_currency_mixed")
     complete = not omissions
@@ -454,10 +566,16 @@ def _report(
         scope_generation=request.scope_generation,
         scope_id=request.scope_id,
         scope_evidence=request.scope_evidence,
-        source_id=SOURCE_ID,
-        source_category="cost",
-        cost_basis=COST_BASIS,
-        grouping=(),
+        source_id=USAGE_SOURCE_ID if usage else SOURCE_ID,
+        source_category=(
+            "usage_"
+            + request.category
+            + ("_tokens" if request.grouping == ("token_category",) else "")
+        )
+        if isinstance(request, OpenAIUsageRequestV1)
+        else "cost",
+        cost_basis="not_applicable" if usage else COST_BASIS,
+        grouping=request.grouping,
         requested_period=request.period,
         covered_period=request.period if complete else None,
         source_data_through=None,
@@ -466,12 +584,14 @@ def _report(
         omission_codes=tuple(sorted(omissions)),
         currency=next(iter(currencies)) if currencies else None,
         empty_means_zero=False,
-        cost_buckets=tuple(rows),
-        usage_buckets=(),
+        cost_buckets=tuple(row for row in rows if isinstance(row, BudgetCostBucketV1)),
+        usage_buckets=tuple(
+            row for row in rows if isinstance(row, BudgetUsageBucketV1)
+        ),
     )
 
 
-def collect_cost_report_in_worker_v1(
+def _collect_report(
     request: OpenAICostRequestV1,
     *,
     authorization: OpenAICostAuthorizationV1 | None,
@@ -483,15 +603,19 @@ def collect_cost_report_in_worker_v1(
     self-admit scheduling or claim that any credential has been live verified.
     No automatic retries, redirects, provider writes or environment lookups.
     """
+    prefix = (
+        "openai_usage_" if isinstance(request, OpenAIUsageRequestV1) else "openai_cost_"
+    )
     if authorization is None:
         return OpenAICostResultV1(
             "authorization_unavailable",
-            "openai_cost_authorization_unavailable",
+            prefix + "authorization_unavailable",
             None,
             0,
         )
     started = time.monotonic()
-    rows: list[BudgetCostBucketV1] = []
+    rows: list[BudgetCostBucketV1 | BudgetUsageBucketV1] = []
+    row_keys: set[str] = set()
     seen: set[datetime] = set()
     omissions: set[str] = set()
     cursors: set[str] = set()
@@ -519,16 +643,22 @@ def collect_cost_report_in_worker_v1(
             ):
                 raise ValueError("openai_cost_page_limits_invalid")
             for value in data:
-                period, row, unavailable = _bucket(value, request)
+                period, batch, unavailable = _bucket(
+                    value, request, MAX_ROWS - len(rows)
+                )
                 if period.start in seen:
                     raise ValueError("openai_cost_duplicate_bucket")
-                normalized_bytes += 512 + (
-                    len(row.amount.amount.coefficient) if row is not None else 0
-                )
+                normalized_bytes += 512
                 if normalized_bytes > MAX_NORMALIZED_BYTES:
                     raise ValueError("openai_cost_normalized_too_large")
                 seen.add(period.start)
-                if row is not None:
+                for row in batch:
+                    if row.bucket_key in row_keys:
+                        raise ValueError("openai_report_duplicate_row")
+                    normalized_bytes += 1024
+                    if len(rows) >= MAX_ROWS or normalized_bytes > MAX_NORMALIZED_BYTES:
+                        raise ValueError("openai_report_normalized_too_large")
+                    row_keys.add(row.bucket_key)
                     rows.append(row)
                 if unavailable:
                     omissions.add("monetary_fields_unavailable")
@@ -553,8 +683,8 @@ def collect_cost_report_in_worker_v1(
                 return OpenAICostResultV1(
                     state,
                     "openai_cost_monetary_unavailable"
-                    if not rows
-                    else "openai_cost_" + state,
+                    if not rows and not isinstance(request, OpenAIUsageRequestV1)
+                    else prefix + state,
                     report,
                     requests,
                     200,
@@ -566,12 +696,12 @@ def collect_cost_report_in_worker_v1(
         report = _report(request, rows, seen, omissions, collected_at=datetime.now(UTC))
         bounded_deadline(time.monotonic(), deadline, REPORT_SECONDS)
         return OpenAICostResultV1(
-            "partial", "openai_cost_page_budget_exceeded", report, requests, 200
+            "partial", prefix + "page_budget_exceeded", report, requests, 200
         )
     except _SourceFailure as failure:
         return OpenAICostResultV1(
             failure.state,
-            "openai_cost_" + failure.state,
+            prefix + failure.state,
             None,
             requests,
             failure.status,
@@ -579,27 +709,63 @@ def collect_cost_report_in_worker_v1(
         )
     except TimeoutError:
         return OpenAICostResultV1(
-            "deadline_exceeded", "openai_cost_deadline_exceeded", None, requests
+            "deadline_exceeded", prefix + "deadline_exceeded", None, requests
         )
     except (ssl.SSLError, OSError, http.client.HTTPException):
         return OpenAICostResultV1(
             "provider_unavailable",
-            "openai_cost_transport_unavailable",
+            prefix + "transport_unavailable",
             None,
             requests,
         )
     except _WorkerRequired:
         return OpenAICostResultV1(
             "worker_required",
-            "openai_cost_dedicated_worker_required",
+            prefix + "dedicated_worker_required",
             None,
             requests,
         )
     except (ValueError, RecursionError):
         return OpenAICostResultV1(
-            "invalid_provider_data", "openai_cost_data_invalid", None, requests
+            "invalid_provider_data", prefix + "data_invalid", None, requests
         )
     except Exception:
         return OpenAICostResultV1(
-            "internal_error", "openai_cost_internal_error", None, requests
+            "internal_error", prefix + "internal_error", None, requests
         )
+
+
+def collect_cost_report_in_worker_v1(
+    request: OpenAICostRequestV1,
+    *,
+    authorization: OpenAICostAuthorizationV1 | None,
+    deadline_monotonic: float | None = None,
+) -> OpenAICostResultV1:
+    """Existing cost port; defaults preserve ungrouped report identity."""
+    if type(request) is not OpenAICostRequestV1:
+        raise ValueError("openai_cost_request_required")
+    return _collect_report(
+        request, authorization=authorization, deadline_monotonic=deadline_monotonic
+    )
+
+
+def collect_usage_report_in_worker_v1(
+    request: OpenAIUsageRequestV1,
+    *,
+    authorization: OpenAICostAuthorizationV1 | None,
+    deadline_monotonic: float | None = None,
+) -> OpenAIUsageResultV1:
+    """One finite native usage category; never invokes inference or pricing."""
+    if type(request) is not OpenAIUsageRequestV1:
+        raise ValueError("openai_usage_request_required")
+    result = _collect_report(
+        request, authorization=authorization, deadline_monotonic=deadline_monotonic
+    )
+    return OpenAIUsageResultV1(
+        result.state,
+        result.reason_code,
+        result.report,
+        result.requests_made,
+        result.http_status,
+        result.retry_after_seconds,
+    )

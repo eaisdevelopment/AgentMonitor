@@ -1,4 +1,4 @@
-"""Pure A02 admission for exact ungrouped completed 7/30-day cost reports."""
+"""Pure A02 admission for finite completed 7/30-day cost and usage views."""
 
 import math
 import re
@@ -8,7 +8,18 @@ from decimal import Decimal
 from typing import Literal
 from urllib.parse import urlencode
 
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, CapacitySubjectV2
+from agentmonitor.adapters.providers.codex.openai_api.usage_mapping import (
+    GROUP_FIELDS,
+    USAGE_MAPPINGS,
+    UsageCategoryV1,
+    usage_mapping,
+    validate_grouping,
+)
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetDimensionKindV1,
+    BudgetPeriodV1,
+    CapacitySubjectV2,
+)
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
@@ -16,6 +27,7 @@ from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 HOST = "api.openai.com"
 PATH = "/v1/organization/costs"
 SOURCE_ID = "openai.organization.costs.v1"
+USAGE_SOURCE_ID = "openai.organization.usage.v1"
 COST_BASIS = "openai_reported_cost"
 MAX_REQUESTS = 20
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
@@ -24,6 +36,33 @@ MAX_ROWS = 10000
 REPORT_SECONDS = 120
 REQUEST_SECONDS = 10
 _NUMBER = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]{1,3})?\Z")
+
+ANALYTICS_REPORT_SELECTIONS: tuple[
+    tuple[str, tuple[BudgetDimensionKindV1, ...]], ...
+] = (
+    (
+        ("cost", ()),
+        ("cost", ("project",)),
+        ("cost", ("api_key_id",)),
+    )
+    + tuple(
+        ("usage_" + category, grouping)
+        for category, mapping in USAGE_MAPPINGS.items()
+        for grouping in ((), *((dimension,) for dimension in mapping.groupings))
+    )
+    + tuple(
+        ("usage_" + category + "_tokens", ("token_category",))
+        for category, mapping in USAGE_MAPPINGS.items()
+        if mapping.token_fields
+    )
+)
+
+
+def analytics_selection_is_usage(category: str, grouping: tuple[str, ...]) -> bool:
+    """Admit only reviewed single-dimension views before selecting a source."""
+    if (category, grouping) not in ANALYTICS_REPORT_SELECTIONS:
+        raise ValueError("openai_analytics_selection_invalid")
+    return category != "cost"
 
 
 def completed_period(instant: datetime, days: int) -> BudgetPeriodV1:
@@ -74,6 +113,7 @@ class OpenAICostRequestV1(TechnicalValueV1):
     scope_generation: int
     period: BudgetPeriodV1
     requested_at: datetime
+    grouping: tuple[BudgetDimensionKindV1, ...] = ()
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -91,6 +131,24 @@ class OpenAICostRequestV1(TechnicalValueV1):
         ):
             raise ValueError("openai_cost_request_invalid")
         validate_period(self.period, self.requested_at)
+        self._validate_grouping()
+
+    def _validate_grouping(self) -> None:
+        validate_grouping(self.grouping, ("project", "api_key_id"))
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OpenAIUsageRequestV1(OpenAICostRequestV1):
+    """Exactly one admitted endpoint, interval and optional single dimension."""
+
+    category: UsageCategoryV1
+
+    def _validate_grouping(self) -> None:
+        mapping = usage_mapping(self.category)
+        supported = mapping.groupings + (
+            ("token_category",) if mapping.token_fields else ()
+        )
+        validate_grouping(self.grouping, supported)
 
 
 def request_path(request: OpenAICostRequestV1, cursor: str | None) -> str:
@@ -109,7 +167,15 @@ def request_path(request: OpenAICostRequestV1, cursor: str | None) -> str:
     }
     if cursor is not None:
         parameters["page"] = cursor
-    return PATH + "?" + urlencode(parameters)
+    if request.grouping and request.grouping != ("token_category",):
+        # Match OpenAI's REST array encoding even for one selected dimension.
+        parameters["group_by[]"] = GROUP_FIELDS[request.grouping[0]]
+    path = (
+        "/v1/organization/usage/" + request.category
+        if isinstance(request, OpenAIUsageRequestV1)
+        else PATH
+    )
+    return path + "?" + urlencode(parameters)
 
 
 def decimal_number(value: str) -> Decimal:

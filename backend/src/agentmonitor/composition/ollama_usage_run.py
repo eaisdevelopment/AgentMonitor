@@ -36,6 +36,15 @@ def _digest(*parts: str) -> str:
     return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
 
 
+def usage_schedule_for_adapter(legacy: OpaqueIdV1, adapter_version: str) -> OpaqueIdV1:
+    """Fence changed parser policy without changing credential or budget identity."""
+    if adapter_version == "1.0.0":
+        return legacy
+    return OpaqueIdV1(
+        "ollama-usage-version-" + _digest(legacy.value, adapter_version)[:40]
+    )
+
+
 def usage_manifest_fingerprint() -> str:
     return _digest(
         "provider-manifest-fingerprint-v1",
@@ -83,7 +92,9 @@ def build_ollama_usage_run(
         service_target=service,
         report_context=context,
         run_id=run_id,
-        schedule_id=OpaqueIdV1("ollama-usage-" + target_digest[:40]),
+        schedule_id=usage_schedule_for_adapter(
+            OpaqueIdV1("ollama-usage-" + target_digest[:40]), ADAPTER_VERSION
+        ),
         request_id=request_id,
         trigger="scheduled",
         operation_family="collect.ollama.usage." + context.range_key,
@@ -93,7 +104,13 @@ def build_ollama_usage_run(
         request_principal_id=None,
         correlation_id=request_id,
         causation_id=None,
-        target_key_digest=target_digest,
+        target_key_digest=(
+            target_digest
+            if ADAPTER_VERSION == "1.0.0"
+            else _digest(
+                "ollama-usage-schedule-target-v1", target_digest, ADAPTER_VERSION
+            )
+        ),
         provider_key="ollama",
         provider_target=ProviderTargetRefV1("cloud_service", graph.access_target_id),
         account_id=graph.account_id,
@@ -165,4 +182,5 @@ def usage_request_for_run(
         period=period,
         requested_at=run.requested_at,
         scope=context.scope,
+        grouping=context.grouping,
     )

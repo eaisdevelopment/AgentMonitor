@@ -37,7 +37,8 @@ def source_poll_is_due_v1(
         (latest.started_at or latest.requested_at) if latest else None,
         latest.state if latest else None,
         interval,
-        transient_read_failure=transient_read_failure,
+        transient_read_failure=transient_read_failure
+        or bool(latest and latest.error_code == "collection_worker_interrupted"),
     )
 
 

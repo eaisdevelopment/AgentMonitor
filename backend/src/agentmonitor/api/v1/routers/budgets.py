@@ -108,7 +108,9 @@ def report_wire(item: BudgetReportViewV1) -> BudgetReportWireV1:
                 amount=_money(row.amount),
                 kind=row.kind,
                 dimensions=[
-                    BudgetDimensionWireV1(kind=d.kind, value=d.value)
+                    BudgetDimensionWireV1(
+                        kind=d.kind, value=d.value, is_remainder=d.is_remainder
+                    )
                     for d in row.dimensions
                 ],
             )
@@ -124,7 +126,9 @@ def report_wire(item: BudgetReportViewV1) -> BudgetReportWireV1:
                     unit=row.quantity.unit,
                 ),
                 dimensions=[
-                    BudgetDimensionWireV1(kind=d.kind, value=d.value)
+                    BudgetDimensionWireV1(
+                        kind=d.kind, value=d.value, is_remainder=d.is_remainder
+                    )
                     for d in row.dimensions
                 ],
             )
@@ -379,7 +383,10 @@ def cost_bucket_wire(row: BudgetCostBucketV1) -> BudgetCostBucketWireV1:
         amount=_money(row.amount),
         kind=row.kind,
         dimensions=[
-            BudgetDimensionWireV1(kind=d.kind, value=d.value) for d in row.dimensions
+            BudgetDimensionWireV1(
+                kind=d.kind, value=d.value, is_remainder=d.is_remainder
+            )
+            for d in row.dimensions
         ],
     )
 
@@ -394,7 +401,10 @@ def usage_bucket_wire(row: BudgetUsageBucketV1) -> BudgetUsageBucketWireV1:
             unit=row.quantity.unit,
         ),
         dimensions=[
-            BudgetDimensionWireV1(kind=d.kind, value=d.value) for d in row.dimensions
+            BudgetDimensionWireV1(
+                kind=d.kind, value=d.value, is_remainder=d.is_remainder
+            )
+            for d in row.dimensions
         ],
     )
 

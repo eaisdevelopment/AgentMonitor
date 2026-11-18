@@ -86,7 +86,7 @@ def _report_valid(
         and report.source_id == SOURCE_ID
         and report.source_category == context.scope + "_requests_and_cost"
         and report.cost_basis == COST_BASIS
-        and report.grouping == ()
+        and report.grouping == context.grouping
         and report.requested_period == period
         and report.covered_period == period
         and report.source_data_through is None
@@ -97,7 +97,11 @@ def _report_valid(
         and report.currency == ("USD" if report.cost_buckets else None)
         and not report.empty_means_zero
         and report.completeness in {"complete", "partial"}
-        and (report.completeness != "partial" or bool(report.cost_buckets))
+        and (
+            report.completeness != "partial"
+            or bool(report.cost_buckets)
+            or context.grouping == ("model",)
+        )
         and report.omission_codes
         == (
             ("cost_not_reported_for_all_buckets",)

@@ -74,7 +74,7 @@ def test_cloud_usage_http_closed_intent_and_authorization(tmp_path: Path) -> Non
                 {"api_key": None},
                 {"report_context": {**context, "scope": "arbitrary"}},
                 {"report_context": {**context, "range_key": "30d"}},
-                {"report_context": {**context, "grouping": ["model"]}},
+                {"report_context": {**context, "grouping": ["project"]}},
             ):
                 response = await asyncio.to_thread(
                     _request,
@@ -98,6 +98,17 @@ def test_cloud_usage_http_closed_intent_and_authorization(tmp_path: Path) -> Non
             )
             assert response[0] == 404
             assert json.loads(response[2])["code"] == "cloud_usage_target_unavailable"
+            grouped = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                base + "/collections",
+                body={**body, "report_context": {**context, "grouping": ["model"]}},
+                headers=headers,
+                cookies=jar,
+            )
+            assert grouped[0] == 404
+            assert json.loads(grouped[2])["code"] == "cloud_usage_target_unavailable"
             query = (
                 "?scope=self&range_key=7d"
                 "&interval_start=2026-11-01T00%3A00%3A00Z"
@@ -105,6 +116,7 @@ def test_cloud_usage_http_closed_intent_and_authorization(tmp_path: Path) -> Non
             )
             for path in (
                 base + "/collection-eligibility" + query,
+                base + "/collection-eligibility" + query + "&grouping=model",
                 base + "/runs/absent-run",
             ):
                 denied = await asyncio.to_thread(_request, origin, "GET", path)

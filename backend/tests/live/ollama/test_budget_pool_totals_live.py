@@ -7,14 +7,16 @@ explicit test-owner assertions, never inferred provider identity.
 from __future__ import annotations
 
 import asyncio
+import http.cookiejar
 import json
 import re
 import secrets
+import urllib.parse
 from collections.abc import Generator
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import pytest
 from agentmonitor.adapters.persistence.capacity.sqlite.budget_repository import (
@@ -47,7 +49,11 @@ from agentmonitor.modules.registry.application.organizations import (
 )
 from fastapi import FastAPI
 
-from backend.tests.integration.api.test_iam_http import _running
+from backend.tests.integration.api.test_iam_http import (
+    _installation,
+    _request,
+    _running,
+)
 from backend.tests.live.ollama.test_cloud_registry_revision_admission import (
     _private_real_copy,
 )
@@ -528,6 +534,280 @@ def test_genuine_available_filtered_pool_totals(tmp_path: Path) -> None:
 def test_genuine_two_monetary_pool_totals(tmp_path: Path) -> None:
     for scenario in _scenarios(tmp_path, require_two_money=True):
         _check(scenario)
+
+
+def _wire_atoms(money: dict[str, Any]) -> int:
+    _require(
+        type(money["scale"]) is int and 0 <= money["scale"] <= 18,
+        "pool_http_money_scale_invalid",
+    )
+    return int(int(money["coefficient"]) * 10 ** (18 - int(money["scale"])))
+
+
+def _check_http_totals(
+    scenario: _Scenario,
+    groups: tuple[OpaqueIdV1, ...],
+    first: dict[str, Any],
+    rows: list[dict[str, Any]],
+) -> None:
+    counted = scenario.primary in groups
+    expected = sum(_source_total(view) for view in scenario.included)
+    measure = scenario.included[0].report
+    excluded = (
+        (scenario.excluded if scenario.secondary in groups else 0)
+        if scenario.phase == "unlinked"
+        else len(scenario.reports) - len(scenario.included)
+        if counted
+        else 0
+    )
+    canonical = [row for row in rows if row["pool_id"] is not None]
+    _require(
+        len({row["row_id"] for row in rows}) == len(rows)
+        and len(canonical) == (2 if scenario.phase == "distinct" else 1)
+        and all(
+            row["counted_in_selection"] is counted
+            and row["primary_organization_id"] == scenario.primary.value
+            for row in canonical
+        ),
+        "pool_http_canonical_identity_or_attribution_changed",
+    )
+    expected_resources = {
+        view.report.subject.resource_id.value
+        for view in (
+            scenario.reports[:1] if scenario.phase == "unlinked" else scenario.reports
+        )
+    }
+    _require(
+        {path["resource_id"] for row in canonical for path in row["access_paths"]}
+        == expected_resources,
+        "pool_http_access_path_identity_changed",
+    )
+    if scenario.phase == "distinct":
+        _require(first["page"]["has_more"], "pool_http_later_page_required")
+        if len(scenario.included) == 1:
+            _require(
+                not any(
+                    context["spend"] is not None and _wire_atoms(context["spend"]) != 0
+                    for row in first["items"]
+                    for context in row["contexts"]
+                ),
+                "pool_http_genuine_money_not_on_later_page",
+            )
+    summaries = first["summaries"]
+    if counted:
+        _require(
+            len(summaries) == 2
+            and {item["scope_kind"] for item in summaries}
+            == {"global", "organization"},
+            "pool_http_summary_scopes_missing",
+        )
+        for summary in summaries:
+            _require(
+                _wire_atoms(summary["total"]) == expected
+                and summary["total"]["currency"] == measure.currency
+                and summary["currency"] == measure.currency
+                and summary["cost_basis"] == measure.cost_basis
+                and summary["source_category"] == measure.source_category
+                and summary["organization_id"]
+                == (
+                    scenario.primary.value
+                    if summary["scope_kind"] == "organization"
+                    else None
+                )
+                and summary["included_pool_count"] == len(scenario.included)
+                and summary["excluded_resource_count"]
+                == (
+                    0
+                    if scenario.phase == "unlinked"
+                    and summary["scope_kind"] == "organization"
+                    else excluded
+                ),
+                "pool_http_exact_total_context_or_coverage_changed",
+            )
+    else:
+        _require(summaries == [], "pool_http_secondary_counted_twice")
+    _require(
+        sum(item["count"] for item in first["exclusions"]) == excluded
+        and all(
+            item["reason_code"]
+            == (
+                "unresolved_overlap"
+                if scenario.phase == "unlinked"
+                else "currency_unavailable"
+            )
+            for item in first["exclusions"]
+        ),
+        "pool_http_exclusion_count_or_reason_changed",
+    )
+    included = {view.report_id.value: view for view in scenario.included}
+    for row in canonical:
+        for context in row["contexts"]:
+            if context["spend"] is None:
+                _require(
+                    context["currency"] is None
+                    and context["spend_reason"] == "cost_not_reported",
+                    "pool_http_counts_only_became_money",
+                )
+                continue
+            view = included.get(context["report_id"])
+            _require(view is not None, "pool_http_contributing_report_changed")
+            if view is None:
+                return
+            report = view.report
+            _require(
+                context["report_account_id"] == report.subject.account_id.value
+                and context["report_resource_id"] == report.subject.resource_id.value
+                and context["source_id"] == report.source_id
+                and context["source_category"] == report.source_category
+                and context["cost_basis"] == report.cost_basis
+                and context["currency"] == report.currency
+                and context["spend"]["currency"] == report.currency
+                and _wire_atoms(context["spend"]) == _source_total(view),
+                "pool_http_contributing_source_or_exact_amount_changed",
+            )
+
+
+def test_genuine_filtered_pool_totals_over_real_iam_http(tmp_path: Path) -> None:
+    """Baseline: unchanged real reports through IAM, routing and wire mapping."""
+    data_root, iam_root = tmp_path / "reports", tmp_path / "iam"
+    data_root.mkdir(mode=0o700)
+    iam_root.mkdir(mode=0o700)
+    scenarios = _scenarios(data_root)
+    first_scenario = next(scenarios)
+    app, credential = _installation(iam_root)
+    app.state.lifecycle.hooks = replace(app.state.lifecycle.hooks, tasks=())
+    app.state.observation_ports = replace(
+        app.state.observation_ports, list_budget_overview=first_scenario.overview
+    )
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
+            login = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                "/api/v1/session",
+                body={"password": credential},
+                headers={"Origin": origin},
+                cookies=jar,
+            )
+            _require(login[0] == 204, "pool_http_test_iam_login_failed")
+
+            async def verify(scenario: _Scenario) -> None:
+                _check(scenario)
+                for groups in (
+                    (scenario.primary,),
+                    (scenario.secondary,),
+                    (scenario.primary, scenario.secondary),
+                ):
+                    query = {
+                        "period_start": scenario.query.period.start.isoformat(),
+                        "period_end": scenario.query.period.end.isoformat(),
+                        "as_of": scenario.query.as_of.isoformat(),
+                        "provider_key": "ollama",
+                        "organization_ids": ",".join(group.value for group in groups),
+                        "include_ungrouped": "false",
+                        "sort_by": scenario.query.sort_by,
+                        "sort_direction": scenario.query.sort_direction,
+                        "limit": "1",
+                    }
+                    path = "/api/v1/budgets?" + urllib.parse.urlencode(query)
+                    denied = await asyncio.to_thread(_request, origin, "GET", path)
+                    _require(denied[0] == 401, "pool_http_authentication_required")
+                    first: dict[str, Any] | None = None
+                    rows: list[dict[str, Any]] = []
+                    cursors: set[str] = set()
+                    for _ in range(100):
+                        response = await asyncio.to_thread(
+                            _request, origin, "GET", path, cookies=jar
+                        )
+                        _require(response[0] == 200, "pool_http_overview_failed")
+                        page = json.loads(response[2])
+                        _require(
+                            page["availability"]["state"] == "available"
+                            and datetime.fromisoformat(page["as_of"])
+                            == scenario.query.as_of
+                            and datetime.fromisoformat(page["period"]["start"])
+                            == scenario.query.period.start
+                            and datetime.fromisoformat(page["period"]["end"])
+                            == scenario.query.period.end,
+                            "pool_http_selected_context_changed",
+                        )
+                        if first is None:
+                            first = page
+                        _require(
+                            all(
+                                page[key] == first[key]
+                                for key in (
+                                    "summaries",
+                                    "exclusions",
+                                    "summary_reason",
+                                    "registry_revision",
+                                    "inventory_count",
+                                )
+                            ),
+                            "pool_http_total_depends_on_page",
+                        )
+                        rows.extend(page["items"])
+                        if not page["page"]["has_more"]:
+                            _require(
+                                page["page"]["next_cursor"] is None,
+                                "pool_http_terminal_cursor_present",
+                            )
+                            break
+                        cursor = page["page"]["next_cursor"]
+                        _require(
+                            isinstance(cursor, str) and cursor not in cursors,
+                            "pool_http_repeated_or_missing_cursor",
+                        )
+                        cursors.add(cursor)
+                        path = "/api/v1/budgets?" + urllib.parse.urlencode(
+                            {**query, "cursor": cursor}
+                        )
+                    else:
+                        pytest.fail("pool_http_page_bound_exceeded", pytrace=False)
+                    _require(first is not None, "pool_http_first_page_missing")
+                    if first is None:
+                        return
+                    _check_http_totals(scenario, groups, first, rows)
+                    whole = await asyncio.to_thread(
+                        _request,
+                        origin,
+                        "GET",
+                        "/api/v1/budgets?"
+                        + urllib.parse.urlencode({**query, "limit": "200"}),
+                        cookies=jar,
+                    )
+                    _require(whole[0] == 200, "pool_http_large_page_failed")
+                    complete = json.loads(whole[2])
+                    _require(
+                        complete["items"] == rows
+                        and complete["page"]["has_more"] is False
+                        and complete["page"]["next_cursor"] is None
+                        and all(
+                            complete[key] == first[key]
+                            for key in (
+                                "summaries",
+                                "exclusions",
+                                "summary_reason",
+                                "registry_revision",
+                                "inventory_count",
+                                "period",
+                                "as_of",
+                            )
+                        ),
+                        "pool_http_total_or_rows_depend_on_page_size",
+                    )
+
+            await verify(first_scenario)
+            for scenario in scenarios:
+                await verify(scenario)
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        scenarios.close()
 
 
 @pytest.mark.parametrize("phases", (1, 3), ids=("first_phase", "all_phases"))

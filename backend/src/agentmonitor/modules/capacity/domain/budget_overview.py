@@ -67,12 +67,19 @@ def requires_financial_query(
     account: AccountViewV1,
     resources: tuple[AccountResourceViewV1, ...],
 ) -> bool:
-    """Only proven subscription-only accounts can omit financial reads.
+    """Omit financial reads only when complete known metadata proves no need.
 
-    Billing enrollment adds its resource atomically. Ollama cloud authority is
-    separate from this resource list, so cloud accounts always need the query.
-    Retained non-subscription resources and ambiguous/pending metadata also do.
+    Billing enrollment adds its resource atomically, and retired resources stay
+    in this list. An explicit Claude/Codex API account with no resources needs
+    only its setup row. Ollama cloud authority is separate, so cloud accounts
+    always need the query. Ambiguous metadata and retained API resources do too.
     """
+    if (
+        account.provider_key in {"claude", "codex"}
+        and account.initial_connection_purpose == "api"
+        and not resources
+    ):
+        return False
     return not (
         account.provider_key in {"claude", "codex"}
         and account.initial_connection_purpose is None
@@ -173,6 +180,13 @@ def _contexts(
             raise BudgetOverviewError("budget_overview_report_context_invalid")
         # Grouped reports are breakdowns, not another total-cost context.
         if report.grouping:
+            continue
+        # Account detail retains team reports, but the default cloud Overview
+        # remains self-only: overlapping team spend is not another account total.
+        if (
+            report.subject.provider_key == "ollama"
+            and report.source_category != "self_requests_and_cost"
+        ):
             continue
         spend = reported_spend(selection)
         assert spend is not None

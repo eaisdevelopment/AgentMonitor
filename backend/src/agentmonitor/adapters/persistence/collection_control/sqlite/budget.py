@@ -78,7 +78,14 @@ def _encode(value: object) -> object:
 
 
 def _object(value: Any, cls: type[Any]) -> dict[str, Any]:
-    if type(value) is not dict or set(value) != {field.name for field in fields(cls)}:
+    expected = {field.name for field in fields(cls)}
+    if (
+        cls is CloudBudgetReportContextV1
+        and type(value) is dict
+        and "grouping" not in value
+    ):
+        expected.remove("grouping")
+    if type(value) is not dict or set(value) != expected:
         raise BudgetCollectionError()
     return cast(dict[str, Any], value)
 
@@ -245,6 +252,8 @@ def decode_billing_budget_target(text: str) -> BillingBudgetAuthorityV1:
 
 
 def _cloud_value(value: object) -> object:
+    if type(value) is tuple:
+        return [_cloud_value(item) for item in value]
     if type(value) in (
         CloudMonitoringTargetV1,
         ProviderAccessTargetV1,
@@ -253,6 +262,11 @@ def _cloud_value(value: object) -> object:
         return {
             field.name: _cloud_value(getattr(value, field.name))
             for field in fields(cast(Any, value))
+            if not (
+                type(value) is CloudBudgetReportContextV1
+                and field.name == "grouping"
+                and not value.grouping
+            )
         }
     return _encode(value)
 
@@ -310,6 +324,10 @@ def _decode_cloud(value: Any) -> CloudBudgetAuthority:
         context[name] = _cloud_timestamp(context[name])
     target = CloudMonitoringTargetV1(**graph)
     provider = ProviderAccessTargetV1(**service)
+    if "grouping" in context:
+        if type(context["grouping"]) is not list:
+            raise BudgetCollectionError()
+        context["grouping"] = tuple(context["grouping"])
     report_context = CloudBudgetReportContextV1(**context)
     if (
         target.lifecycle != "active"
@@ -720,6 +738,7 @@ def require_budget_report_authority(
             and report.scope_evidence == "unresolved"
             and report.source_id == "ollama.cloud.usage.v1"
             and report.source_category == context.scope + "_requests_and_cost"
+            and report.grouping == context.grouping
             and report.requested_period.start == context.interval_start
             and report.requested_period.end == context.interval_end
         )

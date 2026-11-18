@@ -190,11 +190,16 @@ try {
   await page.getByText("Reading runtime observations…", { exact: true }).waitFor({ state: "detached" });
 
   stage = "same_account_runtime";
+  const sessionHistory = page.locator('details[data-account-sessions="true"]');
+  if (await sessionHistory.count() && (await sessionHistory.getAttribute("open")) === null) {
+    await sessionHistory.locator("summary").click();
+  }
   const sessionRows = page.locator(".session-row");
   requireTruth(await sessionRows.count() > 0, "real_same_account_session_missing");
   const sessionText = await sessionRows.first().innerText();
   requireTruth(/automatic matched/iu.test(sessionText), "session_not_automatically_correlated");
   requireTruth(/account correlated/iu.test(sessionText), "session_account_correlation_missing");
+  await sessionRows.first().getByRole("button", { name: "Show hierarchy", exact: true }).click();
   await page.getByRole("heading", { name: "Session hierarchy", exact: true }).first().waitFor();
   const sessionTree = page.locator('[data-session-tree="true"]').first();
   requireTruth(await sessionTree.locator('[data-session-tree-node="true"]').count() > 0, "session_tree_node_missing");

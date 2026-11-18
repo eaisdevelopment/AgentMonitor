@@ -192,6 +192,22 @@ def _summary(row: RowMapping, *, current: bool, as_of: datetime) -> SessionSumma
     )
 
 
+def _authenticated_resolution(
+    row: RowMapping, instant: datetime
+) -> BrowserSessionResolutionV1:
+    summary = _summary(row, current=True, as_of=instant)
+    principal = PrincipalV1(
+        OpaqueIdV1(row["administrator_id"]),
+        "browser_session",
+        summary.session_id,
+        BROWSER_PERMISSIONS_V1,
+        summary.issued_at,
+        instant,
+        summary.absolute_expires_at,
+    )
+    return BrowserSessionResolutionV1("authenticated", principal, summary)
+
+
 def _csrf_valid(row: RowMapping, cookie: str | None, header: str | None) -> bool:
     if (
         cookie is None
@@ -491,6 +507,39 @@ class SqliteIdentityAccessSessionRepositoryV1:
             return denial
         selector = credential.split(".", 2)[1]
         try:
+            # Most dashboard reads do not need a durable activity write. Read
+            # current session state on every request without competing with
+            # collection commits for SQLite's single writer. Expiry, activity
+            # updates and all non-active cases retain the fenced write path.
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    current = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM iam_browser_session "
+                            "WHERE credential_selector=?",
+                            (selector,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    digest = (
+                        _stored_digest(current["credential_digest"])
+                        if current is not None and current["revoked_at"] is None
+                        else _DUMMY_DIGEST
+                    )
+                    if (
+                        hmac.compare_digest(
+                            _digest(credential), digest or _DUMMY_DIGEST
+                        )
+                        and _active(current, instant)
+                        and current is not None
+                        and not should_touch_session(
+                            instant, _time(current["last_activity_at"])
+                        )
+                    ):
+                        return _authenticated_resolution(current, instant)
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
             ) as handle:
@@ -542,20 +591,9 @@ class SqliteIdentityAccessSessionRepositoryV1:
                             .mappings()
                             .one()
                         )
-                    summary = _summary(row, current=True, as_of=instant)
-                    principal = PrincipalV1(
-                        OpaqueIdV1(row["administrator_id"]),
-                        "browser_session",
-                        summary.session_id,
-                        BROWSER_PERMISSIONS_V1,
-                        summary.issued_at,
-                        instant,
-                        summary.absolute_expires_at,
-                    )
+                    result = _authenticated_resolution(row, instant)
                     connection.commit()
-                    return BrowserSessionResolutionV1(
-                        "authenticated", principal, summary
-                    )
+                    return result
         except (SqlitePolicyError, SQLAlchemyError):
             raise IdentityAccessRepositoryErrorV1() from None
 

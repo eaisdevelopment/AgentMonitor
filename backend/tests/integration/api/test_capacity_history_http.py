@@ -116,6 +116,52 @@ def test_capacity_history_openapi_has_exact_read_policy() -> None:
     }
 
 
+def test_history_accepts_and_echoes_pinned_cutoff_without_collecting(
+    tmp_path: Path,
+) -> None:
+    """M7 T013: an actual authenticated query pins its observation snapshot."""
+    app, credential = _installation(tmp_path)
+    cutoff = "2026-01-03T00:00:00Z"
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
+            login = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                "/api/v1/session",
+                body={"password": credential},
+                headers={"Origin": origin},
+                cookies=jar,
+            )
+            assert login[0] == 204
+            path = _history_path(
+                as_of=cutoff, resource_id="not-enrolled", window_id="not-enrolled"
+            ).replace("/history?", "/history/v2?")
+            response = await asyncio.to_thread(
+                _request, origin, "GET", path, cookies=jar
+            )
+            assert response[0] == 200, "pinned_capacity_history_query_rejected"
+            payload = json.loads(response[2])
+            assert payload["availability"]["as_of"] == cutoff
+            assert payload["items"] == []
+            invalid = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                path.replace(
+                    urllib.parse.quote(cutoff, safe=""),
+                    urllib.parse.quote("2026-01-03T00:00:00+01:00", safe=""),
+                ),
+                cookies=jar,
+            )
+            assert invalid[0] == 400
+
+    asyncio.run(exercise())
+    assert _quota_observation_count(tmp_path) == 0
+
+
 def test_real_claude_history_reaches_authenticated_loopback_http(
     real_claude_monitoring_context: RealClaudeMonitoringContextV1,
 ) -> None:

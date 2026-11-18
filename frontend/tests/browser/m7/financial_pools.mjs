@@ -2,22 +2,61 @@
 
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 const origin = process.argv[2];
 const credential = readFileSync(0, "utf8");
 let browser;
 let stage = "browser_launch";
+function enterStage(value) {
+  stage = value;
+  console.log(`M7 POOL STAGE: ${stage}`);
+}
+enterStage(stage);
 try {
   browser = await chromium.launch({ channel: "chrome", headless: true });
   const context = await browser.newContext({ baseURL: origin, viewport: { width: 1366, height: 900 } });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
-  stage = "login";
+  enterStage("login");
   await page.goto("/login");
   await page.getByLabel("Administrator password").fill(credential);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("heading", { name: "AgentMonitor", exact: true }).waitFor();
+  enterStage("account_create_navigation");
+  await page.getByRole("button", { name: "Accounts", exact: true }).click();
+  await page.getByRole("button", { name: "Add API billing account", exact: true }).click();
+  await page.getByLabel("Provider", { exact: true }).selectOption("claude");
+  await page.getByLabel("Account name").fill("Isolated delayed account creation");
+  const transport = await context.newCDPSession(page);
+  // Delay actual HTTP, preserving the real server response and SQLite write.
+  await transport.send("Network.enable");
+  await transport.send("Network.emulateNetworkConditions", {
+    offline: false, latency: 750, downloadThroughput: -1, uploadThroughput: -1,
+  });
+  const createdLater = page.waitForResponse(response =>
+    new URL(response.url()).pathname === "/api/v1/accounts" && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create API billing account", exact: true }).click();
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  assert.equal(new URL(page.url()).pathname, "/");
+  enterStage("account_create_navigation_response");
+  const delayed = await createdLater;
+  assert.equal(delayed.status(), 201);
+  const delayedAccount = await delayed.json();
+  assert.equal(delayedAccount.monitoring_preference, "disabled");
+  assert.equal(delayedAccount.initial_connection_purpose, "api");
+  // Await actual pending HTTP and React rendering, including stale reloads.
+  enterStage("account_create_navigation_settled");
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  enterStage("account_create_navigation_retained");
+  assert.equal(new URL(page.url()).pathname, "/");
+  await page.getByRole("heading", { name: "AgentMonitor", exact: true }).waitFor();
+  await transport.send("Network.emulateNetworkConditions", {
+    offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1,
+  });
+  await transport.detach();
   const call = (method, path, body = undefined, headers = {}) => page.evaluate(async ({ method, path, body, headers }) => {
     const csrf = decodeURIComponent(document.cookie.split("; ").find((part) => part.startsWith("agentmonitor_csrf=")).split("=")[1]);
     const response = await fetch(path, { method, headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf, ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -31,10 +70,10 @@ try {
     assert.equal(billing.status, 201);
     return { account: account.body, resource: billing.body, path: `/api/v1/accounts/${account.body.account_id}/financial-pools/${billing.body.resource_id}/billing` };
   }
-  stage = "owner_metadata";
+  enterStage("owner_metadata");
   const first = await source("Pool browser primary");
   const second = await source("Pool browser secondary");
-  stage = "billing_local_disconnect";
+  enterStage("billing_local_disconnect");
   const pendingMaintenance = await call("GET", `/api/v1/accounts/${first.account.account_id}/billing-connections`);
   assert.equal(pendingMaintenance.status, 200);
   assert.ok(pendingMaintenance.body.local_maintenance?.disconnect_command);
@@ -51,14 +90,14 @@ try {
   assert.equal(await maintenance.getByLabel("Local cleanup command", { exact: true }).count(), 0);
   await disconnectCommand.focus();
   assert.equal(await disconnectCommand.evaluate(node => window.getSelection()?.toString() === node.textContent), true);
-  stage = "billing_local_clipboard_fallback";
+  enterStage("billing_local_clipboard_fallback");
   // Real browser permission denial; no clipboard replacement or command execution.
   await context.grantPermissions(["clipboard-read"], { origin });
   assert.equal(await page.evaluate(async () => (await navigator.permissions.query({ name: "clipboard-write" })).state), "denied");
   await maintenance.getByRole("button", { name: "Copy disconnect command", exact: true }).click();
   await maintenance.getByText("Clipboard unavailable. Select and copy the command above.", { exact: true }).waitFor();
   await context.clearPermissions();
-  stage = "billing_local_archived_cleanup";
+  enterStage("billing_local_archived_cleanup");
   const archivedCleanupAccount = process.argv[3];
   assert.ok(typeof archivedCleanupAccount === "string" && archivedCleanupAccount.length > 0);
   const cleanupStatus = await call("GET", `/api/v1/accounts/${encodeURIComponent(archivedCleanupAccount)}/billing-connections`);
@@ -80,7 +119,7 @@ try {
   await maintenance.getByLabel("Local cleanup command", { exact: true }).waitFor();
   assert.equal(maintenanceMutations, 0, "Maintenance instructions must not mutate or execute commands in the browser");
   page.off("request", maintenanceObserver);
-  stage = "billing_status_financial_refresh";
+  enterStage("billing_status_financial_refresh");
   const refreshable = await source("External status refresh metadata");
   await page.goto(`/accounts/${refreshable.account.account_id}`);
   const refreshFinancial = page.getByRole("region", { name: "API usage & spend", exact: true });
@@ -95,16 +134,16 @@ try {
     assert.equal(changed.status, 200);
   }
   const financialResponse = () => page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/accounts/${refreshable.account.account_id}/budgets` && response.request().method() === "GET");
-  stage = "billing_status_external_change";
+  enterStage("billing_status_external_change");
   await externalScope("external-status-scope");
   assert.ok(!(await refreshFinancial.textContent()).includes("external-status-scope"));
   let refreshedFinancial = financialResponse();
   await page.getByRole("button", { name: "Refresh billing status", exact: true }).click();
-  stage = "billing_status_summary_response";
+  enterStage("billing_status_summary_response");
   assert.equal((await (await refreshedFinancial).json()).resources[0].connection.scope_id, "external-status-scope");
-  stage = "billing_status_scope_render";
+  enterStage("billing_status_scope_render");
   await refreshFinancial.getByText(/Provider billing scope:.*external-status-scope/).waitFor();
-  stage = "billing_focus_financial_refresh";
+  enterStage("billing_focus_financial_refresh");
   // Disable Playwright's always-focused override so the browser supplies an
   // actual window focus transition. Do not dispatch a synthetic focus event.
   const focusSession = await context.newCDPSession(page);
@@ -124,7 +163,7 @@ try {
   await otherFocusSession.detach();
   await otherTab.close();
   await focusSession.detach();
-  stage = "billing_status_failure_retention";
+  enterStage("billing_status_failure_retention");
   let failedReadFinancialRequests = 0;
   const budgetObserver = request => { if (new URL(request.url()).pathname === `/api/v1/accounts/${refreshable.account.account_id}/budgets`) failedReadFinancialRequests++; };
   page.on("request", budgetObserver);
@@ -140,7 +179,7 @@ try {
   page.off("request", budgetObserver);
   const organization = await call("POST", "/api/v1/organizations", { name: "Pool browser organization", description: null }, { "Idempotency-Key": key() });
   assert.equal(organization.status, 201);
-  stage = "billing_scope_controls";
+  enterStage("billing_scope_controls");
   const editable = await source("Scope editor metadata");
   await page.goto(`/accounts/${editable.account.account_id}`);
   const scopePool = page.locator("details[data-financial-pool]");
@@ -157,11 +196,11 @@ try {
   assert.equal(edited.body.connections[0].scope_generation, 2);
   assert.equal(edited.body.connections[0].monitoring_preference, "disabled");
   assert.equal(edited.body.connections[0].lifecycle, "pending");
-  stage = "billing_scope_pool_refresh";
+  enterStage("billing_scope_pool_refresh");
   if (await scopePool.getAttribute("open") === null) await scopePool.locator("summary").click();
   await scopePool.getByText("No billing pool association.", { exact: true }).waitFor();
   await scopePool.getByText("Provider scope: owner-corrected-scope", { exact: true }).waitFor();
-  stage = "billing_scope_controls";
+  enterStage("billing_scope_controls");
   await page.reload();
   await scopeControls.locator("summary").click();
   assert.equal(await scopeControls.getByLabel("New provider billing scope", { exact: true }).inputValue(), "owner-corrected-scope");
@@ -171,7 +210,7 @@ try {
   await scopeControls.getByText("The scope change outcome is unknown. Refresh billing status before another change.", { exact: true }).waitFor();
   assert.equal(await scopeControls.getByRole("button", { name: "Save scope", exact: true }).isDisabled(), true);
   await context.setOffline(false);
-  stage = "billing_scope_status_reconcile";
+  enterStage("billing_scope_status_reconcile");
   await page.getByRole("button", { name: "Refresh billing status", exact: true }).click();
   await page.waitForFunction(() => !document.querySelector("details[data-billing-scope]")?.textContent?.includes("The scope change outcome is unknown"));
   assert.equal(await scopeControls.getByLabel("New provider billing scope", { exact: true }).inputValue(), "owner-corrected-scope");
@@ -180,7 +219,7 @@ try {
   await page.reload();
   await scopeControls.locator("summary").click();
   assert.equal(await scopeControls.getByLabel("New provider billing scope", { exact: true }).inputValue(), "owner-corrected-scope");
-  stage = "billing_reconnect_lifecycle";
+  enterStage("billing_reconnect_lifecycle");
   const reconnectable = await source("Restored billing metadata");
   await page.goto(`/accounts/${reconnectable.account.account_id}`);
   await page.getByRole("button", { name: "Edit account", exact: true }).click();
@@ -194,7 +233,7 @@ try {
   await page.getByText("Account restored with monitoring disabled.", { exact: true }).waitFor();
   const beforeReconnect = await call("GET", `/api/v1/accounts/${reconnectable.account.account_id}/billing-connections`);
   assert.equal(beforeReconnect.body.connections[0].lifecycle, "disconnected");
-  stage = "billing_reconnect_controls";
+  enterStage("billing_reconnect_controls");
   const reconnectControls = page.locator("[data-billing-reconnect]");
   const reconnectButton = reconnectControls.getByRole("button", { name: "Reconnect API billing", exact: true });
   await reconnectButton.waitFor();
@@ -210,7 +249,7 @@ try {
   assert.equal(await reconnectButton.isDisabled(), true);
   assert.equal(reconnectRequests, 1);
   await context.setOffline(false);
-  stage = "billing_reconnect_reconcile";
+  enterStage("billing_reconnect_reconcile");
   await page.getByRole("button", { name: "Refresh billing status", exact: true }).click();
   await page.waitForFunction(() => {
     const node = document.querySelector("[data-billing-reconnect]");
@@ -236,7 +275,7 @@ try {
   await reconnectSetup.getByLabel("Local credential setup command", { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Check connection", exact: true }).isDisabled(), true);
   assert.equal(reconnectRequests, 2, "Reload must not retry reconnect");
-  stage = "billing_reconnect_archived";
+  enterStage("billing_reconnect_archived");
   await page.getByRole("button", { name: "Edit account", exact: true }).click();
   await page.getByRole("button", { name: "Archive account", exact: true }).click();
   await page.getByText("Account archived.", { exact: true }).waitFor();
@@ -246,16 +285,16 @@ try {
   page.off("request", reconnectObserver);
   await page.goto(`/accounts/${first.account.account_id}`);
   await page.getByRole("heading", { name: first.account.friendly_name, exact: true }).waitFor();
-  stage = "collection_controls_missing";
+  enterStage("collection_controls_missing");
   const collection = page.locator("[data-collect-resource]");
   await collection.getByRole("button", { name: "Collect now", exact: true }).waitFor();
   await page.waitForFunction(() => document.querySelector("[data-collect-resource]")?.textContent?.includes("credential"));
   assert.equal(await collection.getByRole("button", { name: "Collect now", exact: true }).isDisabled(), true);
-  stage = "collection_context_read_only";
+  enterStage("collection_context_read_only");
   let collections = 0;
-  const collectObserver = request => { if (request.method() === "POST" && /\/collections$/.test(new URL(request.url()).pathname)) collections++; };
+  const collectObserver = request => { if (request.method() === "POST" && /\/collections(?:\/v2)?$/.test(new URL(request.url()).pathname)) collections++; };
   page.on("request", collectObserver);
-  const eligibility = page.waitForResponse(response => response.url().includes("/collection-eligibility?") && new URL(response.url()).searchParams.get("range_key") === "30d");
+  const eligibility = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/collection-eligibility/v2") && new URL(response.url()).searchParams.get("range_key") === "30d");
   await page.getByLabel("Report range", { exact: true }).selectOption("30");
   const selected = await (await eligibility).json();
   assert.equal(selected.can_collect, false);
@@ -265,21 +304,128 @@ try {
   await page.reload();
   await collection.getByRole("button", { name: "Collect now", exact: true }).waitFor();
   assert.equal(await collection.getByRole("button", { name: "Collect now", exact: true }).isDisabled(), true);
+  // Real catalog choices on the existing pending connection. This verifies
+  // selection/navigation without keys or reports; no populated-history cursor
+  // reset or provider access is claimed by this metadata-only scenario.
+  enterStage("report_view_options");
+  const viewChoices = selected.collection_options;
+  assert.ok(Array.isArray(viewChoices) && viewChoices.length > 0);
+  const groupedCost = viewChoices.find(option => option.source_category === selected.report_context.source_category && option.grouping.length === 1);
+  const groupedUsage = viewChoices.find(option => option.source_category.startsWith("usage") && option.grouping.length === 1);
+  const ungroupedUsage = viewChoices.find(option => option.source_category === groupedUsage?.source_category && option.grouping.length === 0);
+  const originalView = viewChoices.find(option => option.source_category === selected.report_context.source_category && option.grouping.length === 0);
+  assert.ok(groupedCost && groupedUsage && ungroupedUsage && originalView);
+  enterStage("report_view_options_dom");
+  const reportView = page.getByRole("combobox", { name: "Report view", exact: true });
+  await expect(reportView).toBeEnabled();
+  assert.deepEqual(await reportView.locator('option:not([value=""])').allTextContents(), viewChoices.map(option => option.label));
+  enterStage("report_view_initial_window");
+  const viewWindow = new URL(page.url()).searchParams;
+  const pinnedWindow = Object.fromEntries(["budget_start", "budget_end", "budget_as_of"].map(name => [name, viewWindow.get(name)]));
+  assert.ok(Object.values(pinnedWindow).every(value => value !== null));
+  let reportViewMutations = 0;
+  const reportViewObserver = request => { if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) reportViewMutations++; };
+  page.on("request", reportViewObserver);
+  async function assertReportView(action, option) {
+    const observedContexts = [];
+    const contextObserver = response => {
+      const url = new URL(response.url());
+      if (response.request().method() === "GET" && url.origin === origin && url.pathname.endsWith("/collection-eligibility/v2")) {
+        observedContexts.push({
+          resource: url.pathname.endsWith(`/${first.resource.resource_id}/collection-eligibility/v2`),
+          range: url.searchParams.get("range_key") === "30d",
+          category: url.searchParams.get("source_category") === option.source_category,
+          grouping: (url.searchParams.get("grouping") ?? "") === (option.grouping[0] ?? ""),
+          ok: response.ok(),
+        });
+      }
+    };
+    page.on("response", contextObserver);
+    const actualResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return response.request().method() === "GET" && url.origin === origin &&
+        url.pathname.endsWith(`/${first.resource.resource_id}/collection-eligibility/v2`) &&
+        url.searchParams.get("range_key") === "30d" && url.searchParams.get("source_category") === option.source_category &&
+        (url.searchParams.get("grouping") ?? "") === (option.grouping[0] ?? "");
+    }).then(response => ({ response }), error => ({ error }));
+    await action();
+    enterStage("report_view_response");
+    const observed = await actualResponse;
+    page.off("response", contextObserver);
+    if (observed.error) {
+      stage = observedContexts.length === 0 ? "report_view_no_response"
+        : !observedContexts.some(value => value.resource) ? "report_view_wrong_resource"
+        : !observedContexts.some(value => value.resource && value.range) ? "report_view_wrong_range"
+        : !observedContexts.some(value => value.resource && value.range && value.category) ? "report_view_wrong_category"
+        : !observedContexts.some(value => value.resource && value.range && value.category && value.grouping) ? "report_view_wrong_grouping"
+        : "report_view_response";
+      throw observed.error;
+    }
+    assert.equal(observed.response.status(), 200);
+    enterStage("report_view_body");
+    let bodyTimer;
+    const actual = await Promise.race([
+      observed.response.json(),
+      new Promise((_, reject) => { bodyTimer = setTimeout(() => reject(new Error("report_view_body_timeout")), 10000); }),
+    ]).finally(() => clearTimeout(bodyTimer));
+    enterStage("report_view_context");
+    assert.equal(actual.account_id, first.account.account_id);
+    assert.equal(actual.resource_id, first.resource.resource_id);
+    assert.equal(actual.report_context.source_category, option.source_category);
+    assert.deepEqual(actual.report_context.grouping, option.grouping);
+    assert.equal(actual.report_context.range_key, "30d");
+    assert.equal(Date.parse(actual.report_context.interval_start), Date.parse(pinnedWindow.budget_start));
+    assert.equal(Date.parse(actual.report_context.interval_end), Date.parse(pinnedWindow.budget_end));
+    enterStage("report_view_eligibility");
+    assert.equal(actual.can_collect, false);
+    assert.equal(actual.reason_code, "billing_collect_credential_required");
+    assert.deepEqual(actual.collection_options, viewChoices);
+    enterStage("report_view_selected_dom");
+    await expect(reportView).toBeEnabled();
+    await expect(reportView.locator("option:checked")).toHaveText(option.label);
+    enterStage("report_view_selected_url");
+    const url = new URL(page.url());
+    assert.equal(url.pathname, `/accounts/${first.account.account_id}`);
+    assert.equal(url.searchParams.get("budget_resource"), first.resource.resource_id);
+    assert.equal(url.searchParams.get("budget_category"), option.source_category);
+    assert.equal(url.searchParams.get("budget_grouping"), option.grouping[0] ?? null);
+    for (const [name, value] of Object.entries(pinnedWindow)) assert.equal(url.searchParams.get(name), value);
+    for (const name of ["budget_report", "budget_selection", "budget_scope"]) assert.equal(url.searchParams.has(name), false);
+    enterStage("report_view_collect_disabled");
+    await expect(collection.getByRole("button", { name: "Collect now", exact: true })).toBeDisabled();
+  }
+  const chooseView = option => reportView.selectOption({ label: option.label });
+  enterStage("report_view_select_cost");
+  await assertReportView(() => chooseView(groupedCost), groupedCost);
+  enterStage("report_view_select_usage");
+  await assertReportView(() => chooseView(groupedUsage), groupedUsage);
+  enterStage("report_view_reload");
+  await assertReportView(() => page.reload({ waitUntil: "domcontentloaded" }), groupedUsage);
+  enterStage("report_view_ungrouped");
+  await assertReportView(() => chooseView(ungroupedUsage), ungroupedUsage);
+  enterStage("report_view_back");
+  await assertReportView(() => page.goBack({ waitUntil: "domcontentloaded" }), groupedUsage);
+  enterStage("report_view_forward");
+  await assertReportView(() => page.goForward({ waitUntil: "domcontentloaded" }), ungroupedUsage);
+  enterStage("report_view_restore");
+  await assertReportView(() => chooseView(originalView), originalView);
+  assert.equal(reportViewMutations, 0);
+  page.off("request", reportViewObserver);
   assert.equal(collections, 0);
   page.off("request", collectObserver);
-  stage = "pool_controls_missing";
+  enterStage("pool_controls_missing");
   const controls = page.locator("details[data-financial-pool]");
   await controls.locator("summary").waitFor();
   assert.equal(await controls.getAttribute("open"), null);
   await controls.locator("summary").click();
-  stage = "create_pool";
+  enterStage("create_pool");
   await controls.getByLabel("Primary dashboard organization", { exact: true }).selectOption(organization.body.organization_id);
   await controls.getByRole("button", { name: "Create distinct billing pool", exact: true }).click();
   await controls.getByText("Pool browser primary · billing", { exact: true }).first().waitFor();
   const created = await call("GET", first.path);
   assert.equal(created.status, 200);
   assert.equal(created.body.pool.primary_organization_id, organization.body.organization_id);
-  stage = "join_pool";
+  enterStage("join_pool");
   await page.goto(`/accounts/${second.account.account_id}`);
   await controls.locator("summary").click();
   await controls.getByLabel("Existing billing pool", { exact: true }).selectOption(created.body.pool.pool_id);
@@ -287,7 +433,7 @@ try {
   await controls.getByText("Pool browser primary · billing", { exact: true }).first().waitFor();
   const joined = await call("GET", second.path);
   assert.equal(joined.body.pool.pool_id, created.body.pool.pool_id);
-  stage = "shared_overview";
+  enterStage("shared_overview");
   const asOf = new Date();
   const end = new Date(asOf); end.setUTCHours(0, 0, 0, 0);
   const start = new Date(end.getTime() - 7 * 86400000);
@@ -317,17 +463,17 @@ try {
   assert.equal(new URL(page.url()).searchParams.get("organization_ids"), organization.body.organization_id);
   assert.equal(new URL(page.url()).searchParams.has("budget_report"), false);
   await controls.locator("summary").click();
-  stage = "edit_attribution";
+  enterStage("edit_attribution");
   await controls.getByLabel("Primary dashboard organization", { exact: true }).selectOption("");
   await controls.getByRole("button", { name: "Save primary organization", exact: true }).click();
   await controls.getByText("Primary dashboard organization: Ungrouped", { exact: true }).waitFor();
   assert.equal((await call("GET", first.path)).body.pool.primary_organization_id, null);
-  stage = "unlink_pool";
+  enterStage("unlink_pool");
   await controls.getByRole("button", { name: "Unlink billing pool", exact: true }).click();
   await controls.getByText("No billing pool association.", { exact: true }).waitFor();
   assert.equal((await call("GET", second.path)).body.pool, null);
   assert.equal((await call("GET", first.path)).body.pool.pool_id, created.body.pool.pool_id);
-  stage = "stale_revision";
+  enterStage("stale_revision");
   await controls.locator("div[aria-busy=false]").waitFor();
   assert.equal((await call("POST", "/api/v1/organizations", { name: "Concurrent pool group", description: null }, { "Idempotency-Key": key() })).status, 201);
   await controls.getByLabel("Existing billing pool", { exact: true }).selectOption(created.body.pool.pool_id);
@@ -335,7 +481,7 @@ try {
   await controls.getByText("The account, scope or registry changed. Review its current pool status before making another change.", { exact: true }).waitFor();
   assert.equal((await call("GET", second.path)).body.pool, null);
   await controls.getByRole("button", { name: "Use current pool status", exact: true }).click();
-  stage = "uncertain_outcome";
+  enterStage("uncertain_outcome");
   const attempts = [];
   const observe = (request) => {
     if (["POST", "PUT"].includes(request.method()) && request.url().includes("/financial-pools/")) attempts.push(request.headers()["idempotency-key"]);
@@ -360,7 +506,7 @@ try {
   const resolved = await call("GET", second.path);
   assert.ok(resolved.body.pool);
   assert.notEqual(resolved.body.pool.pool_id, created.body.pool.pool_id);
-  stage = "pagination";
+  enterStage("pagination");
   // Genuine owner metadata created through the isolated service, not seeded telemetry.
   for (let index = 0; index < 201; index += 1) {
     assert.equal((await call("POST", "/api/v1/organizations", { name: `Paged pool group ${String(index).padStart(3, "0")}`, description: null }, { "Idempotency-Key": key() })).status, 201);
@@ -397,15 +543,15 @@ try {
   }, { groups: groupIds.length, pools: poolIds.length });
   assert.deepEqual((await controls.getByLabel("Primary dashboard organization", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.value).filter(Boolean))).sort(), groupIds.sort());
   assert.deepEqual((await controls.getByLabel("Existing billing pool", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.value).filter(Boolean))).sort(), poolIds.sort());
-  stage = "account_organization_pages";
+  enterStage("account_organization_pages");
   const firstGroups = await call("GET", "/api/v1/organizations?limit=200");
   const laterGroup = groupIds.find(id => !firstGroups.body.items.some(item => item.organization_id === id));
   assert.ok(laterGroup);
   const beforeAssignment = await call("GET", `/api/v1/accounts/${second.account.account_id}`);
-  stage = "account_organization_assignment";
+  enterStage("account_organization_assignment");
   const assigned = await call("PUT", `/api/v1/accounts/${second.account.account_id}/organization`, { organization_id: laterGroup }, { "If-Match": beforeAssignment.etag });
   assert.equal(assigned.status, 200);
-  stage = "account_organization_placeholder";
+  enterStage("account_organization_placeholder");
   await page.reload();
   const settings = page.locator("details.account-settings");
   await settings.locator("summary").click();
@@ -416,9 +562,9 @@ try {
   await settings.getByRole("button", { name: "Load more organizations", exact: true }).click();
   await page.waitForFunction(count => document.querySelector("#assign-account-organization")?.options.length === count + 1, groupIds.length);
   assert.deepEqual((await assignment.locator("option").evaluateAll(options => options.map(option => option.value).filter(Boolean))).sort(), groupIds.sort());
-  stage = "account_organization_retention";
+  enterStage("account_organization_retention");
   assert.equal(await assignment.inputValue(), laterGroup);
-  stage = "account_organization_save";
+  enterStage("account_organization_save");
   await settings.getByRole("button", { name: "Save organization", exact: true }).click();
   await page.getByText("Account organization saved.", { exact: true }).waitFor();
   assert.equal((await call("GET", `/api/v1/accounts/${second.account.account_id}`)).body.organization_id, laterGroup);
@@ -427,20 +573,21 @@ try {
   assert.equal(apiAccount.body.has_active_subscription_resource, false);
   assert.equal(await page.getByRole("heading", { name: "Account activity", exact: true }).count(), 0);
   assert.equal(await page.locator("details[data-billing-connection]").count(), 0);
-  stage = "reload_keyboard_narrow";
+  enterStage("reload_keyboard_narrow");
   await page.reload();
   await controls.locator("summary").focus();
   await controls.locator("summary").press("Enter");
   await controls.getByText(resolved.body.pool.display_name, { exact: true }).first().waitFor();
   await page.setViewportSize({ width: 768, height: 900 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  stage = "no_provider_work";
+  enterStage("no_provider_work");
   assert.equal((await call("GET", `/api/v1/accounts/${first.account.account_id}/billing-connections`)).body.credential_status.state, "missing");
   assert.equal((await call("GET", `/api/v1/accounts/${second.account.account_id}/billing-connections`)).body.connections[0].monitoring_preference, "disabled");
-  stage = "overview_sort_source";
+  enterStage("overview_sort_source");
   // Actual isolated owner metadata gives the first page a later-page winner.
   for (let index = 0; index < 51; index += 1) {
     const account = await call("POST", "/api/v1/accounts", { provider_key: "claude", friendly_name: `Sort account ${String(index).padStart(3, "0")}`, organization_id: index % 2 === 0 ? organization.body.organization_id : null, initial_connection_purpose: "api" }, { "Idempotency-Key": key() });
+    enterStage("overview_sort_source_create");
     assert.equal(account.status, 201);
   }
   const sortQuery = new URLSearchParams(query);
@@ -449,17 +596,27 @@ try {
   sortQuery.set("as_of", new Date().toISOString());
   sortQuery.set("limit", "50");
   async function sortedPage(sortBy, direction, cursor = null) {
+    const parentStage = stage;
     const params = new URLSearchParams(sortQuery);
     params.set("sort_by", sortBy); params.set("sort_direction", direction);
     if (cursor !== null) params.set("cursor", cursor);
     const result = await call("GET", `/api/v1/budgets?${params}`);
+    enterStage("overview_sort_source_http");
     assert.equal(result.status, 200);
+    enterStage("overview_sort_source_availability");
+    if (result.body.availability.state !== "available") {
+      const reasons = new Set(["budget_overview_registry_changed", "budget_overview_query_unavailable", "budget_overview_inventory_unavailable", "budget_overview_rows_invalid", "budget_overview_account_context_invalid", "budget_overview_resource_context_invalid", "budget_overview_funds_context_invalid", "budget_pool_snapshot_invalid"]);
+      if (reasons.has(result.body.availability.reason_code)) stage = result.body.availability.reason_code;
+    }
     assert.equal(result.body.availability.state, "available");
+    stage = parentStage;
     return result.body;
   }
   const descending = await sortedPage("account", "descending");
+  enterStage("overview_sort_source_page");
   assert.equal(descending.items.length, 50);
   assert.equal(descending.page.has_more, true);
+  enterStage("overview_sort_source_winner");
   assert.equal(descending.items[0].account.friendly_name, "Sort account 050");
   const financial = page.getByRole("region", { name: "API usage & spend", exact: true });
   const rowIds = () => financial.locator("tr[data-financial-row]").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-financial-row")));
@@ -468,7 +625,7 @@ try {
     return url.pathname === "/api/v1/budgets" && url.searchParams.get("sort_by") === field && url.searchParams.get("sort_direction") === direction && url.searchParams.get("cursor") === cursor;
   });
   const settled = () => page.locator(".financial-overview[aria-busy=false]").waitFor();
-  stage = "overview_sort_first_page";
+  enterStage("overview_sort_first_page");
   const firstResponse = responseFor("account", "descending");
   await page.goto(`/?${sortQuery}&resource_type=api&financial_sort=account:descending`);
   const renderedFirstResponse = await firstResponse;
@@ -476,7 +633,7 @@ try {
   const renderedFirstPage = await renderedFirstResponse.json();
   await settled();
   assert.deepEqual(await rowIds(), descending.items.map((item) => item.row_id));
-  stage = "overview_sort_pagination";
+  enterStage("overview_sort_pagination");
   const following = await sortedPage("account", "descending", descending.page.next_cursor);
   assert.equal(following.page.has_more, false);
   // Signed cursor expiry belongs to the actual UI response, not another read.
@@ -485,7 +642,7 @@ try {
   assert.equal((await moreResponse).status(), 200);
   await settled();
   assert.deepEqual(await rowIds(), [...descending.items, ...following.items].map((item) => item.row_id));
-  stage = "overview_sort_reset";
+  enterStage("overview_sort_reset");
   for (const [field, direction] of [["account", "ascending"], ["organization", "ascending"], ["organization", "descending"], ["state", "ascending"], ["account", "descending"], ["state", "descending"]]) {
     const expected = await sortedPage(field, direction);
     const changedResponse = responseFor(field, direction);
@@ -495,7 +652,7 @@ try {
     assert.deepEqual(await rowIds(), expected.items.map((item) => item.row_id));
     assert.equal(new URL(page.url()).searchParams.get("financial_sort"), `${field}:${direction}`);
   }
-  stage = "overview_sort_reload";
+  enterStage("overview_sort_reload");
   const finalPage = await sortedPage("state", "descending");
   const reloadResponse = responseFor("state", "descending");
   await page.reload();

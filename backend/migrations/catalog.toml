@@ -1,5 +1,5 @@
-version = "1.7.34"
-head = "v1_0734"
+version = "1.7.36"
+head = "v1_0736"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -970,3 +970,47 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m02_financial_pool_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M02-M7-financial-pools-root-review"
+
+[[revisions]]
+ordinal = 735
+filename = "v1_0735_m05_model_remainder.py"
+sha256 = "6978760cf9dcc39305eaf74a2e019e39374042dc1992da8da560939a6754ed98"
+status = "implemented"
+reviewed_at = "2026-11-12"
+revision = "v1_0735"
+parent_revision = "v1_0734"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-BUDGET-001", "FR-BUDGET-003", "M7-A03", "M7-A08"]
+schema_range = ["v1_0735", "v1_0735", "v1_0735", "v1_0735", "v1_0735"]
+tables = []
+portability_notes = ["Semantic marker for optional model grouping and remainder fields", "Physical schema and retained report/request bytes remain unchanged", "Legacy encodings keep absent grouping and remainder defaults"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_semantic_schema_marker"
+expected_data_volume = "no_business_row_changes"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_model_remainder_marker", "retained_financial_hashes", "old_reader_refuses", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M05-M7-model-remainder-root-review"
+
+[[revisions]]
+ordinal = 736
+filename = "v1_0736_m05_budget_retention.py"
+sha256 = "fce531cb14c4a5689fde06c81391c00575cfeff8a3ddd643692fecb34c295e69"
+status = "implemented"
+reviewed_at = "2026-11-12"
+revision = "v1_0736"
+parent_revision = "v1_0735"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-HIST-001", "FR-HIST-003", "FR-HIST-004", "M7-A08"]
+schema_range = ["v1_0736", "v1_0736", "v1_0736", "v1_0736", "v1_0736"]
+tables = ["capacity_budget_expired_report"]
+portability_notes = ["Expired report markers preserve receipt identity and provenance", "No existing financial facts or report bytes change during migration", "Old readers refuse the new expiration semantics before service start"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_initial_markers"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_budget_retention_marker", "retained_financial_hashes", "old_reader_refuses", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M05-M7-budget-retention-root-review"

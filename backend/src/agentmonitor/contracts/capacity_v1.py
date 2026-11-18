@@ -751,14 +751,19 @@ class BudgetDimensionV1(TechnicalValueV1):
     """Allowlisted safe source metadata; api_key_id never holds key material."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
-    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
     OWNER: ClassVar[str] = "PLAN-M05"
 
     kind: BudgetDimensionKindV1
     value: str | None
+    is_remainder: bool = False
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
+        if type(self.is_remainder) is not bool or (
+            self.is_remainder and (self.kind != "model" or self.value is not None)
+        ):
+            raise InvalidCapacityContractV1("budget_dimension_remainder_invalid")
         if self.value is not None and (
             type(self.value) is not str
             or not 1 <= len(self.value) <= 128

@@ -62,8 +62,11 @@ def test_actual_billing_entrypoint_refuses_missing_database(tmp_path: Path) -> N
     assert properties["LoadState"] == "not-found"
 
 
-def test_real_billing_unit_identity_and_revoked_start(tmp_path: Path) -> None:
-    """Inspect an actual fixed-module unit before granting any worker I/O."""
+@pytest.mark.parametrize("hold_owned_worker", [False, True])
+def test_real_billing_unit_identity_and_revoked_start(
+    tmp_path: Path, hold_owned_worker: bool
+) -> None:
+    """Real fixed worker; a paused test unit must outlive launcher setup time."""
     tmp_path.chmod(0o700)
 
     async def exercise() -> None:
@@ -102,8 +105,11 @@ def test_real_billing_unit_identity_and_revoked_start(tmp_path: Path) -> None:
             while asyncio.get_running_loop().time() < deadline:
                 properties = await worker._show(unit)
                 if properties["LoadState"] != "not-found":
-                    invocation = worker._identity(unit, description, token, properties)
-                    break
+                    invocation = worker._identity(
+                        unit, description, token, properties, allow_pending=True
+                    )
+                    if invocation:
+                        break
                 await asyncio.sleep(0.02)
             assert invocation, "billing_unit_not_observed"
             assert properties["RuntimeMaxUSec"] == "2min"
@@ -114,9 +120,35 @@ def test_real_billing_unit_identity_and_revoked_start(tmp_path: Path) -> None:
                 other._identity(unit, description, token, properties)
             with pytest.raises(ValueError, match="unit_identity_invalid"):
                 other._unit_token(unit, allow_legacy=True)
+            if hold_owned_worker:
+                # Pause only this exact, freshly created test unit. This is a
+                # real systemd/process lifecycle boundary, not a fake worker or
+                # provider response. The isolated root has no database or key.
+                code, _ = await worker._command(
+                    "/usr/bin/systemctl",
+                    "--user",
+                    "kill",
+                    "--kill-whom=main",
+                    "--signal=SIGSTOP",
+                    unit,
+                )
+                assert code == 0
+                os.write(writer, ("START " + token + "\n").encode("ascii"))
+                await asyncio.sleep(9)
+                code, _ = await worker._command(
+                    "/usr/bin/systemctl",
+                    "--user",
+                    "kill",
+                    "--kill-whom=main",
+                    "--signal=SIGCONT",
+                    unit,
+                )
+                assert code == 0
             os.close(writer)
             writer = -1
-            assert await asyncio.wait_for(launcher, timeout=5) == 5
+            assert await asyncio.wait_for(launcher, timeout=5) == (
+                3 if hold_owned_worker else 5
+            )
             assert not (tmp_path / "agentmonitor.db").exists()
             assert not (tmp_path / ".billing-worker.lock").exists()
             assert await worker._stop_owned(unit, description, token, invocation)

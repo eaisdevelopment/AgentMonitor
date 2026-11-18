@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { exactMoneyText, displayMoney, completedPeriod } from "../../src/features/accounts/budgetPresentation.ts";
+import * as presentation from "../../src/features/accounts/budgetPresentation.ts";
 
 // Pure values only; these amounts never enter a browser, provider or database.
 const money = (coefficient, scale, currency = "USD") => ({ coefficient, scale, currency });
@@ -14,6 +15,11 @@ assert.equal(displayMoney(money("1005", 3)), "1.00 USD");
 assert.equal(displayMoney(money("1015", 3)), "1.02 USD");
 assert.equal(displayMoney(money("-1015", 3)), "-1.02 USD");
 assert.equal(displayMoney(money("12345", 3, "GBP")), "12.345 GBP");
+assert.equal(typeof presentation.budgetDimensionText, "function", "explicit remainder needs a truthful dimension label");
+assert.equal(presentation.budgetDimensionText({ kind: "model", value: null, is_remainder: true }), "Model: Provider-reported remainder");
+assert.equal(presentation.budgetDimensionText({ kind: "model", value: null }), "Model: Not reported");
+assert.equal(presentation.budgetDimensionText({ kind: "model", value: "other", is_remainder: false }), "Model: other", "a literal model name never establishes remainder semantics");
+assert.equal(presentation.budgetDimensionText({ kind: "model", value: "model-v1" }), "Model: model-v1");
 assert.deepEqual(completedPeriod(7, new Date("2026-03-29T23:45:00Z")), {
   period_start: "2026-03-22T00:00:00.000Z", period_end: "2026-03-29T00:00:00.000Z", as_of: "2026-03-29T23:45:00.000Z",
 });

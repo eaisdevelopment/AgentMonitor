@@ -53,6 +53,7 @@ class CollectionRecoveryScopeV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class CollectionRecoveryQueryV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-COL-012"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M04"
 
     provider_key: str
@@ -60,6 +61,7 @@ class CollectionRecoveryQueryV1(TechnicalValueV1):
     before_at: datetime
     scope: CollectionRecoveryScopeV1 | None = None
     limit: int = 200
+    capability_id: str | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -70,10 +72,17 @@ class CollectionRecoveryQueryV1(TechnicalValueV1):
             or not self.from_at < self.before_at <= self.from_at + timedelta(days=1)
             or type(self.limit) is not int
             or not 1 <= self.limit <= 500
+            or self.capability_id is not None
+            and (
+                type(self.capability_id) is not str
+                or not _CODE.fullmatch(self.capability_id)
+            )
             or self.scope is not None
             and (
                 not isinstance(self.scope, CollectionRecoveryScopeV1)
                 or self.scope.provider_key != self.provider_key
+                or self.capability_id is not None
+                and self.capability_id != self.scope.capability_id
             )
         ):
             raise ValueError("collection_recovery_query_invalid")

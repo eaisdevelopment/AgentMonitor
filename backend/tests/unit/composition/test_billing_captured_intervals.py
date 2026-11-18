@@ -144,9 +144,9 @@ def test_unadmitted_context_is_rejected_before_run_is_returned(
 ) -> None:
     context = _context(7)
     if change == "category":
-        context = replace(context, source_category="usage")
+        context = replace(context, source_category="unreviewed")
     elif change == "grouping":
-        context = replace(context, grouping=("model",))
+        context = replace(context, grouping=("organization",))
     else:
         context = _context(7, -1)
     with pytest.raises(ValueError):
@@ -156,15 +156,15 @@ def test_unadmitted_context_is_rejected_before_run_is_returned(
 @pytest.mark.parametrize("provider", ["claude", "codex"])
 def test_both_admitted_ranges_are_in_worker_claim_allowlist(provider: Provider) -> None:
     from agentmonitor.composition.billing_collection import (
-        billing_cost_operation_families,
+        billing_report_operation_families,
     )
 
-    assert billing_cost_operation_families(provider) == tuple(
+    assert {
         _build(provider, report_context=_context(days)).operation_family
         for days in (7, 30)
-    )
+    } <= set(billing_report_operation_families(provider))
     with pytest.raises(ValueError):
-        billing_cost_operation_families("ollama")
+        billing_report_operation_families("ollama")
 
 
 @pytest.mark.parametrize("provider", ["claude", "codex"])

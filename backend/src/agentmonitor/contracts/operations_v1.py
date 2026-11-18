@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import ClassVar, Literal, Protocol
 
 from agentmonitor.contracts.alerting_v1 import DashboardNotificationCountsV1
+from agentmonitor.contracts.capacity_retention_v1 import BudgetRetentionExportRecordV1
 from agentmonitor.contracts.capacity_v1 import CapacityAggregateViewV1
 from agentmonitor.contracts.collection_control_v1 import CollectorHealthV1
 from agentmonitor.contracts.common_v1 import (
@@ -94,6 +95,8 @@ REASON_CODES_V1 = frozenset(
         "operations_artifact_rejected",
         "operations_artifact_expired",
         "operations_retention_participant_blocked",
+        "operations_retention_batch_complete",
+        "operations_retention_batch_partial",
         "operations_internal_error",
     }
 )
@@ -599,6 +602,7 @@ class GetExportJobV1(Protocol):
 @dataclass(frozen=True, slots=True)
 class OperationsParticipantRequestV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-OPS-007"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M08"
     operation_id: OpaqueIdV1
     correlation_id: OpaqueIdV1
@@ -629,6 +633,7 @@ class OperationsParticipantRequestV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class OperationsParticipantReceiptV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-OPS-007"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M08"
     participant_key: str
     operation_id: OpaqueIdV1
@@ -761,3 +766,47 @@ class GetDashboardOverviewV1(Protocol):
     async def __call__(
         self, request: DashboardOverviewRequestV1
     ) -> DashboardOverviewV1: ...
+
+
+class BudgetRetentionParticipantV1(Protocol):
+    """Only financial preview/export/purge; no general restore or consistency API."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-OPS-007"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
+    OWNER: ClassVar[str] = "PLAN-M08"
+
+    def preview_expired(
+        self, request: OperationsParticipantRequestV1
+    ) -> OperationsParticipantReceiptV1: ...
+
+    def query_export_records(
+        self, request: OperationsParticipantRequestV1
+    ) -> tuple[BudgetRetentionExportRecordV1, ...]: ...
+
+    def purge_expired(
+        self, request: OperationsParticipantRequestV1
+    ) -> OperationsParticipantReceiptV1: ...
+
+
+class BudgetRetentionCheckpointPortV1(Protocol):
+    """M08 private export storage; verification binds the exact preview and rows."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-OPS-007"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
+    OWNER: ClassVar[str] = "PLAN-M08"
+
+    def find_prepared(
+        self, request: OperationsParticipantRequestV1
+    ) -> OperationsParticipantRequestV1 | None: ...
+
+    def store(
+        self,
+        request: OperationsParticipantRequestV1,
+        records: tuple[BudgetRetentionExportRecordV1, ...],
+    ) -> OpaqueIdV1: ...
+
+    def verify(
+        self,
+        request: OperationsParticipantRequestV1,
+        records: tuple[BudgetRetentionExportRecordV1, ...],
+    ) -> bool: ...

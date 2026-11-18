@@ -8,23 +8,25 @@ export type CloudUsageIntent = Readonly<{
 }>;
 
 /** Collection admits only exact completed UTC day windows, never a report-derived range. */
-export function cloudUsageContext(start: string, end: string, scope: "self" | "team" = "self"): CloudUsageContextV1 {
+export function cloudUsageContext(start: string, end: string, scope: "self" | "team" = "self", grouping: readonly string[] = []): CloudUsageContextV1 {
+  if (!Array.isArray(grouping) || grouping.length > 1 || grouping.some(value => value !== "model")) throw new Error("cloud_usage_context_invalid");
   for (const value of [start, end]) {
     if (!/^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0{1,6})?Z$/.test(value) ||
         !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value.slice(0, 10)) throw new Error("cloud_usage_context_invalid");
   }
   const days = (Date.parse(end) - Date.parse(start)) / 86400000;
   if (days !== 7 && days !== 30) throw new Error("cloud_usage_context_invalid");
-  return { scope, range_key: days === 7 ? "7d" : "30d", interval_start: start, interval_end: end };
+  return { scope, range_key: days === 7 ? "7d" : "30d", interval_start: start, interval_end: end, ...(grouping.length === 0 ? {} : { grouping: ["model"] as const }) };
 }
 
 export function sameCloudUsageContext(left: CloudUsageContextV1, right: CloudUsageContextV1 | null | undefined): boolean {
   if (!right) return false;
   try {
-    const actual = cloudUsageContext(right.interval_start, right.interval_end);
+    const actual = cloudUsageContext(right.interval_start, right.interval_end, right.scope, right.grouping === undefined ? [] : right.grouping);
+    cloudUsageContext(left.interval_start, left.interval_end, left.scope, left.grouping === undefined ? [] : left.grouping);
     return (right.scope === "self" || right.scope === "team") &&
       right.range_key === actual.range_key && left.range_key === right.range_key &&
-      left.scope === right.scope &&
+      left.scope === right.scope && JSON.stringify(left.grouping ?? []) === JSON.stringify(actual.grouping ?? []) &&
       Date.parse(left.interval_start) === Date.parse(right.interval_start) && Date.parse(left.interval_end) === Date.parse(right.interval_end);
   } catch { return false; }
 }
@@ -66,16 +68,31 @@ export function restoreCloudUsageIntent(raw: string | null, accountId: string, r
     if (typeof data.idempotencyKey !== "string" || !/^[a-f0-9]{32}$/.test(data.idempotencyKey) || typeof data.handled !== "boolean" || typeof data.retryRequiresEligibility !== "boolean") return null;
     if (data.runId === null ? data.deadlineAt !== null || data.handled : typeof data.runId !== "string" || !safeId.test(data.runId) || typeof data.deadlineAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(data.deadlineAt) || !Number.isFinite(Date.parse(data.deadlineAt))) return null;
     if (data.runId !== null && data.retryRequiresEligibility) return null;
-    if (data.reportContext === null || typeof data.reportContext !== "object" || Array.isArray(data.reportContext) || Object.keys(data.reportContext).some(key => !["scope", "range_key", "interval_start", "interval_end"].includes(key))) return null;
+    if (data.reportContext === null || typeof data.reportContext !== "object" || Array.isArray(data.reportContext) || Object.keys(data.reportContext).some(key => !["scope", "range_key", "interval_start", "interval_end", "grouping"].includes(key))) return null;
     const reportContext = data.reportContext as CloudUsageContextV1;
     if (!sameCloudUsageContext(reportContext, reportContext)) return null;
     return data as CloudUsageIntent;
   } catch { return null; }
 }
 
-/** Only the published selected report category establishes a team action. */
-export function cloudUsageScope(sourceCategory: string | undefined): "self" | "team" {
+/** An explicit choice can request a first report; it cannot relabel a pinned report. */
+export function cloudUsageScope(sourceCategory: string | undefined, selectedScope?: string | null): "self" | "team" | null {
+  if (selectedScope != null) {
+    if (selectedScope !== "self" && selectedScope !== "team") return null;
+    if (sourceCategory !== undefined && sourceCategory !== `${selectedScope}_requests_and_cost`) return null;
+    return selectedScope;
+  }
   return sourceCategory === "team_requests_and_cost" ? "team" : "self";
+}
+
+/** Stored report metadata remains authoritative when following a historical link. */
+export function cloudUsageGrouping(reportGrouping?: readonly string[], selectedGrouping?: string | null): readonly "model"[] | null {
+  if (reportGrouping !== undefined && (reportGrouping.length > 1 || reportGrouping.some(value => value !== "model"))) return null;
+  if (selectedGrouping != null) {
+    if (selectedGrouping !== "model" || (reportGrouping !== undefined && reportGrouping[0] !== "model")) return null;
+    return ["model"];
+  }
+  return reportGrouping?.[0] === "model" ? ["model"] : [];
 }
 
 /** These explicit refusals cannot retarget an old intent; unknown outcomes retain it. */
@@ -92,7 +109,7 @@ export function cloudUsageReason(code: string): string {
     cloud_usage_target_unavailable: "This cloud resource is unavailable. Review the existing cloud connection controls.",
     cloud_usage_interval_unavailable: "This source collects only its current native window. Choose Latest completed window; older stored reports remain readable.",
     cloud_usage_request_unresolved: "An earlier provider request remains unresolved. Refresh usage status before another collection.",
-    cloud_usage_rate_limited: "Usage and balance share a provider cooldown. Refresh usage status after the server time below.",
+    cloud_usage_rate_limited: "Collection is waiting for the shared request allowance or an older report. Refresh usage status; a known retry time is shown below.",
     cloud_usage_service_unavailable: "The usage collector is unavailable. Refresh usage status when the service is available.",
     cloud_usage_target_changed: "The cloud target or credential changed. Refresh usage status before collecting.",
     cloud_usage_version_conflict: "The account or cloud target changed. Refresh view before collecting.",

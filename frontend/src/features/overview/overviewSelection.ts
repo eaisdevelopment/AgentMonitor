@@ -34,10 +34,12 @@ export function safeOverviewSearch(search: string, detail = false): string {
     if (value !== null && keys.some(sort => value === `${sort}:ascending` || value === `${sort}:descending`)) output.set(key, value);
   }
   if (detail) {
-    const keys = ["budget_resource", "budget_report", "budget_start", "budget_end", "budget_as_of"];
+    const keys = ["budget_resource", "budget_report", "budget_start", "budget_end", "budget_as_of", "budget_scope", "budget_category", "budget_grouping"];
     const present = [...input.keys()].filter(key => key.startsWith("budget_"));
     if (present.length > 0) {
       const resource = input.get("budget_resource"), report = input.get("budget_report");
+      const scope = input.get("budget_scope");
+      const category = input.get("budget_category"), grouping = input.get("budget_grouping");
       const selectedTime = (key: string) => {
         const value = input.get(key);
         if (value === null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value)) return null;
@@ -48,6 +50,9 @@ export function safeOverviewSearch(search: string, detail = false): string {
       const safeId = /^[A-Za-z0-9._:-]{1,256}$/;
       const valid = present.every(key => keys.includes(key) && input.getAll(key).length === 1)
         && (resource === null || safeId.test(resource)) && (report === null || (resource !== null && safeId.test(report)))
+        && (scope === null || (resource !== null && (scope === "self" || scope === "team")))
+        && (category === null || (resource !== null && /^[a-z][a-z0-9_]{0,63}$/.test(category) && scope === null))
+        && (grouping === null || (scope !== null ? category === null && grouping === "model" : category !== null && ["workspace", "project", "api_key_id", "model", "token_category"].includes(grouping)))
         && selectedStart !== null && selectedEnd !== null && selectedAsOf !== null
         && /T00:00:00(?:\.0{1,6})?Z$/.test(input.get("budget_start") ?? "")
         && /T00:00:00(?:\.0{1,6})?Z$/.test(input.get("budget_end") ?? "")
@@ -58,6 +63,9 @@ export function safeOverviewSearch(search: string, detail = false): string {
       else {
         if (resource !== null) output.set("budget_resource", resource);
         if (report !== null) output.set("budget_report", report);
+        if (scope !== null) output.set("budget_scope", scope);
+        if (category !== null) output.set("budget_category", category);
+        if (grouping !== null) output.set("budget_grouping", grouping);
         // Keep the validated source strings: Date stores only milliseconds.
         output.set("budget_start", input.get("budget_start")!);
         output.set("budget_end", input.get("budget_end")!);

@@ -26,6 +26,18 @@ assert.equal(overviewSelection("?range=7&period_start=2026-10-12T00:00:00Z&perio
 const { safeLocation } = await import("../../app/sessionBootstrap.ts");
 const { selectedFinancialReport } = await import("../accounts/financialReadPresentation.ts");
 const valid = "budget_resource=resource-1&budget_report=report-1&budget_start=2026-11-04T00:00:00Z&budget_end=2026-11-11T00:00:00Z&budget_as_of=2026-11-11T12:00:00Z";
+const teamSelection = safeLocation(`/accounts/account-1?${valid}&budget_scope=team`);
+assert.equal(new URLSearchParams(teamSelection.search).get("budget_scope"), "team", "safe login/reload location retains explicit scope");
+assert.equal(selectedFinancialReport(teamSelection.search).kind, "selected");
+const modelSelection = safeLocation(`/accounts/account-1?${valid}&budget_scope=team&budget_grouping=model`);
+assert.equal(new URLSearchParams(modelSelection.search).get("budget_grouping"), "model", "cloud scope plus model is a valid reload selection");
+assert.equal(selectedFinancialReport(modelSelection.search).kind, "selected");
+for (const suffix of ["budget_grouping=model", "budget_scope=team&budget_category=cost&budget_grouping=model", "budget_scope=team&budget_grouping=workspace", "budget_scope=self&budget_grouping=model&budget_grouping=model"]) {
+  assert.equal(selectedFinancialReport(safeLocation(`/accounts/account-1?${valid}&${suffix}`).search).kind, "invalid");
+}
+for (const suffix of ["budget_scope=other", "budget_scope=team&budget_scope=self"]) {
+  assert.equal(selectedFinancialReport(safeLocation(`/accounts/account-1?${valid}&${suffix}`).search).kind, "invalid");
+}
 for (const malformed of [
   valid.replace("report-1", "https://invalid.example/private"),
   valid + "&budget_report=other-report",

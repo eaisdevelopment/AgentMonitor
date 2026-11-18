@@ -26,6 +26,24 @@ class BillingCollectInputV1(BillingCheckInputV1):
     report_context: BillingReportContextV1
 
 
+class BillingReportContextV2(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    range_key: Literal["7d", "30d"]
+    interval_start: datetime
+    interval_end: datetime
+    source_category: str = Field(
+        min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$"
+    )
+    grouping: tuple[
+        Literal["workspace", "project", "api_key_id", "model", "token_category"], ...
+    ] = Field(default=(), max_length=1)
+
+
+class BillingCollectInputV2(BillingCheckInputV1):
+    report_context: BillingReportContextV2
+
+
 class BillingCheckRunV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -57,6 +75,15 @@ class BudgetRunStatusV1(BillingCheckRunV1):
     resource_id: str
     report_id: str | None
     report_context: BillingReportContextV1 | None = None
+
+
+class BudgetRunStatusV2(BillingCheckRunV1):
+    """Durable billing run and optional committed report; no credential state."""
+
+    account_id: str
+    resource_id: str
+    report_id: str | None
+    report_context: BillingReportContextV2 | None = None
 
 
 class SetBillingMonitoringInputV1(BaseModel):
@@ -102,6 +129,14 @@ class BillingMonitoringResultV1(BaseModel):
     updated_at: datetime
 
 
+class BillingReportOptionWireV1(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    source_id: str
+    source_category: str
+    grouping: tuple[str, ...] = Field(max_length=1)
+    label: str
+
+
 class BillingCollectionEligibilityWireV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     account_id: str
@@ -115,3 +150,24 @@ class BillingCollectionEligibilityWireV1(BaseModel):
     reason_code: str
     next_allowed_at: datetime | None
     checked_at: datetime
+    collection_options: tuple[BillingReportOptionWireV1, ...] = Field(
+        default=(), max_length=64
+    )
+
+
+class BillingCollectionEligibilityWireV2(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    account_id: str
+    resource_id: str
+    account_record_version: int
+    connection_record_version: int
+    scope_generation: int
+    binding_generation: int | None
+    report_context: BillingReportContextV2
+    can_collect: bool
+    reason_code: str
+    next_allowed_at: datetime | None
+    checked_at: datetime
+    collection_options: tuple[BillingReportOptionWireV1, ...] = Field(
+        default=(), max_length=64
+    )

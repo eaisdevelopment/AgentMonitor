@@ -3,13 +3,17 @@
 import hashlib
 from dataclasses import fields
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, cast
 
 from agentmonitor.adapters.providers.claude.anthropic_api.manifest import (
     ADAPTER_ID,
-    ADAPTER_VERSION,
-    EVIDENCE_REFERENCE,
-    build_anthropic_cost_manifest,
+    build_anthropic_analytics_manifest,
+)
+from agentmonitor.adapters.providers.claude.anthropic_api.manifest import (
+    ANALYTICS_REFERENCE as EVIDENCE_REFERENCE,
+)
+from agentmonitor.adapters.providers.claude.anthropic_api.manifest import (
+    ANALYTICS_VERSION as ADAPTER_VERSION,
 )
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     API_VERSION,
@@ -17,15 +21,20 @@ from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     MAX_REQUESTS,
     REPORT_SECONDS,
     SOURCE_ID,
+    USAGE_SOURCE_ID,
     AnthropicCostRequestV1,
+    AnthropicUsageRequestV1,
+    analytics_selection_is_usage,
     completed_week,
     validate_period,
 )
 from agentmonitor.adapters.providers.claude.anthropic_api.source import (
     AnthropicCostResultV1,
+    AnthropicUsageResultV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCollectionInputV1,
+    BudgetDimensionKindV1,
     BudgetPeriodV1,
     BudgetReportInputV1,
     CapacitySubjectV2,
@@ -62,7 +71,7 @@ ANTHROPIC_COST_OPERATION_FAMILY_V1 = "billing.anthropic.cost.7d"
 ANTHROPIC_COST_30D_OPERATION_FAMILY_V1 = "billing.anthropic.cost.30d"
 ANTHROPIC_COST_BUDGET_POLICY_ID_V1 = "anthropic-cost-report-requests-v1"
 ANTHROPIC_COST_BUDGET_POLICY_VERSION_V1 = "1.0.0"
-ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1 = "1.1.0"
+ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1 = "1.2.0"
 _CAPABILITY_ID = "api.cost"
 _CAPABILITY_SCHEMA_VERSION = "2.0.0"
 _PAYLOAD_SCHEMA = "budget.report.v1"
@@ -79,7 +88,7 @@ def anthropic_cost_manifest_fingerprint() -> str:
     """Bind M03's catalog identity to M04/M02's SHA-256 audit field."""
     return _digest(
         "provider-manifest-fingerprint-v1",
-        get_manifest_fingerprint_v1(build_anthropic_cost_manifest()),
+        get_manifest_fingerprint_v1(build_anthropic_analytics_manifest()),
     )
 
 
@@ -134,23 +143,30 @@ def _report_period(
 ) -> BudgetPeriodV1:
     if context is None:
         return completed_week(requested_at)
-    if (
-        not isinstance(context, BillingBudgetReportContextV1)
-        or context.source_category != "cost"
-        or context.grouping != ()
-    ):
+    if not isinstance(context, BillingBudgetReportContextV1):
         raise ValueError("anthropic_billing_run_invalid")
+    analytics_selection_is_usage(context.source_category, context.grouping)
     period = BudgetPeriodV1(context.interval_start, context.interval_end)
     validate_period(period, requested_at)
     return period
 
 
-def _operation_family(context: BillingBudgetReportContextV1 | None) -> str:
-    return (
-        ANTHROPIC_COST_30D_OPERATION_FAMILY_V1
-        if context is not None and context.range_key == "30d"
-        else ANTHROPIC_COST_OPERATION_FAMILY_V1
+def anthropic_billing_operation_family(
+    context: BillingBudgetReportContextV1 | None,
+) -> str:
+    if context is None:
+        return ANTHROPIC_COST_OPERATION_FAMILY_V1
+    analytics_selection_is_usage(context.source_category, context.grouping)
+    return f"billing.anthropic.{context.source_category}.{context.range_key}" + (
+        "." + context.grouping[0] if context.grouping else ""
     )
+
+
+def _source_identity(context: BillingBudgetReportContextV1 | None) -> tuple[str, str]:
+    usage = context is not None and analytics_selection_is_usage(
+        context.source_category, context.grouping
+    )
+    return ("api.usage", USAGE_SOURCE_ID) if usage else (_CAPABILITY_ID, SOURCE_ID)
 
 
 def _request_digest(
@@ -169,7 +185,7 @@ def _request_digest(
         if report_context is None
         else "anthropic-cost-request-v2",
         target_key_digest,
-        _operation_family(report_context),
+        anthropic_billing_operation_family(report_context),
         trigger,
         "" if request_principal_id is None else request_principal_id.value,
         idempotency_key_digest or "",
@@ -271,6 +287,7 @@ def build_anthropic_billing_run(
         raise ValueError("anthropic_billing_run_invalid")
     # Validate the completed interval before any durable admission is built.
     _report_period(requested_at, report_context)
+    capability, source = _source_identity(report_context)
     budget_window_start, budget_window_end = _budget_window(requested_at)
     provider_target = ProviderTargetRefV1(
         "cloud_service", access_target.access_target_id
@@ -286,8 +303,8 @@ def build_anthropic_billing_run(
         schedule_id=schedule_id,
         request_id=request_id,
         trigger=trigger,
-        operation_family=_operation_family(report_context),
-        requested_capability_ids=(_CAPABILITY_ID,),
+        operation_family=anthropic_billing_operation_family(report_context),
+        requested_capability_ids=(capability,),
         capability_set_version=_CAPABILITY_SCHEMA_VERSION,
         request_auth_method=(
             "internal_scheduler" if trigger == "scheduled" else "dashboard_session"
@@ -301,8 +318,8 @@ def build_anthropic_billing_run(
         account_id=target.connection.account_id,
         profile_id=None,
         resource_id=target.connection.resource_id,
-        capability_id=_CAPABILITY_ID,
-        source_id=SOURCE_ID,
+        capability_id=capability,
+        source_id=source,
         adapter_version=ADAPTER_VERSION,
         provider_version=API_VERSION,
         adapter_protocol_version=_PROTOCOL_VERSION,
@@ -359,6 +376,7 @@ def _require_anthropic_admission(
         else None
     )
     target = admission.billing_target
+    capability, source = _source_identity(context)
     expected_target_digest = _digest(
         "billing-schedule-target-v2",
         _target_digest(target, admission.provider_target),
@@ -375,16 +393,16 @@ def _require_anthropic_admission(
     )
     expected_budget_window = _budget_window(admission.requested_at)
     if (
-        admission.operation_family != _operation_family(context)
-        or admission.requested_capability_ids != (_CAPABILITY_ID,)
+        admission.operation_family != anthropic_billing_operation_family(context)
+        or admission.requested_capability_ids != (capability,)
         or admission.capability_set_version != _CAPABILITY_SCHEMA_VERSION
         or admission.provider_key != "claude"
         or admission.provider_target.target_kind != "cloud_service"
         or admission.account_id != target.connection.account_id
         or admission.profile_id is not None
         or admission.resource_id != target.connection.resource_id
-        or admission.capability_id != _CAPABILITY_ID
-        or admission.source_id != SOURCE_ID
+        or admission.capability_id != capability
+        or admission.source_id != source
         or admission.adapter_version != ADAPTER_VERSION
         or admission.provider_version != API_VERSION
         or admission.adapter_protocol_version != _PROTOCOL_VERSION
@@ -438,7 +456,17 @@ def anthropic_billing_request(
     _require_anthropic_admission(admission)
     target = admission.billing_target
     connection = target.connection
-    return AnthropicCostRequestV1(
+    context = (
+        admission.report_context
+        if isinstance(admission, BudgetCollectionRunAdmissionV2)
+        else None
+    )
+    request_type = (
+        AnthropicUsageRequestV1
+        if admission.capability_id == "api.usage"
+        else AnthropicCostRequestV1
+    )
+    return request_type(
         subject=CapacitySubjectV2(
             provider_key="claude",
             provider_target=admission.provider_target,
@@ -458,6 +486,9 @@ def anthropic_billing_request(
             else None,
         ),
         requested_at=admission.requested_at,
+        grouping=()
+        if context is None
+        else cast(tuple[BudgetDimensionKindV1, ...], context.grouping),
     )
 
 
@@ -466,8 +497,15 @@ def _result_valid(
     result: AnthropicCostResultV1,
     completed_at: datetime,
 ) -> bool:
+    usage = isinstance(request, AnthropicUsageRequestV1)
+    token_categories = request.grouping == ("token_category",)
+    category = (
+        ("usage_tokens" if token_categories else "usage")
+        if usage
+        else ("cost_tokens" if token_categories else "cost")
+    )
     if (
-        type(result) is not AnthropicCostResultV1
+        type(result) is not (AnthropicUsageResultV1 if usage else AnthropicCostResultV1)
         or type(result.requests_made) is not int
         or not 0 <= result.requests_made <= MAX_REQUESTS
         or result.http_status is not None
@@ -493,13 +531,13 @@ def _result_valid(
             and report.scope_generation == request.scope_generation
             and report.scope_id == request.scope_id
             and report.scope_evidence == request.scope_evidence
-            and report.source_id == SOURCE_ID
-            and report.source_category == "cost"
-            and report.cost_basis == COST_BASIS
-            and report.grouping == ()
+            and report.source_id == (USAGE_SOURCE_ID if usage else SOURCE_ID)
+            and report.source_category == category
+            and report.cost_basis == ("not_applicable" if usage else COST_BASIS)
+            and report.grouping == request.grouping
             and report.requested_period == request.period
-            and report.currency == "USD"
-            and report.usage_buckets == ()
+            and report.currency == (None if usage else "USD")
+            and (report.cost_buckets == () if usage else report.usage_buckets == ())
             and request.requested_at <= report.collected_at <= completed_at
             and (result.state == "success")
             == (
@@ -520,12 +558,12 @@ def _provenance(
     )
     return ObservationProvenanceV1(
         provider_key="claude",
-        capability_id=_CAPABILITY_ID,
+        capability_id=admission.capability_id,
         capability_schema_version=_CAPABILITY_SCHEMA_VERSION,
         adapter_id=ADAPTER_ID,
         adapter_version=ADAPTER_VERSION,
         provider_protocol_version=_PROTOCOL_VERSION,
-        source_id=SOURCE_ID,
+        source_id=admission.source_id,
         source_class="documented_api",
         mechanism_version=API_VERSION,
         parser_version=ADAPTER_VERSION,
@@ -539,7 +577,9 @@ def _provenance(
         freshness_policy_id="anthropic_cost_source_watermark_v1",
         precision="exact",
         confidence="confirmed",
-        confidence_reason_code="provider_reported_cost",
+        confidence_reason_code="provider_reported_usage"
+        if admission.capability_id == "api.usage"
+        else "provider_reported_cost",
         value_kind="provider_reported",
         is_experimental=True,
         fallback_lineage=(),

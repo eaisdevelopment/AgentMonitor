@@ -17,4 +17,4 @@ Use `exclude` to hide the current project from the rotation, for example `?exclu
 
 Rotation defaults to nine seconds. Use `?interval=12000` for 12 seconds; accepted values are 5,000–60,000 milliseconds. Visitors can navigate manually, pause the rotation, and choose a product from the directory. Rotation pauses when the browser tab is hidden, when a pointer or keyboard focus is within the promotion, and by default when reduced motion is requested.
 
-Product names, descriptions, links, colours and the list order are in the `products` array in `index.html`. AgentMonitor has no public link while its repository is private. Set its `url` field when a public destination is available.
+Product names, descriptions, links, colours and the list order are in the `products` array in `index.html`. AgentMonitor links to its public source repository at https://github.com/eaisdevelopment/AgentMonitor. Keep that destination synchronized when reusing the promotion.

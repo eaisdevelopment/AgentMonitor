@@ -1,7 +1,7 @@
 """Connect an admitted billing run to its source and fenced report sink.
 
 Anthropic and OpenAI completed 7/30-day costs use the same fenced run lifecycle.
-Other categories still require explicit integration and live verification.
+Anthropic usage uses its distinct typed source under the same request budget.
 """
 
 import time
@@ -27,19 +27,25 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,
 )
-from agentmonitor.adapters.providers.claude.anthropic_api.policy import SOURCE_ID
+from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
+    AnthropicUsageRequestV1,
+)
 from agentmonitor.adapters.providers.claude.anthropic_api.source import (
     AnthropicCostResultV1,
+    AnthropicUsageResultV1,
     collect_cost_report_in_worker_v1,
+    collect_usage_report_in_worker_v1,
 )
-from agentmonitor.adapters.providers.codex.openai_api.policy import (
-    SOURCE_ID as OPENAI_SOURCE_ID,
-)
+from agentmonitor.adapters.providers.codex.openai_api.policy import OpenAIUsageRequestV1
 from agentmonitor.adapters.providers.codex.openai_api.source import (
     OpenAICostResultV1,
+    OpenAIUsageResultV1,
 )
 from agentmonitor.adapters.providers.codex.openai_api.source import (
     collect_cost_report_in_worker_v1 as collect_openai_cost_report_in_worker_v1,
+)
+from agentmonitor.adapters.providers.codex.openai_api.source import (
+    collect_usage_report_in_worker_v1 as collect_openai_usage_report_in_worker_v1,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
     approve_env_credential_file_v1,
@@ -47,7 +53,10 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import 
 )
 from agentmonitor.composition.billing_capacity_commit import billing_capacity_repository
 from agentmonitor.composition.billing_context import (
-    billing_cost_operation_families as billing_cost_operation_families,
+    billing_report_operation_families as billing_report_operation_families,
+)
+from agentmonitor.composition.billing_context import (
+    billing_source_operations,
 )
 from agentmonitor.composition.billing_env_authorization import (
     AnthropicEnvAuthorizationV1,
@@ -68,7 +77,7 @@ from agentmonitor.modules.collection_control.application.budget_executor import 
 
 
 class BillingCollectionV1:
-    """One internally selected run; caller cannot supply a provider URL or key."""
+    """Sequential eligible runs within one supervised worker's fixed deadline."""
 
     def __init__(
         self,
@@ -95,10 +104,15 @@ class BillingCollectionV1:
             self._runs, SqliteBudgetReportRepositoryV1(self._reference)
         )
         recovery_owner = OpaqueIdV1("billing-recovery-" + uuid.uuid4().hex)
-        for provider, source in (("claude", SOURCE_ID), ("codex", OPENAI_SOURCE_ID)):
+        recovery_sources = tuple(
+            (provider, capability, source)
+            for provider in ("claude", "codex")
+            for capability, source, _ in billing_source_operations(provider)
+        )
+        for provider, capability, source in recovery_sources:
             recovery.recover_expired_runs(
                 provider_key=provider,
-                capability_id="api.cost",
+                capability_id=capability,
                 source_id=source,
                 as_of=now,
                 owner_stale_before=now - timedelta(seconds=120),
@@ -108,7 +122,7 @@ class BillingCollectionV1:
             )
             recovery.recover_pending_commits(
                 provider_key=provider,
-                capability_id="api.cost",
+                capability_id=capability,
                 source_id=source,
                 as_of=now,
                 owner_stale_before=now - timedelta(seconds=120),
@@ -130,7 +144,16 @@ class BillingCollectionV1:
             return 3
         if time.monotonic() >= self._deadline - 5:
             return 4
-        return self._dispatch_one()
+        # Re-read persisted eligibility after every completed attempt. Sleeping
+        # between eligible keys can expire an accepted manual request while the
+        # worker is idle. Keep the existing ordering, source budgets and deadline.
+        while time.monotonic() < self._deadline - 20:
+            # M04 claim owners are single-use attempt identities, not process IDs.
+            # Keep that fence intact while the same process dispatches sequentially.
+            self._instance = OpaqueIdV1("billing-worker-" + uuid.uuid4().hex)
+            if not self._dispatch_one():
+                break
+        return 0
 
     def _claim_one(
         self, *, provider_key: str, operation_family: str, expected_run_id: OpaqueIdV1
@@ -147,17 +170,15 @@ class BillingCollectionV1:
         )
 
         # Exact selected run retains the source-specific authority/rate fence.
-        for provider, source, fingerprint, policy, limit in (
+        for provider, fingerprint, policy, limit in (
             (
                 "claude",
-                SOURCE_ID,
                 anthropic_cost_manifest_fingerprint(),
                 ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
                 anthropic_billing_budget_limit,
             ),
             (
                 "codex",
-                OPENAI_SOURCE_ID,
                 openai_cost_manifest_fingerprint(),
                 OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
                 openai_billing_budget_limit,
@@ -165,19 +186,19 @@ class BillingCollectionV1:
         ):
             if provider != provider_key:
                 continue
-            for operation in billing_cost_operation_families(provider):
-                if operation != operation_family:
+            for capability, source, operations in billing_source_operations(provider):
+                if operation_family not in operations:
                     continue
                 admission = self._runs.claim_next_budget_run(
                     scheduler_instance_id=self._instance,
                     as_of=datetime.now(UTC),
                     resolve_budget_limit=limit,
                     provider_key=provider,
-                    capability_id="api.cost",
+                    capability_id=capability,
                     source_id=source,
                     manifest_fingerprint=fingerprint,
                     collection_policy_version=policy,
-                    operation_family=operation,
+                    operation_family=operation_family,
                     expected_run_id=expected_run_id,
                 )
                 if admission is not None:
@@ -186,7 +207,8 @@ class BillingCollectionV1:
                     return admission
         return None
 
-    def _dispatch_one(self) -> int:
+    def _dispatch_one(self) -> bool:
+        """Return whether a real run was dispatched, including recorded failures."""
         from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
             BudgetCollectionError,
         )
@@ -212,7 +234,7 @@ class BillingCollectionV1:
         )
         for candidate in work:
             if time.monotonic() >= self._deadline - 20:
-                return 0
+                return False
             provider, _, operation = candidate.key
             try:
                 if candidate.queued_run_id is not None:
@@ -221,7 +243,7 @@ class BillingCollectionV1:
                             operation_family=operation,
                             expected_run_id=candidate.queued_run_id,
                         ):
-                            return 0
+                            return True
                     else:
                         admission = self._claim_one(
                             provider_key=provider,
@@ -229,7 +251,8 @@ class BillingCollectionV1:
                             expected_run_id=candidate.queued_run_id,
                         )
                         if admission is not None:
-                            return self._execute(admission)
+                            self._execute(admission)
+                            return True
             except BudgetCollectionError as error:
                 if error.code != "budget_dispatch_authority_unavailable":
                     raise
@@ -239,7 +262,7 @@ class BillingCollectionV1:
                 continue
             if provider == "ollama":
                 if usage.dispatch_scheduled(usage_due[candidate.key]):
-                    return 0
+                    return True
             else:
                 scheduled = scheduler.enqueue_intent(
                     billing_due[candidate.key], deadline_monotonic=self._deadline
@@ -256,8 +279,9 @@ class BillingCollectionV1:
                             raise
                         continue
                     if admission is not None:
-                        return self._execute(admission)
-        return 0
+                        self._execute(admission)
+                        return True
+        return False
 
     def _execute(self, admission: BudgetCollectionRunAdmissionV1) -> int:
         from agentmonitor.composition.billing_run import (
@@ -352,14 +376,26 @@ class BillingCollectionV1:
                 assert authorization is None or isinstance(
                     authorization, OpenAIEnvAuthorizationV1
                 )
+                request = openai_billing_request(admission)
                 source_deadline = deadline()
                 if source_deadline <= time.monotonic():
-                    result = OpenAICostResultV1(
-                        "deadline_exceeded", "openai_cost_deadline_exceeded", None, 0
+                    result_type = (
+                        OpenAIUsageResultV1
+                        if isinstance(request, OpenAIUsageRequestV1)
+                        else OpenAICostResultV1
+                    )
+                    result = result_type(
+                        "deadline_exceeded", "openai_report_deadline_exceeded", None, 0
+                    )
+                elif isinstance(request, OpenAIUsageRequestV1):
+                    result = collect_openai_usage_report_in_worker_v1(
+                        request,
+                        authorization=authorization,
+                        deadline_monotonic=source_deadline,
                     )
                 else:
                     result = collect_openai_cost_report_in_worker_v1(
-                        openai_billing_request(admission),
+                        request,
                         authorization=authorization,
                         deadline_monotonic=source_deadline,
                     )
@@ -369,14 +405,30 @@ class BillingCollectionV1:
                 assert authorization is None or isinstance(
                     authorization, AnthropicEnvAuthorizationV1
                 )
+                request = anthropic_billing_request(admission)
                 source_deadline = deadline()
+                usage_request = isinstance(request, AnthropicUsageRequestV1)
                 if source_deadline <= time.monotonic():
-                    result = AnthropicCostResultV1(
-                        "deadline_exceeded", "anthropic_cost_deadline_exceeded", None, 0
+                    result_type = (
+                        AnthropicUsageResultV1
+                        if usage_request
+                        else AnthropicCostResultV1
+                    )
+                    result = result_type(
+                        "deadline_exceeded",
+                        "anthropic_analytics_deadline_exceeded",
+                        None,
+                        0,
+                    )
+                elif isinstance(request, AnthropicUsageRequestV1):
+                    result = collect_usage_report_in_worker_v1(
+                        request,
+                        authorization=authorization,
+                        deadline_monotonic=source_deadline,
                     )
                 else:
                     result = collect_cost_report_in_worker_v1(
-                        anthropic_billing_request(admission),
+                        request,
                         authorization=authorization,
                         deadline_monotonic=source_deadline,
                     )

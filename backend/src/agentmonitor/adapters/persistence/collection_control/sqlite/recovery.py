@@ -135,6 +135,9 @@ class SqliteCollectionRecoveryQueryV1:
             _stamp(query.before_at),
             _stamp(query.before_at),
         )
+        if query.capability_id is not None:
+            where += " AND capability_id=?"
+            params += (query.capability_id,)
         scope = query.scope
         if scope is not None:
             if query.provider_key != scope.provider_key:

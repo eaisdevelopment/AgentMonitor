@@ -89,3 +89,35 @@ def test_resource_list_at_its_bound_cannot_prove_subscription_only() -> None:
     )
     assert not requires_financial_query(account, resources[:99])
     assert requires_financial_query(account, resources)
+
+
+@pytest.mark.parametrize("provider", ("claude", "codex"))
+def test_api_intent_without_any_registered_resource_needs_only_setup_row(
+    provider: str,
+) -> None:
+    from agentmonitor.modules.capacity.domain.budget_overview import (
+        requires_financial_query,
+    )
+
+    account = replace(
+        _account(), provider_key=provider, initial_connection_purpose="api"
+    )
+    assert not requires_financial_query(account, ())
+    for lifecycle in ("active", "retired", "archived"):
+        assert requires_financial_query(
+            account, (replace(_resource("api_organization"), lifecycle=lifecycle),)
+        )
+
+
+@pytest.mark.parametrize("provider", ("ollama", "unknown"))
+def test_api_intent_does_not_exclude_separate_or_unknown_cloud_authority(
+    provider: str,
+) -> None:
+    from agentmonitor.modules.capacity.domain.budget_overview import (
+        requires_financial_query,
+    )
+
+    account = replace(
+        _account(), provider_key=provider, initial_connection_purpose="api"
+    )
+    assert requires_financial_query(account, ())

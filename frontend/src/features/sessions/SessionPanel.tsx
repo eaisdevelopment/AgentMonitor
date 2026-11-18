@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   runtime,
@@ -17,8 +17,6 @@ type RuntimeState =
       kind: "ready";
       processes: AgentProcessMetricPageV1 | null;
       sessions: AgentSessionPageV1;
-      trees: Readonly<Record<string, SessionTreeViewV1>>;
-      treeMessage: string | null;
       selected: AgentSessionViewV1 | null;
       detailMessage: string | null;
     }>;
@@ -151,7 +149,7 @@ function SessionTreeNode({
     return child === undefined || nextSeen.has(childId) ? [] : [child];
   });
   return (
-    <li data-session-tree-node="true">
+    <li data-session-tree-node="true" data-session-id={sessionId}>
       <details open>
         <summary>{node.session.identity.provider_key} session · {children.length} direct {children.length === 1 ? "child" : "children"}</summary>
         <p>{words(node.session.correlation_state)} · {node.orphan_reason === null ? "parent evidence confirmed" : words(node.orphan_reason)}</p>
@@ -180,6 +178,57 @@ function SessionTree({ tree }: Readonly<{ tree: SessionTreeViewV1 }>) {
       {tree.partial && <p className="pagination-note">Partial hierarchy: {tree.reason_codes.map(words).join(", ")}.</p>}
     </section>
   );
+}
+
+function SessionHierarchy({ sessionId, onExpired }: Readonly<{
+  sessionId: string;
+  onExpired: () => void;
+}>) {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState<
+    | Readonly<{ kind: "idle" | "loading" | "error" }>
+    | Readonly<{ kind: "ready"; tree: SessionTreeViewV1 }>
+  >({ kind: "idle" });
+  const request = useRef<AbortController | null>(null);
+  const contentId = `session-hierarchy-${sessionId}`;
+
+  useEffect(() => () => request.current?.abort(), []);
+
+  async function loadHierarchy() {
+    // Collapse keeps this read/result. Reopening cannot start a duplicate read.
+    if (request.current !== null) return;
+    const controller = new AbortController();
+    request.current = controller;
+    setState({ kind: "loading" });
+    try {
+      const result = await runtime.sessionTree(sessionId, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") onExpired();
+        else setState({ kind: "error" });
+        return;
+      }
+      setState(result.data.root_session_id === sessionId
+        ? { kind: "ready", tree: result.data }
+        : { kind: "error" });
+    } catch {
+      if (!controller.signal.aborted) setState({ kind: "error" });
+    } finally {
+      if (request.current === controller) request.current = null;
+    }
+  }
+
+  return <div>
+    <button type="button" className="quiet-button" aria-expanded={open} aria-controls={contentId} onClick={() => {
+      setOpen(!open);
+      if (!open && state.kind === "idle") void loadHierarchy();
+    }}>{open ? "Hide hierarchy" : "Show hierarchy"}</button>
+    <div id={contentId} hidden={!open} aria-busy={state.kind === "loading"}>
+      {state.kind === "loading" && <p role="status">Reading session hierarchy…</p>}
+      {state.kind === "error" && <><p role="status">Session hierarchy is unavailable. Session observations remain shown.</p><button type="button" className="quiet-button" onClick={() => { void loadHierarchy(); }}>Retry hierarchy</button></>}
+      {state.kind === "ready" && <SessionTree tree={state.tree} />}
+    </div>
+  </div>;
 }
 
 export function SessionPanel({
@@ -212,23 +261,10 @@ export function SessionPanel({
         else setState({ kind: "error", message: "Session observations could not be loaded." });
         return;
       }
-      const treeResults = await Promise.all(sessions.data.items.map(async (session) => ({
-        sessionId: session.session_id,
-        result: await runtime.sessionTree(session.session_id, signal),
-      })));
-      if (treeResults.some(({ result }) => !result.ok && result.problem.code === "dashboard_authentication_required")) {
-        onExpired();
-        return;
-      }
-      const trees = Object.fromEntries(treeResults.flatMap(({ sessionId, result }) => (
-        result.ok ? [[sessionId, result.data] as const] : []
-      )));
       setState({
         kind: "ready",
         processes: processes === null ? null : processes.data,
         sessions: sessions.data,
-        trees,
-        treeMessage: treeResults.some(({ result }) => !result.ok) ? "One or more session hierarchies are unavailable." : null,
         selected: null,
         detailMessage: null,
       });
@@ -281,15 +317,13 @@ export function SessionPanel({
       ) : (
         <div className="session-layout">
           <div className="session-list" aria-label="Observed sessions">{state.sessions.items.map((session) => {
-            const tree = state.trees[session.session_id];
             return (
               <article className="session-row" key={session.session_id}>
                 <div className="session-row-main"><div><strong>{session.identity.provider_key}</strong><p>{session.correlation_state.replaceAll("_", " ")} · account {session.account_id === null ? "unresolved" : "correlated"}</p></div><button type="button" className="quiet-button" onClick={() => { void selectSession(session.session_id); }}>Inspect provenance</button></div>
-                {tree !== undefined && <SessionTree tree={tree} />}
+                <SessionHierarchy sessionId={session.session_id} onExpired={onExpired} />
               </article>
             );
           })}</div>
-          {state.treeMessage !== null && <p role="status">{state.treeMessage}</p>}
           {state.detailMessage !== null && <p role="status">{state.detailMessage}</p>}
           {state.selected !== null && (
             <aside className="session-detail" aria-labelledby="session-detail-title"><div className="panel-heading"><div><p className="panel-code">SESSION DETAIL</p>{displayMode === "page" ? <h2 id="session-detail-title">Observation provenance</h2> : <h3 id="session-detail-title">Observation provenance</h3>}</div><button type="button" className="quiet-button" onClick={() => setState((current) => current.kind === "ready" ? { ...current, selected: null } : current)}>Close</button></div><Provenance item={state.selected.provenance} /></aside>

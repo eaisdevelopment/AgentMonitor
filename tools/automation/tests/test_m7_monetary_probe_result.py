@@ -9,7 +9,7 @@ from tools.automation.implementations.auto_m7 import monetary_probe_result
 REVISION = "a" * 40
 
 
-def _result() -> dict:
+def _result() -> dict[str, object]:
     return {
         "record_type": "agentmonitor.m7_overview_probe.v1",
         "status": "passed",
@@ -53,7 +53,9 @@ def test_exact_monetary_journey_result_is_admitted_without_closing_overview() ->
         ("checks", None),
     ),
 )
-def test_wrong_or_incomplete_result_cannot_certify_money(field: str, value) -> None:
+def test_wrong_or_incomplete_result_cannot_certify_money(
+    field: str, value: object
+) -> None:
     payload = _result()
     payload[field] = value
     assert monetary_probe_result(0, payload, REVISION).status == "failed"
@@ -61,12 +63,14 @@ def test_wrong_or_incomplete_result_cannot_certify_money(field: str, value) -> N
 
 def test_generic_counts_only_success_does_not_prove_money() -> None:
     payload = deepcopy(_result())
-    payload["checks"]["monetary"] = "not_run"
+    checks = payload["checks"]
+    assert isinstance(checks, dict)
+    checks["monetary"] = "not_run"
     assert monetary_probe_result(0, payload, REVISION).status == "failed"
 
 
 @pytest.mark.parametrize("value", (None, [], "not a result"))
-def test_non_result_cannot_pass(value) -> None:
+def test_non_result_cannot_pass(value: object) -> None:
     assert monetary_probe_result(0, value, REVISION).status == "failed"
 
 
@@ -79,7 +83,9 @@ def test_missing_real_money_remains_blocked_not_a_pass() -> None:
     payload.update(
         status="blocked", reason_code="genuine_complete_monetary_report_required"
     )
-    payload["checks"]["monetary"] = "not_run"
+    checks = payload["checks"]
+    assert isinstance(checks, dict)
+    checks["monetary"] = "not_run"
     result = monetary_probe_result(3, payload, REVISION)
     assert result.status == "blocked"
     assert result.reason_code == "genuine_complete_monetary_report_required"
@@ -91,3 +97,19 @@ def test_arbitrary_child_error_text_is_not_published() -> None:
     result = monetary_probe_result(1, payload, REVISION)
     assert result.status == "failed"
     assert result.reason_code == "m7_monetary_probe_failed"
+
+
+def test_authentication_absence_before_revision_read_remains_blocked() -> None:
+    payload = {
+        "record_type": "agentmonitor.m7_overview_probe.v1",
+        "status": "blocked",
+        "reason_code": "authentication_required",
+        "source_revision": None,
+        "unsafe_requests": 0,
+    }
+    result = monetary_probe_result(3, payload, REVISION)
+    assert result.status == "blocked"
+    assert result.reason_code == "authentication_required"
+    assert monetary_probe_result(0, payload, REVISION).status == "failed"
+    payload["status"] = "passed"
+    assert monetary_probe_result(0, payload, REVISION).status == "failed"

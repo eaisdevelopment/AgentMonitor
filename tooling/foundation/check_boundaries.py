@@ -56,6 +56,7 @@ CONTRACT_MODULES = frozenset(
         "collection_control_v1",
         "collection_recovery_v1",
         "capacity_v1",
+        "capacity_retention_v1",
         "common_quantity_v1",
         "runtime_observation_v1",
         "alerting_v1",
@@ -286,6 +287,7 @@ COMPOSITION_SQLITE_SYMBOLS = {
             "SqliteDatabaseHandleV1",
             "checkpoint_sqlite_database",
             "open_sqlite_database",
+            "sqlite_read_query_scope",
         }
     ),
     "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility": (
@@ -609,6 +611,20 @@ def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
             "agentmonitor.adapters.providers.ollama.cloud_balance.env_stream",
             "agentmonitor.adapters.credential_env.stream",
         ),
+        # Approved M7 focused M05 increment section12: producer-owned retention
+        # storage reuses its own commit/codec/domain policy; no cross-owner seam.
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_retention",
+            "agentmonitor.modules.capacity.application.budget_commit",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_retention",
+            "agentmonitor.modules.capacity.domain.budget_codec",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_retention",
+            "agentmonitor.modules.capacity.domain.budget_retention",
+        ),
         (
             "agentmonitor.adapters.persistence.capacity.sqlite.budget_current_query",
             "agentmonitor.modules.capacity.domain.budget_codec",
@@ -721,6 +737,13 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         src[1:2] == ["modules"] and src[3:4] == ["domain"]
     )
     if dst[0] != "agentmonitor":
+        if (
+            source == "agentmonitor.modules.capacity.domain.budget_retention"
+            and target == "base64"
+        ):
+            # Focused M7 section12: pure closed retention cursor encoding only.
+            # This is not a general standard-library or domain I/O allowance.
+            return True
         if (
             source == "agentmonitor.modules.operations.application.health"
             and dst[0] == "asyncio"

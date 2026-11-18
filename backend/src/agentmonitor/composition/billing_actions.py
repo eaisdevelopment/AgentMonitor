@@ -1,6 +1,7 @@
 """Admit one owner-requested API billing check without provider I/O."""
 
 import hashlib
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -25,17 +26,33 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction import (
     RegistryRepositoryErrorV1,
 )
-from agentmonitor.adapters.providers.claude.anthropic_api.policy import SOURCE_ID
+from agentmonitor.adapters.providers.claude.anthropic_api.manifest import (
+    ANALYTICS_VERSION as ANTHROPIC_BILLING_ADAPTER_VERSION,
+)
+from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
+    SOURCE_ID,
+    USAGE_SOURCE_ID,
+)
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     validate_period as validate_anthropic_period,
+)
+from agentmonitor.adapters.providers.codex.openai_api.manifest import (
+    ANALYTICS_VERSION as OPENAI_BILLING_ADAPTER_VERSION,
 )
 from agentmonitor.adapters.providers.codex.openai_api.policy import (
     SOURCE_ID as OPENAI_SOURCE_ID,
 )
 from agentmonitor.adapters.providers.codex.openai_api.policy import (
+    USAGE_SOURCE_ID as OPENAI_USAGE_SOURCE_ID,
+)
+from agentmonitor.adapters.providers.codex.openai_api.policy import (
     validate_period as validate_openai_period,
 )
-from agentmonitor.composition.billing_context import completed_billing_cost_context
+from agentmonitor.composition.billing_context import (
+    billing_context_supported,
+    billing_report_options,
+    completed_billing_cost_context,
+)
 from agentmonitor.composition.billing_run import (
     anthropic_billing_budget_scope_digest,
     anthropic_cost_manifest_fingerprint,
@@ -88,6 +105,7 @@ def billing_check_identifiers(
     command: BillingCheckCommandV1,
     *,
     collection_policy_version: str = "1.1.0",
+    adapter_version: str | None = None,
 ) -> BillingCheckIdentifiersV1:
     """Derive replay-stable IDs scoped to the owner and exact target intent."""
     if (
@@ -96,8 +114,14 @@ def billing_check_identifiers(
         or command.requested_at.utcoffset() != timedelta(0)
     ):
         raise ValueError("billing_check_command_invalid")
-    if collection_policy_version not in {"1.0.0", "1.1.0"}:
+    if collection_policy_version not in {"1.0.0", "1.1.0", "1.2.0"}:
         raise ValueError("billing_check_policy_invalid")
+    if adapter_version is not None and (
+        not isinstance(adapter_version, str)
+        or len(adapter_version) > 64
+        or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", adapter_version) is None
+    ):
+        raise ValueError("billing_check_adapter_version_invalid")
     owner_request = (command.principal_id.value, command.command_id.value)
     target: tuple[str, ...] = (
         command.account_id.value,
@@ -126,6 +150,10 @@ def billing_check_identifiers(
                 if collection_policy_version != "1.0.0"
                 else ()
             ),
+            # Schedules retain one immutable source generation. An adapter
+            # upgrade needs a distinct schedule, but the owner's request/run
+            # identities and replay digest must remain unchanged.
+            *((adapter_version,) if adapter_version is not None else ()),
         ),
         request_id=_identifier(prefix + "-request-", *owner_request),
         retry_chain_id=_identifier(prefix + "-retry-", *owner_request),
@@ -142,11 +170,25 @@ def _require_replay(
     target: BillingAccessTargetV1,
 ) -> BudgetCollectionRunViewV1:
     provider = target.connection.provider_key
+    usage = isinstance(
+        command, BillingCollectCommandV1
+    ) and command.report_context.source_category.startswith("usage")
     if (
         run.run_id != identifiers.run_id
         or run.schedule_id
         not in {
             identifiers.schedule_id,
+            billing_check_identifiers(
+                command,
+                collection_policy_version="1.2.0",
+                adapter_version=run.adapter_version,
+            ).schedule_id,
+            billing_check_identifiers(
+                command, collection_policy_version="1.1.0"
+            ).schedule_id,
+            billing_check_identifiers(
+                command, collection_policy_version="1.2.0"
+            ).schedule_id,
             billing_check_identifiers(
                 command, collection_policy_version="1.0.0"
             ).schedule_id,
@@ -155,8 +197,13 @@ def _require_replay(
         or run.provider_key != provider
         or run.account_id != command.account_id
         or run.resource_id != command.resource_id
-        or run.capability_id != "api.cost"
-        or run.source_id != (SOURCE_ID if provider == "claude" else OPENAI_SOURCE_ID)
+        or run.capability_id != ("api.usage" if usage else "api.cost")
+        or run.source_id
+        != (
+            (USAGE_SOURCE_ID if usage else SOURCE_ID)
+            if provider == "claude"
+            else (OPENAI_USAGE_SOURCE_ID if usage else OPENAI_SOURCE_ID)
+        )
         or target.purpose != "verification"
         or target.connection.account_id != command.account_id
         or target.connection.resource_id != command.resource_id
@@ -258,7 +305,7 @@ class BillingCheckActionsV1:
             "active",
         } or connection.lifecycle not in {"pending", "active"}:
             reason = "billing_check_target_unavailable"
-        elif report_context.source_category != "cost" or report_context.grouping:
+        elif not billing_context_supported(status.provider_key, report_context):
             reason = "billing_collect_context_unsupported"
         else:
             try:
@@ -332,6 +379,7 @@ class BillingCheckActionsV1:
             reason,
             next_allowed,
             as_of,
+            billing_report_options(status.provider_key),
         )
 
     def _notify_queued(self, run: BudgetCollectionRunViewV1) -> None:
@@ -402,11 +450,6 @@ class BillingCheckActionsV1:
     def collect(self, command: BillingCollectCommandV1) -> BudgetCollectionRunViewV1:
         if type(command) is not BillingCollectCommandV1:
             raise ValueError("billing_collect_command_invalid")
-        if (
-            command.report_context.source_category != "cost"
-            or command.report_context.grouping
-        ):
-            raise ValueError("billing_collect_context_unsupported")
         return self._queue(command)
 
     def _queue(self, command: BillingCheckCommandV1) -> BudgetCollectionRunViewV1:
@@ -417,7 +460,24 @@ class BillingCheckActionsV1:
             self._notify_queued(replay)
             return replay
         target = self._target(command)
+        is_openai = target.connection.provider_key == "codex"
+        fingerprint = (
+            openai_cost_manifest_fingerprint()
+            if is_openai
+            else anthropic_cost_manifest_fingerprint()
+        )
+        identifiers = billing_check_identifiers(
+            command,
+            collection_policy_version="1.2.0",
+            adapter_version=OPENAI_BILLING_ADAPTER_VERSION
+            if is_openai
+            else ANTHROPIC_BILLING_ADAPTER_VERSION,
+        )
         if isinstance(command, BillingCollectCommandV1):
+            if not billing_context_supported(
+                target.connection.provider_key, command.report_context
+            ):
+                raise ValueError("billing_collect_context_unsupported")
             try:
                 validate = (
                     validate_openai_period
@@ -443,15 +503,12 @@ class BillingCheckActionsV1:
             if dispatch_ready is not True:
                 raise ValueError("billing_check_service_unavailable")
         try:
-            is_openai = target.connection.provider_key == "codex"
             service_target = self._service_targets.reconcile_access_target(
                 provider_key=target.connection.provider_key,
                 authority_id=OPENAI_COST_AUTHORITY_ID_V1
                 if is_openai
                 else "anthropic.analytics",
-                manifest_fingerprint=openai_cost_manifest_fingerprint()
-                if is_openai
-                else anthropic_cost_manifest_fingerprint(),
+                manifest_fingerprint=fingerprint,
                 as_of=command.requested_at,
             )
             build = (

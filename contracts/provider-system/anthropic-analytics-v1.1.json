@@ -1,0 +1,118 @@
+{
+  "mapping_id": "ANTHROPIC-ANALYTICS-1.1",
+  "mapping_version": "1.1.0",
+  "authority": "anthropic.analytics",
+  "host": "api.anthropic.com",
+  "api_version": "2026-10-21",
+  "beta": "analytics-usage-cost-2026-08-24",
+  "reviewed_at": "2026-11-12",
+  "classification": "documented_beta",
+  "live_verification": "not_established_by_this_mapping",
+  "credential_role": "owner_entered_admin_api_key",
+  "methods": [
+    "GET"
+  ],
+  "periods": {
+    "ranges": [
+      "7d",
+      "30d"
+    ],
+    "completed_utc_days": true,
+    "time_bucket_width": "1d"
+  },
+  "reports": [
+    {
+      "category": "cost",
+      "endpoint": "/v1/organizations/analytics/cost",
+      "groupings": [
+        [],
+        [
+          "workspace"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "measure": "cost.amount",
+      "currency": "USD",
+      "source_unit": "decimal cents",
+      "basis": "discounted cost before credits"
+    },
+    {
+      "category": "cost_tokens",
+      "endpoint": "/v1/organizations/analytics/cost",
+      "groupings": [
+        [
+          "token_category"
+        ]
+      ],
+      "group_by": "token_type",
+      "qualifier": "cost_type=tokens",
+      "meaning": "token charges only; excludes other charges"
+    },
+    {
+      "category": "usage",
+      "endpoint": "/v1/organizations/analytics/usage",
+      "groupings": [
+        [],
+        [
+          "workspace"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "native_measures": [
+        "uncached_input_tokens",
+        "cache_read_input_tokens",
+        "output_tokens",
+        "cache_creation.ephemeral_1h_input_tokens",
+        "cache_creation.ephemeral_5m_input_tokens",
+        "total_tokens",
+        "requests",
+        "server_tool_use.web_search_requests"
+      ],
+      "optional": [
+        "requests"
+      ],
+      "meaning": "retain each native unit separately; requests may include execution spans"
+    },
+    {
+      "category": "usage_tokens",
+      "endpoint": "/v1/organizations/analytics/usage",
+      "groupings": [
+        [
+          "token_category"
+        ]
+      ],
+      "group_by": null,
+      "meaning": "project five disjoint native token components; omit total_tokens and requests"
+    }
+  ],
+  "group_fields": {
+    "workspace": "workspace_id",
+    "api_key_id": "api_key_id",
+    "model": "model"
+  },
+  "privacy": "No actor, user, content or arbitrary grouping; null dimensions remain null; safe key/workspace identifiers only.",
+  "coverage": "All pages must share data_refreshed_at. Missing/behind watermark cannot establish complete zero. No invoice, cash balance or limit inference.",
+  "bounds": {
+    "requests_per_report": 20,
+    "concurrent_reports": 1,
+    "report_seconds": 120,
+    "request_seconds": 10,
+    "response_bytes": 2097152,
+    "normalized_rows": 10000
+  },
+  "sources": [
+    "https://platform.claude.com/docs/en/manage-claude/usage-cost-analytics-api",
+    "https://platform.claude.com/docs/en/api/beta/organization/analytics/usage/list",
+    "https://platform.claude.com/docs/en/api/beta/organization/analytics/cost/list"
+  ]
+}

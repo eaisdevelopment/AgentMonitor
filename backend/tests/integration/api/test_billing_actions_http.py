@@ -16,7 +16,7 @@ from backend.tests.integration.api.test_iam_http import (
 )
 
 
-@pytest.mark.parametrize("action", ["checks", "collections"])
+@pytest.mark.parametrize("action", ["checks", "collections", "collections/v2"])
 def test_billing_check_http_authorization_and_closed_input(
     tmp_path: Path, action: str
 ) -> None:
@@ -31,13 +31,13 @@ def test_billing_check_http_authorization_and_closed_input(
                 f"{resource_id}/{action}"
             )
             body: dict[str, object] = {"expected_connection_version": 1}
-            if action == "collections":
+            if action.startswith("collections"):
                 body["report_context"] = {
                     "range_key": "7d",
                     "interval_start": "2026-11-01T00:00:00Z",
                     "interval_end": "2026-11-08T00:00:00Z",
-                    "source_category": "cost",
-                    "grouping": [],
+                    "source_category": "usage" if action.endswith("/v2") else "cost",
+                    "grouping": ["model"] if action.endswith("/v2") else [],
                 }
             unauthenticated = await asyncio.to_thread(
                 _request, origin, "POST", path, body=body, headers={"Origin": origin}
@@ -96,7 +96,7 @@ def test_billing_check_http_authorization_and_closed_input(
                 {"expected_connection_version": 0},
                 {"expected_connection_version": 1, "api_key": None},
             )
-            if action == "collections":
+            if action.startswith("collections"):
                 context = body["report_context"]
                 assert isinstance(context, dict)
                 invalid_cases += tuple(
@@ -104,8 +104,16 @@ def test_billing_check_http_authorization_and_closed_input(
                     for change in (
                         {"range_key": "30d"},
                         {"interval_end": "2026-11-08T01:00:00Z"},
-                        {"source_category": "unknown"},
-                        {"grouping": ["model"]},
+                        {
+                            "source_category": "../unknown"
+                            if action.endswith("/v2")
+                            else "unknown"
+                        },
+                        {
+                            "grouping": ["model", "workspace"]
+                            if action.endswith("/v2")
+                            else ["model"]
+                        },
                         {"credential": None},
                     )
                 )
@@ -161,14 +169,16 @@ def test_billing_check_http_authorization_and_closed_input(
             )
 
 
+@pytest.mark.parametrize("suffix", ["", "/v2"])
 def test_budget_run_status_http_requires_auth_and_preserves_absence(
     tmp_path: Path,
+    suffix: str,
 ) -> None:
     app, credential = _installation(tmp_path)
 
     async def exercise() -> None:
         async with _running(app) as origin:
-            path = f"/api/v1/collection-runs/{secrets.token_urlsafe(24)}/budget"
+            path = f"/api/v1/collection-runs/{secrets.token_urlsafe(24)}/budget{suffix}"
             unauthenticated = await asyncio.to_thread(
                 _request, origin, "GET", path, headers={"Origin": origin}
             )
@@ -205,8 +215,10 @@ def test_budget_run_status_http_requires_auth_and_preserves_absence(
     asyncio.run(exercise())
 
 
+@pytest.mark.parametrize("suffix", ["", "/v2"])
 def test_collect_eligibility_http_is_read_only_and_requires_auth(
     tmp_path: Path,
+    suffix: str,
 ) -> None:
     app, credential = _installation(tmp_path)
 
@@ -214,12 +226,14 @@ def test_collect_eligibility_http_is_read_only_and_requires_auth(
         async with _running(app) as origin:
             path = (
                 f"/api/v1/accounts/{secrets.token_urlsafe(24)}/billing-connections/"
-                f"{secrets.token_urlsafe(24)}/collection-eligibility"
+                f"{secrets.token_urlsafe(24)}/collection-eligibility{suffix}"
             )
             query = (
                 "?range_key=7d&interval_start=2026-11-01T00:00:00Z"
                 "&interval_end=2026-11-08T00:00:00Z"
             )
+            if suffix:
+                query += "&source_category=usage&grouping=model"
             assert (await asyncio.to_thread(_request, origin, "GET", path + query))[
                 0
             ] == 401

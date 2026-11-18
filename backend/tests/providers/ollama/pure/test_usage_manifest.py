@@ -32,7 +32,7 @@ def test_usage_candidate_has_separate_identity_and_honest_evidence() -> None:
     manifest = _manifest()
     assert manifest.descriptor.adapter_id == module.ADAPTER_ID
     assert module.ADAPTER_ID == "agentmonitor.ollama.api-usage"
-    assert manifest.descriptor.adapter_version == module.ADAPTER_VERSION == "1.0.0"
+    assert manifest.descriptor.adapter_version == module.ADAPTER_VERSION == "1.2.0"
     assert manifest.descriptor.provider_key == "ollama"
     assert len(manifest.declarations) == 1
     declaration = manifest.declarations[0]
@@ -44,7 +44,7 @@ def test_usage_candidate_has_separate_identity_and_honest_evidence() -> None:
     assert declaration.evidence_reference == module.EVIDENCE_REFERENCE
     assert manifest.m0_mapping_id == module.EVIDENCE_REFERENCE
     assert manifest.m0_mapping_digest == (
-        "c51868e3f798f9b4a2ef27c1237a8ed61fee85996bf8851610c2dc32f9885e91"
+        "398037f4c4a5cf8f3b6aaf54e7a4bd2fe71dfea1adb68dc585164445eafab8b5"
     )
     assert len(declaration.sources) == 1
     source = declaration.sources[0]

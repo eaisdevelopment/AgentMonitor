@@ -8,18 +8,20 @@ import { fileURLToPath } from "node:url";
 const expectedRevision = process.argv[2];
 const validRevision = /^[a-f0-9]{40}$/.test(expectedRevision ?? "");
 const jobs = [
-  ["overview", "verify_overview.mjs", []],
+  ["overview", "verify_overview.mjs", ["--require-money"]],
   ["setup", "verify_setup.mjs", [expectedRevision]],
   ["cloud_controls", "verify_cloud_collect.mjs", []],
 ];
 
 // Only known stage/error labels and structural diagnostics cross this boundary.
 // Never forward URLs, identifiers, exception text or arbitrary child payloads.
-const stages = new Set(["tooling", "browser", "authentication", "revision", "overview", "setup_form", "account_layout", "scope_contract", "continuity", "financial_entry", "source_history", "retained_refresh", "initial_window", "previous_window", "refresh_window", "next_window", "wide_window", "latest_window", "period_only_reload", "ordinary_account_entry", "overview_back", "controls", "eligibility", "collection", "rendered_summary", "financial_panel_settle"]);
+const stages = new Set(["tooling", "browser", "authentication", "revision", "overview", "quota_table", "financial_refresh_control", "financial_settle", "financial_reconcile", "setup_form", "account_layout", "scope_contract", "continuity", "financial_entry", "source_history", "retained_refresh", "initial_window", "previous_window", "refresh_window", "next_window", "wide_window", "latest_window", "period_only_reload", "ordinary_account_entry", "overview_back", "controls", "pool_controls", "eligibility", "collection", "rendered_summary", "financial_panel_settle"]);
 const setupSteps = new Set(["accounts_navigation", "add_api_control", "add_api_heading", "provider_choices", "create_control"]);
-const families = new Set(["accounts", "organizations", "budget_summary", "account_detail", "cloud_eligibility", "cloud_run", "other"]);
+const families = new Set(["accounts", "organizations", "budget_summary", "account_detail", "cloud_eligibility", "cloud_run", "iam_initialization", "iam_session", "other"]);
 const networkErrors = new Set(["net::ERR_NETWORK_CHANGED", "net::ERR_INTERNET_DISCONNECTED", "net::ERR_CONNECTION_REFUSED", "net::ERR_CONNECTION_RESET", "net::ERR_CONNECTION_CLOSED", "net::ERR_TIMED_OUT", "net::ERR_ABORTED", "net::ERR_FAILED", "network_error_other"]);
 const httpStatus = value => Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+const pageStateFields = ["signed_out", "financial_panel_present", "financial_panel_busy", "alert_visible", "invalid_selection", "local_service_unavailable", "connecting", "account_loading", "account_error"];
+const safeReasonCode = value => typeof value === "string" && /^[a-z][a-z0-9_]{0,127}$/.test(value) ? value : null;
 const booleanFields = (value, names) => Object.fromEntries(names.filter(name => typeof value?.[name] === "boolean").map(name => [name, value[name]]));
 function diagnostics(value) {
   const render = value.render_diagnostic;
@@ -28,13 +30,31 @@ function diagnostics(value) {
   const availabilityFamily = { "/api/v1/budgets": "budget_overview", "/api/v1/accounts": "accounts", "/api/v1/organizations": "organizations" }[availability?.path] ?? "other";
   return {
     stage: stages.has(value.stage) ? value.stage : null,
+    period_only_diagnostic: value.period_only_diagnostic == null ? null : {
+      ...booleanFields(value.period_only_diagnostic, ["resource_present", "invalid_marker", "invalid_link", "summary_read_failed", "service_unavailable", "busy"]),
+      alert_count: Number.isSafeInteger(value.period_only_diagnostic.alert_count) && value.period_only_diagnostic.alert_count >= 0 ? value.period_only_diagnostic.alert_count : null,
+    },
     setup_step: setupSteps.has(value.setup_step) ? value.setup_step : null,
+    setup_diagnostic: value.setup_diagnostic == null ? null : booleanFields(value.setup_diagnostic, pageStateFields),
+    rows_verified: Number.isSafeInteger(value.rows_verified) && value.rows_verified >= 0 ? value.rows_verified : null,
+    ui_overview_responses: Array.isArray(value.ui_overview_responses) ? value.ui_overview_responses.slice(0, 40).map(item => ({
+      http_status: httpStatus(item?.http_status),
+      body_state: ["pending", "read", "unreadable"].includes(item?.body_state) ? item.body_state : null,
+      availability: ["available", "partial", "unavailable", "stale", "unsupported", "unknown"].includes(item?.availability) ? item.availability : null,
+      reason_code: safeReasonCode(item?.reason_code),
+      rows: Number.isSafeInteger(item?.rows) && item.rows >= 0 ? item.rows : null,
+      ...booleanFields(item, ["query_matches_selected"]),
+    })) : [],
     error_kind: ["timeout", "assertion_or_error"].includes(value.error_kind) ? value.error_kind : null,
+    read_failure: value.read_failure == null ? null : {
+      family: families.has(value.read_failure.family) ? value.read_failure.family : "other",
+      status: httpStatus(value.read_failure.status),
+    },
     render_diagnostic: render == null ? null : {
       phase: ["entry", "reload", "collection_reload"].includes(render.phase) ? render.phase : null,
       summary_status: httpStatus(render.summary_status),
       ...booleanFields(render, ["resource_present", "panel_settled"]),
-      page_state: render.page_state == null ? null : booleanFields(render.page_state, ["signed_out", "financial_panel_present", "financial_panel_busy", "alert_visible", "invalid_selection"]),
+      page_state: render.page_state == null ? null : booleanFields(render.page_state, pageStateFields),
     },
     response_diagnostics: Array.isArray(value.response_diagnostics) ? value.response_diagnostics.slice(0, 40).map(item => ({ family: families.has(item?.family) ? item.family : "other", status: httpStatus(item?.status) })) : [],
     failed_requests: Array.isArray(value.failed_requests) ? value.failed_requests.slice(0, 40).map(item => ({
@@ -76,7 +96,9 @@ function run([name, file, args]) {
       const expectedCode = { passed: 0, failed: 1, blocked: 3 }[value.status];
       const reason = value.reason_code ?? value.reason;
       const safeReason = typeof reason === "string" && /^[a-z0-9_]+$/.test(reason) ? reason : null;
-      const valid = code === expectedCode && unsafe === 0 && revision === expectedRevision;
+      const monetaryValid = name !== "overview" || value.status !== "passed"
+        || (value.checks?.monetary === "passed" && reason === "real_monetary_overview_detail_history_verified");
+      const valid = code === expectedCode && unsafe === 0 && revision === expectedRevision && monetaryValid;
       resolve({ name, status: valid ? value.status : "failed", reason: valid ? safeReason : "probe_revision_or_result_mismatch", ...diagnostics(value) });
     });
   });
@@ -89,5 +111,5 @@ process.stdout.write(JSON.stringify({
   record_type: "agentmonitor.m7_concurrent_overview_probe.v1", status,
   expected_revision: validRevision ? expectedRevision : null,
   checks: results, observed_at: new Date().toISOString(),
-  scope: "concurrent_real_overview_setup_cloud_reads_no_mutations",
+  scope: "concurrent_real_monetary_overview_setup_cloud_reads_no_mutations",
 }) + "\n", () => process.exit({ passed: 0, failed: 1, blocked: 3 }[status]));

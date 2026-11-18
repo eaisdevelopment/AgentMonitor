@@ -56,6 +56,9 @@ export function AccountPage({
   const [organizationPageBusy, setOrganizationPageBusy] = useState(false);
   const [organizationPageMessage, setOrganizationPageMessage] = useState<string | null>(null);
   const loadGeneration = useRef(0);
+  const mounted = useRef(false);
+  const expired = useRef(onExpired);
+  expired.current = onExpired;
   const [paginationMessage, setPaginationMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [financialReadRevision, setFinancialReadRevision] = useState(0);
@@ -81,7 +84,7 @@ export function AccountPage({
   const titleId = displayMode === "page" ? "page-title" : "accounts-panel-title";
 
   const load = useCallback(async (signal?: AbortSignal) => {
-    loadGeneration.current += 1;
+    const generation = ++loadGeneration.current;
     setOrganizationPageBusy(false);
     setOrganizationPageMessage(null);
     setState((current) => current.kind === "ready" ? current : { kind: "loading" });
@@ -90,10 +93,11 @@ export function AccountPage({
         registry.accounts(signal), registry.organizations(signal),
         accountId === undefined ? null : registry.account(accountId, signal),
       ]);
+      if (signal?.aborted || generation !== loadGeneration.current) return;
       if (!result.ok || !organizations.ok || (detail !== null && !detail.ok)) {
         if ((!result.ok && result.problem.code === "dashboard_authentication_required") ||
             (!organizations.ok && organizations.problem.code === "dashboard_authentication_required") ||
-            (detail !== null && !detail.ok && detail.problem.code === "dashboard_authentication_required")) onExpired();
+            (detail !== null && !detail.ok && detail.problem.code === "dashboard_authentication_required")) expired.current();
         else if (result.ok && organizations.ok && detail !== null && !detail.ok && detail.problem.status === 404) {
           setState({ kind: "ready", data: result.data, organizations: organizations.data, selected: null });
         }
@@ -111,10 +115,11 @@ export function AccountPage({
         selected: detail === null ? null : detail.data,
       });
     } catch (error) {
+      if (signal?.aborted || generation !== loadGeneration.current) return;
       if (error instanceof DOMException && error.name === "AbortError") return;
       setState({ kind: "error", message: "The local account registry is unavailable." });
     }
-  }, [accountId, onExpired]);
+  }, [accountId]);
 
   const reloadAccount = useCallback(() => { void load(); }, [load]);
   const refreshFinancialRead = useCallback(() => setFinancialReadRevision((value) => value + 1), []);
@@ -124,9 +129,10 @@ export function AccountPage({
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     const controller = new AbortController();
     void load(controller.signal);
-    return () => { loadGeneration.current += 1; controller.abort(); };
+    return () => { mounted.current = false; loadGeneration.current += 1; controller.abort(); };
   }, [load]);
 
   useEffect(() => {
@@ -157,6 +163,7 @@ export function AccountPage({
     setMessage(null);
     try {
       const result = await operation();
+      if (!mounted.current) return null;
       if (!result.ok) {
         if (result.problem.code === "dashboard_authentication_required") onExpired();
         else if (result.problem.code === "csrf_validation_failed") onProofUnavailable();
@@ -169,14 +176,16 @@ export function AccountPage({
         return null;
       }
       await load();
+      if (!mounted.current) return null;
       setMessage(successMessage);
       return result.data;
     } catch (error) {
+      if (!mounted.current) return null;
       if (error instanceof CsrfUnavailableError) onProofUnavailable();
       else setMessage("The local service is unavailable. Try again.");
       return null;
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
 
@@ -189,7 +198,7 @@ export function AccountPage({
       ),
       creationPurpose === "api" ? "API billing account saved. Setup is pending." : "Pending account added. Monitoring remains disabled until identity is confirmed.",
     ).then((created) => {
-      if (created) {
+      if (created && mounted.current) {
         setAccountName("");
         if (creationPurpose === "api") onOpenAccount(created.account_id);
       }

@@ -65,6 +65,7 @@ def test_subscription_only_inventory_does_not_open_financial_current_queries(
     assert not inventory.has_more, "genuine_inventory_exceeds_comparison_bound"
     active = tuple(a for a in inventory.items if a.lifecycle != "archived")
     subscriptions = []
+    api_setup_accounts = []
     for account in active:
         registered = resources(account.account_id)
         if (
@@ -80,6 +81,19 @@ def test_subscription_only_inventory_does_not_open_financial_current_queries(
             if project_budget_rows(account, registered, None, query) != ():
                 raise AssertionError("subscription_omission_changes_financial_rows")
             subscriptions.append(account.account_id)
+        elif (
+            account.provider_key in {"claude", "codex"}
+            and account.initial_connection_purpose == "api"
+            and registered == ()
+        ):
+            detail = current(account.account_id, period=query.period, as_of=now)
+            actual_rows = project_budget_rows(account, registered, detail, query)
+            omitted_rows = project_budget_rows(account, registered, None, query)
+            assert actual_rows == omitted_rows, "api_setup_omission_changes_rows"
+            assert len(actual_rows) == 1
+            assert actual_rows[0].state_code == "setup_required"
+            assert actual_rows[0].contexts == () and actual_rows[0].funds == ()
+            api_setup_accounts.append(account.account_id)
     assert subscriptions, "genuine_subscription_inventory_required"
     profile = cProfile.Profile()
     with profile:
@@ -92,9 +106,9 @@ def test_subscription_only_inventory_does_not_open_financial_current_queries(
         for item in profile.getstats()
         if item.code == GetAccountBudgetCurrentV1.__call__.__code__
     )
-    expected_calls = len(active) - len(subscriptions)
+    expected_calls = len(active) - len(subscriptions) - len(api_setup_accounts)
     assert calls == expected_calls, (
-        "subscription_only_financial_queries_are_unnecessary"
+        "subscription_only_and_api_setup_financial_queries_are_unnecessary"
     )
 
 

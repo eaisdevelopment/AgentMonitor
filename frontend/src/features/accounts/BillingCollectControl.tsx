@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
-import { CsrfUnavailableError, registry, type AccountViewV1, type BillingCollectionEligibilityWireV1,
-  type BillingConnectionViewV1, type BillingReportContextV1, type BudgetRunStatusV1 } from "../../shared/api/client";
+import { CsrfUnavailableError, registry, type AccountViewV1, type BillingCollectionEligibilityWireV2,
+  type BillingConnectionViewV1, type BillingReportContextV2, type BudgetRunStatusV2 } from "../../shared/api/client";
 import { pendingRun } from "./billingCheckPresentation";
 import { collectionReadRequired, collectionReason, collectionRetryAllowed, matchesCollectionEligibility, matchesCollectionRun,
   restoreCollectionIntent, sameCollectionContext, type BillingCollectIntent } from "./billingCollectPresentation";
 
 /** The parent keys this control by account, connection version and exact selected interval. */
 export function BillingCollectControl({ account, connection, reportContext, onExpired, onCollected }: Readonly<{
-  account: AccountViewV1; connection: BillingConnectionViewV1; reportContext: BillingReportContextV1;
+  account: AccountViewV1; connection: BillingConnectionViewV1; reportContext: BillingReportContextV2;
   onExpired: () => void; onCollected: () => void;
 }>) {
   const storageKey = `agentmonitor.billing-collect.${account.account_id}.${connection.resource_id}`;
@@ -16,8 +16,8 @@ export function BillingCollectControl({ account, connection, reportContext, onEx
     try { return restoreCollectionIntent(sessionStorage.getItem(storageKey), account.account_id, connection.resource_id); }
     catch { return null; }
   });
-  const [eligibility, setEligibility] = useState<BillingCollectionEligibilityWireV1 | null>(null);
-  const [run, setRun] = useState<BudgetRunStatusV1 | null>(null);
+  const [eligibility, setEligibility] = useState<BillingCollectionEligibilityWireV2 | null>(null);
+  const [run, setRun] = useState<BudgetRunStatusV2 | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [reading, setReading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +44,7 @@ export function BillingCollectControl({ account, connection, reportContext, onEx
     }
   }
 
-  async function readEligibility(signal: AbortSignal, requestedContext = reportContext): Promise<BillingCollectionEligibilityWireV1 | null> {
+  async function readEligibility(signal: AbortSignal, requestedContext = reportContext): Promise<BillingCollectionEligibilityWireV2 | null> {
     const result = await registry.billingCollectionEligibility(account.account_id, connection.resource_id, requestedContext, signal);
     if (signal.aborted) return null;
     if (!result.ok) {
@@ -186,8 +186,8 @@ export function BillingCollectControl({ account, connection, reportContext, onEx
   const eligibleIntent = intent !== null && eligibility !== null && collectionRetryAllowed(intent, eligibility);
   return <section aria-label="Collect billing report" data-collect-resource={connection.resource_id}>
     <p>Billing scope: {connection.scope_id ?? "Not established"} · {connection.scope_evidence.replaceAll("_", " ")}.</p>
-    <p>Collect costs for {reportContext.interval_start.slice(0, 10)} to {reportContext.interval_end.slice(0, 10)} UTC (end exclusive). Manual collection does not change API monitoring.</p>
-    {unresolved && !sameCollectionContext(reportContext, intent.reportContext) && <p role="status">A collection request for {intent.reportContext.interval_start.slice(0, 10)} to {intent.reportContext.interval_end.slice(0, 10)} UTC (end exclusive) remains unresolved. The controls below reconcile that original interval. A new collection for the selected window is blocked until it is resolved.</p>}
+    <p>Collect {reportContext.source_category.replaceAll("_", " ")}{reportContext.grouping?.length ? ` by ${reportContext.grouping.join(", ").replaceAll("_", " ")}` : ""} for {reportContext.interval_start.slice(0, 10)} to {reportContext.interval_end.slice(0, 10)} UTC (end exclusive). Manual collection does not change API monitoring.</p>
+    {unresolved && !sameCollectionContext(reportContext, intent.reportContext) && <p role="status">A {intent.reportContext.source_category.replaceAll("_", " ")} collection{intent.reportContext.grouping?.length ? ` by ${intent.reportContext.grouping.join(", ").replaceAll("_", " ")}` : ""} for {intent.reportContext.interval_start.slice(0, 10)} to {intent.reportContext.interval_end.slice(0, 10)} UTC (end exclusive) remains unresolved. The controls below reconcile that original interval. A new collection for the selected window is blocked until it is resolved.</p>}
     <div role="group" aria-label="Billing collection actions">
       <button type="button" disabled={submitting || reading || unresolved || eligibility?.can_collect !== true} onClick={() => { void collect(); }}>Collect now</button>
       <button type="button" className="quiet-button" disabled={submitting || reading} onClick={() => { setMessage(null); setRevision(value => value + 1); }}>Refresh collection status</button>

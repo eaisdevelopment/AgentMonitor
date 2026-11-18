@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV1, type BillingMonitoringStatusV1 } from "../../shared/api/client";
+import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV2, type BillingMonitoringStatusV1 } from "../../shared/api/client";
 import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent, type BillingCheckIntent, type BillingMonitoringIntent } from "./billingCheckPresentation";
 import { FinancialPoolPanel } from "./FinancialPoolPanel";
 import { BillingScopeControls } from "./BillingScopeControls";
@@ -179,7 +179,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
     try { return restoreCheckIntent(sessionStorage.getItem(storageKey), account.account_id); }
     catch { return null; }
   });
-  const [checkRun, setCheckRun] = useState<BudgetRunStatusV1 | null>(null);
+  const [checkRun, setCheckRun] = useState<BudgetRunStatusV2 | null>(null);
   const [checkEvidence, setCheckEvidence] = useState<BillingCheckIntent | null>(null);
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

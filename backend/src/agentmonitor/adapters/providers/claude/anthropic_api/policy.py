@@ -1,4 +1,4 @@
-"""Pure A01 admission and units for ungrouped completed 7/30-day cost reports."""
+"""Pure A01 admission and units for completed 7/30-day analytics reports."""
 
 import math
 import re
@@ -8,7 +8,11 @@ from decimal import Decimal
 from typing import Literal
 from urllib.parse import urlencode
 
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, CapacitySubjectV2
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetDimensionKindV1,
+    BudgetPeriodV1,
+    CapacitySubjectV2,
+)
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
@@ -18,6 +22,8 @@ PATH = "/v1/organizations/analytics/cost"
 API_VERSION = "2026-10-21"
 BETA_VERSION = "analytics-usage-cost-2026-08-24"
 SOURCE_ID = "anthropic.analytics.cost.v1"
+USAGE_SOURCE_ID = "anthropic.analytics.usage.v1"
+USAGE_PATH = "/v1/organizations/analytics/usage"
 COST_BASIS = "discounted_before_credits"
 MAX_REQUESTS = 20
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
@@ -26,6 +32,28 @@ MAX_ROWS = 10000
 REPORT_SECONDS = 120
 REQUEST_SECONDS = 10
 _CENTS = re.compile(r"-?(?:0|[1-9][0-9]{0,69})\.[0-9]{6}\Z")
+GROUP_FIELDS = {
+    "workspace": "workspace_id",
+    "api_key_id": "api_key_id",
+    "model": "model",
+    "token_category": "token_type",
+}
+
+
+ANALYTICS_REPORT_SELECTIONS: tuple[
+    tuple[str, tuple[BudgetDimensionKindV1, ...]], ...
+] = tuple(
+    (category, grouping)
+    for category in ("cost", "usage")
+    for grouping in ((), ("workspace",), ("api_key_id",), ("model",))
+) + (("cost_tokens", ("token_category",)), ("usage_tokens", ("token_category",)))
+
+
+def analytics_selection_is_usage(category: str, grouping: tuple[str, ...]) -> bool:
+    """Admit only reviewed source views; token charges are not total costs."""
+    if (category, grouping) not in ANALYTICS_REPORT_SELECTIONS:
+        raise ValueError("anthropic_analytics_selection_invalid")
+    return category in {"usage", "usage_tokens"}
 
 
 def completed_week(instant: datetime) -> BudgetPeriodV1:
@@ -72,6 +100,7 @@ class AnthropicCostRequestV1(TechnicalValueV1):
     scope_generation: int
     period: BudgetPeriodV1
     requested_at: datetime
+    grouping: tuple[BudgetDimensionKindV1, ...] = ()
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -89,6 +118,17 @@ class AnthropicCostRequestV1(TechnicalValueV1):
         ):
             raise ValueError("anthropic_cost_request_invalid")
         validate_period(self.period, self.requested_at)
+        if (
+            not isinstance(self.grouping, tuple)
+            or len(self.grouping) > 1
+            or any(item not in GROUP_FIELDS for item in self.grouping)
+        ):
+            raise ValueError("anthropic_analytics_grouping_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class AnthropicUsageRequestV1(AnthropicCostRequestV1):
+    """Usage request; token-category views project native token measures only."""
 
 
 def request_path(request: AnthropicCostRequestV1, cursor: str | None) -> str:
@@ -109,7 +149,10 @@ def request_path(request: AnthropicCostRequestV1, cursor: str | None) -> str:
     }
     if cursor is not None:
         parameters["page"] = cursor
-    return PATH + "?" + urlencode(parameters)
+    usage = isinstance(request, AnthropicUsageRequestV1)
+    if request.grouping and not (usage and request.grouping == ("token_category",)):
+        parameters["group_by[]"] = GROUP_FIELDS[request.grouping[0]]
+    return (USAGE_PATH if usage else PATH) + "?" + urlencode(parameters)
 
 
 def cents_to_usd(value: str) -> ExactMoneyV1:

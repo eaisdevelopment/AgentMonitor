@@ -497,6 +497,7 @@ export function DashboardApp() {
             <OrganizationsPage onExpired={protectedExpire} onProofUnavailable={protectedProofUnavailable} />
           ) : route.startsWith("/accounts") ? (
             <AccountPage
+              key={accountIdFromRoute(route) ?? "account-list"}
               financialSearch={routeSearch}
               accountId={accountIdFromRoute(route) ?? undefined}
               onExpired={protectedExpire}

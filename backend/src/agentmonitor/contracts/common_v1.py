@@ -3,6 +3,7 @@
 from dataclasses import dataclass, fields
 from datetime import datetime, timedelta
 from decimal import Decimal
+from functools import lru_cache
 from typing import (
     ClassVar,
     Literal,
@@ -10,6 +11,23 @@ from typing import (
     get_origin,
     get_type_hints,
 )
+
+
+@lru_cache(maxsize=256)
+def _technical_value_fields(
+    value_type: type,
+) -> tuple[tuple[str, tuple[object, ...] | None], ...]:
+    """Cache only code-defined immutable field metadata, never record values."""
+    annotations = get_type_hints(value_type)
+    return tuple(
+        (
+            field.name,
+            get_args(annotations[field.name])
+            if get_origin(annotations[field.name]) is Literal
+            else None,
+        )
+        for field in fields(value_type)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,12 +62,11 @@ class TechnicalValueV1:
                 return
             raise TypeError("immutable-technical-value-required")
 
-        annotations = get_type_hints(type(self))
-        for field in fields(self):
-            value = getattr(self, field.name)
+        value_type: type = type(self)
+        for name, literal_values in _technical_value_fields(value_type):
+            value = getattr(self, name)
             validate(value)
-            annotation = annotations[field.name]
-            if get_origin(annotation) is Literal and value not in get_args(annotation):
+            if literal_values is not None and value not in literal_values:
                 raise ValueError("unsupported-field-state")
 
 

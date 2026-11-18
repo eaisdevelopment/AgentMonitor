@@ -32,10 +32,14 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 _LIVE_DATABASE = Path("/home/dev/.local/share/agentmonitor/agentmonitor.db")
 
 
-def _private_real_copy(tmp_path: Path) -> DatabaseRefV1:
+def _private_real_copy(
+    tmp_path: Path, *, source_database: Path | None = None
+) -> DatabaseRefV1:
     os.chmod(tmp_path, 0o700)
     copied = tmp_path / "agentmonitor.db"
-    source = sqlite3.connect(f"file:{_LIVE_DATABASE}?mode=ro", uri=True)
+    selected = _LIVE_DATABASE if source_database is None else source_database
+    assert selected.is_absolute() and selected.is_file(), "genuine_database_required"
+    source = sqlite3.connect(f"file:{selected}?mode=ro", uri=True)
     target = sqlite3.connect(copied)
     try:
         source.backup(target)

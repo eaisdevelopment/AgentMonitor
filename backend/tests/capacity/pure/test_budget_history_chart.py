@@ -128,3 +128,22 @@ def test_non_daily_source_period_is_retained_without_a_misleading_daily_bar() ->
     assert row.usage == bucket
     assert row.chart is None
     assert row.chart_unavailable_reason == "source_interval_not_daily"
+
+
+def test_remainder_series_does_not_merge_with_unreported_model() -> None:
+    from agentmonitor.modules.capacity.domain.budget_history_chart import chart_rows
+
+    selected = _selected()
+    row = history_result(selected, _query(selected, limit=200)).page.items[0]
+    assert row.cost is not None
+    unknown = replace(
+        row, cost=replace(row.cost, dimensions=(BudgetDimensionV1("model", None),))
+    )
+    remainder = replace(
+        row,
+        cost=replace(row.cost, dimensions=(BudgetDimensionV1("model", None, True),)),
+    )
+    points = tuple(_point(item) for item in chart_rows((unknown, remainder)))
+    assert points[0].series_key != points[1].series_key
+    assert "Provider-reported remainder" in points[1].label
+    assert "Not reported" in points[0].label

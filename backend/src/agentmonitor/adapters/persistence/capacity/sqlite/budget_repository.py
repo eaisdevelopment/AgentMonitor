@@ -156,12 +156,22 @@ def _view(row: RowMapping) -> BudgetReportViewV1:
     )
 
 
+def _receipt_report(connection: Connection, receipt_id: str) -> tuple[str, str]:
+    """A retained acknowledgement has exactly one live or expired report identity."""
+    rows = connection.exec_driver_sql(
+        "SELECT report_id,canonical_provenance_json FROM capacity_budget_report "
+        "WHERE receipt_id=? UNION ALL SELECT report_id,canonical_provenance_json "
+        "FROM capacity_budget_expired_report WHERE receipt_id=?",
+        (receipt_id, receipt_id),
+    ).all()
+    if len(rows) != 1:
+        raise BudgetRepositoryError("budget_commit_conflict")
+    return str(rows[0][0]), str(rows[0][1])
+
+
 def _receipt(connection: Connection, row: RowMapping) -> BudgetCollectionReceiptV1:
-    report_id = connection.exec_driver_sql(
-        "SELECT report_id FROM capacity_budget_report WHERE receipt_id=?",
-        (row["receipt_id"],),
-    ).scalar_one_or_none()
-    if report_id is None or row["consumer_key"] != _CONSUMER:
+    report_id, _ = _receipt_report(connection, str(row["receipt_id"]))
+    if row["consumer_key"] != _CONSUMER:
         raise BudgetRepositoryError("budget_commit_conflict")
     ids = tuple(
         OpaqueIdV1(str(value))
@@ -233,11 +243,9 @@ class SqliteBudgetReportRepositoryV1:
                             or existing["conflict_state"]
                         ):
                             raise BudgetRepositoryError("budget_commit_conflict")
-                        prior_provenance = connection.exec_driver_sql(
-                            "SELECT canonical_provenance_json "
-                            "FROM capacity_budget_report WHERE receipt_id=?",
-                            (existing["receipt_id"],),
-                        ).scalar_one_or_none()
+                        _, prior_provenance = _receipt_report(
+                            connection, str(existing["receipt_id"])
+                        )
                         if prior_provenance != encode_budget_provenance(
                             request.provenance
                         ):

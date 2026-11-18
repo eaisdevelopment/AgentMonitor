@@ -196,3 +196,17 @@ def test_cloud_tag_does_not_change_or_cross_decode_legacy_billing_wire() -> None
         _decode(text)
     with pytest.raises(budget.BudgetCollectionError):
         budget.decode_billing_target(_encode(_authority()))
+
+
+def test_model_grouping_roundtrips_without_rewriting_legacy_context() -> None:
+    graph, service, context = _authority()
+    legacy = _encode((graph, service, context))
+    assert '"grouping"' not in legacy
+    assert _decode(legacy)[2].grouping == ()
+    grouped = _encode((graph, service, replace(context, grouping=("model",))))
+    assert _decode(grouped)[2].grouping == ("model",)
+    assert grouped != legacy
+    payload = json.loads(legacy)
+    payload["report_context"]["grouping"] = []
+    with pytest.raises(budget.BudgetCollectionError):
+        _decode(_json(payload))

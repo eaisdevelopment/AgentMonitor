@@ -1,9 +1,19 @@
-"""Documented A02 cost candidate; live and scheduling admission remain separate."""
+"""Documented A02 reports; live and scheduling admission remain separate.
+
+The finite endpoint/field/unit/grouping inventory is usage_mapping.USAGE_MAPPINGS
+and the official organization Usage reference checked 2026-11-12. Usage requires
+owner-entered organization Admin API credentials under the existing runtime
+grant. Cost supports only project/key views here, never inferred model/token
+categories. New usage sources remain experimental until verified and admitted.
+"""
+
+from dataclasses import replace
 
 from agentmonitor.adapters.providers.codex.openai_api.policy import (
     MAX_REQUESTS,
     REPORT_SECONDS,
     SOURCE_ID,
+    USAGE_SOURCE_ID,
 )
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1
 from agentmonitor.contracts.provider_system_v1 import (
@@ -19,10 +29,16 @@ from agentmonitor.contracts.provider_system_v1 import (
 )
 
 ADAPTER_ID = "agentmonitor.codex.openai-api"
-ADAPTER_VERSION = "1.0.0"
+ADAPTER_VERSION = "1.0.3"
 # Exact documentation/mechanism identity, not a claimed provider server release.
 PROVIDER_VERSION = "openai-organization-costs-docs-2026-11-11"
 EVIDENCE_REFERENCE = "M7-A02-OPENAI-COST-DOCS-2026-11-11"
+USAGE_PROVIDER_VERSION = "openai-organization-usage-docs-2026-11-12"
+ANALYTICS_VERSION = "1.1.3"
+ANALYTICS_REFERENCE = "OPENAI-ANALYTICS-1.1"
+ANALYTICS_MAPPING_DIGEST = (
+    "cafbafe1707fe52f20e5bd82c7fc9f1bfca7d6696136feec879914123496adc1"
+)
 
 
 def build_openai_cost_manifest() -> CapabilityManifestV1:
@@ -91,4 +107,80 @@ def build_openai_cost_manifest() -> CapabilityManifestV1:
         m0_mapping_digest=(
             "c51868e3f798f9b4a2ef27c1237a8ed61fee85996bf8851610c2dc32f9885e91"
         ),
+    )
+
+
+def build_openai_usage_manifest(
+    *,
+    evidence_reference: str,
+    mapping_digest: str,
+) -> CapabilityManifestV1:
+    """Root must supply the real reviewed usage mapping artifact, not cost proof."""
+    cost = build_openai_cost_manifest()
+    declaration = cost.declarations[0]
+    source = replace(
+        declaration.sources[0],
+        source_id=USAGE_SOURCE_ID,
+        capability_id="api.usage",
+        mechanism_version=USAGE_PROVIDER_VERSION,
+        evidence_reference=evidence_reference,
+    )
+    return replace(
+        cost,
+        descriptor=replace(
+            cost.descriptor,
+            adapter_id=ADAPTER_ID + ".usage",
+            build_identity="agentmonitor-openai-organization-usage-v1",
+        ),
+        declarations=(
+            replace(
+                declaration,
+                capability_id="api.usage",
+                port_type="OpenAIUsageSourceV1",
+                evidence_reference=evidence_reference,
+                sources=(source,),
+                provider_version_rule=ProviderVersionRuleV1(
+                    "openai-organization-usage-docs-exact",
+                    "opaque_exact",
+                    (USAGE_PROVIDER_VERSION,),
+                ),
+            ),
+        ),
+        m0_mapping_id=evidence_reference,
+        m0_mapping_digest=mapping_digest,
+    )
+
+
+def build_openai_analytics_manifest() -> CapabilityManifestV1:
+    """Expand the existing adapter with separately versioned usage admission.
+
+    The reviewed mapping describes the finite views; it does not establish live
+    source verification or grant runtime permission. Legacy builders stay fixed.
+    """
+    legacy = build_openai_cost_manifest()
+    usage = build_openai_usage_manifest(
+        evidence_reference=ANALYTICS_REFERENCE,
+        mapping_digest=ANALYTICS_MAPPING_DIGEST,
+    )
+    cost = legacy.declarations[0]
+    return replace(
+        legacy,
+        descriptor=replace(
+            legacy.descriptor,
+            adapter_version=ANALYTICS_VERSION,
+            build_identity="agentmonitor-openai-analytics-v1.1.3",
+        ),
+        declarations=(
+            replace(
+                cost,
+                evidence_reference=ANALYTICS_REFERENCE,
+                sources=(
+                    replace(cost.sources[0], evidence_reference=ANALYTICS_REFERENCE),
+                ),
+            ),
+            usage.declarations[0],
+        ),
+        m0_mapping_id=ANALYTICS_REFERENCE,
+        m0_mapping_version="1.1.0",
+        m0_mapping_digest=ANALYTICS_MAPPING_DIGEST,
     )

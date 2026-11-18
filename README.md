@@ -1,55 +1,51 @@
 # AgentMonitor
 
-AgentMonitor is a local-first dashboard for monitoring AI agent accounts,
-subscription capacity, quota history, alerts and representative running
-processes. It uses an authenticated, versioned API and is designed to observe
-running agents without interrupting them.
+Monitor AI account capacity and API spending in one local dashboard. AgentMonitor
+shows Claude and Codex subscription quotas, Ollama cloud balances, and supported
+Anthropic, OpenAI and Ollama API usage reports without interrupting running agents.
 
-## Dashboard demo
+## Dashboard
 
 ![AgentMonitor dashboard overview](docs/images/dashboard-demo.png)
 
-The screenshot is a point-in-time example of the dashboard, with account emails
-and organization names blurred for privacy.
+Account emails and organization names are blurred in this point-in-time example.
 
-## Project status
+## What you can monitor
 
-Claude monitoring and the bounded Codex milestone have been implemented and
-accepted. Ollama cloud monitoring is implemented and deployed locally, including
-organization/account administration, balances, history and scheduled recovery.
-M6 remains in progress: the second organization's official usage comparison,
-Claude continuity verification, the full completion check and owner acceptance
-are still outstanding. Local Ollama models and processes are deferred to future
-versions. See the [latest delivery checkpoint](docs/evidence/m6-publication-checkpoint-2026-11-08.md).
-Observations that cannot be verified are shown as unknown or unavailable.
+- Organize accounts by company and provider; see the lowest remaining quotas first.
+- Inspect account activity, subscription history and alerts. Unresolved process
+  ownership is shown explicitly.
+- View reported API spend, reporting scope, currency, coverage and freshness.
+- Explore exact history, daily charts and provider-supported breakdowns.
+- See observed spending rates and, when the required inputs exist, an exhaustion
+  estimate. Missing balances or insufficient history have explicit explanations.
+- Manage connections through the dashboard. Provider credentials are entered
+  locally through the protected setup flow.
 
-This repository contains the current project source, including work in
-progress. It is not yet a packaged V1 release. A verified one-command
-installation is not yet available; see the [roadmap](docs/roadmap.md),
-[implementation status](docs/evidence/v1-implementation-status-v1.json) and
-[operations runbook](docs/operations/runbook.md) for current capabilities and
-limitations. Do not commit credentials or provider profiles.
+API billing access is separate from a Claude or ChatGPT subscription. Reported
+costs are not invoices, and providers do not always expose remaining funds.
+Missing data is not treated as zero spend or unlimited capacity.
 
-## Repository
+## Source and operation
 
-- [Backend](backend/) — API, provider adapters, domain modules and tests.
-- [Frontend](frontend/) — dashboard and product-family promotion.
-- [Contracts](contracts/) — versioned API specifications.
-- [Documentation](docs/README.md) — architecture, requirements and runbooks.
-- [Tools](tools/) — development and verification commands.
+- [Backend](backend/): versioned API, domain modules, provider adapters and tests.
+- [Frontend](frontend/): dashboard and product-family promotion.
+- [Contracts](contracts/): published API schemas.
+- [Documentation](docs/README.md): operation and architecture.
+- [Release notes](RELEASE_NOTES.md): delivered changes and known limitations.
 
-The frontend uses Node.js 22.23.3 and npm 10.9.9; the Python project requires
-Python 3.12.3 or later. See [CONTRIBUTING.md](CONTRIBUTING.md) and
-[AGENTS.md](AGENTS.md) for the development process.
+This is source code for a locally operated application, not a packaged installer.
+See the [operations runbook](docs/operations/runbook.md) before installing or
+upgrading. Never commit credentials, provider profiles or live databases.
 
-## License
+## Licence
 
 AgentMonitor is **free for personal, non-commercial use** under the
 [AgentMonitor Personal Use License 1.0](LICENSE). Organizational, professional
 and commercial use requires a separate written licence from
 [Essential AI Solutions Ltd (EAIS)](https://essentialai.uk/).
 
-This is a source-available project. Public source access does not grant a
-commercial licence. Third-party components retain their own licences.
+Public source access does not grant a commercial licence. Third-party components
+retain their own licences.
 
 Copyright (c) 2026 Essential AI Solutions Ltd <support@essentialai.uk>.

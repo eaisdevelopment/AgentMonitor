@@ -192,6 +192,62 @@ def test_pending_api_without_data_is_preserved_and_never_subscription() -> None:
     assert rows[0].contexts == ()
 
 
+@pytest.mark.parametrize("include_self", [False, True])
+def test_cloud_overview_keeps_self_total_separate_from_team_reports(
+    include_self: bool,
+) -> None:
+    from agentmonitor.contracts.budget_query_v1 import BudgetCloudResourceCurrentV1
+    from agentmonitor.modules.capacity.domain.budget_overview import project_budget_rows
+
+    from backend.tests.contracts.test_cloud_budget_run_contract import _graph
+
+    graph = _graph()
+    account = replace(_account(), account_id=graph.account_id, provider_key="ollama")
+    original = _current().resources[0].reports[0].current
+    assert original is not None
+    reports = []
+    for scope in ("self", "team") if include_self else ("team",):
+        view = replace(
+            original,
+            report_id=OpaqueIdV1(f"pure-{scope}-report"),
+            report=replace(
+                original.report,
+                subject=replace(
+                    original.report.subject,
+                    provider_key="ollama",
+                    account_id=graph.account_id,
+                    resource_id=graph.resource_id,
+                ),
+                source_id="ollama.cloud.usage.v1",
+                source_category=f"{scope}_requests_and_cost",
+            ),
+        )
+        reports.append(BudgetReportSelectionV1(view, view))
+    available = QueryAvailabilityV1("available", "read", NOW)
+    current = AccountBudgetCurrentV1(
+        account.account_id,
+        PERIOD,
+        NOW,
+        available,
+        (),
+        cloud_resources=(
+            BudgetCloudResourceCurrentV1(
+                graph, tuple(reports), available, (), None, available
+            ),
+        ),
+    )
+    row = project_budget_rows(account, (), current, BudgetOverviewQueryV1(PERIOD, NOW))[
+        0
+    ]
+    assert tuple(context.source_category for context in row.contexts) == (
+        ("self_requests_and_cost",) if include_self else ()
+    )
+    if include_self:
+        assert row.contexts[0].report_id == OpaqueIdV1("pure-self-report")
+        assert row.contexts[0].spend is not None
+        assert row.contexts[0].spend.amount.as_decimal() == Decimal("0.30")
+
+
 @pytest.mark.parametrize("has_counts", [False, True])
 @pytest.mark.parametrize("has_watermark", [False, True])
 def test_complete_coverage_without_money_is_not_incomplete(

@@ -72,12 +72,20 @@ def _encode(value: object) -> object:
         return {
             field.name: _encode(getattr(value, field.name))
             for field in fields(cast(Any, value))
+            if not (
+                type(value) is BudgetDimensionV1
+                and field.name == "is_remainder"
+                and not value.is_remainder
+            )
         }
     raise BudgetCodecError()
 
 
 def _object(data: Any, cls: type[Any]) -> dict[str, Any]:
-    if type(data) is not dict or set(data) != {field.name for field in fields(cls)}:
+    expected = {field.name for field in fields(cls)}
+    if cls is BudgetDimensionV1 and type(data) is dict and "is_remainder" not in data:
+        expected.remove("is_remainder")
+    if type(data) is not dict or set(data) != expected:
         raise BudgetCodecError()
     return cast(dict[str, Any], data)
 

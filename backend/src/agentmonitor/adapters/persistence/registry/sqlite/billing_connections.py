@@ -858,6 +858,41 @@ class SqliteBillingConnectionRepositoryV1:
             raise RegistryRepositoryErrorV1() from None
 
 
+def read_billing_retention_scope_in_transaction(
+    connection: Connection,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+) -> BillingConnectionViewV1 | None:
+    """Read a non-retired owner scope without requiring collection authority.
+
+    A missing credential or disabled monitoring does not retire known scope
+    history. The retention caller must separately fence unresolved identities
+    against their current binding; this read never authorizes provider access.
+    """
+    if not connection.in_transaction():
+        raise ValueError("billing_transaction_required")
+    status = _get(connection, account_id)
+    if (
+        status is None
+        or status.provider_key not in {"claude", "codex"}
+        or status.account_lifecycle not in {"pending", "active"}
+        or not status.connections
+    ):
+        return None
+    selected = status.connections[0]
+    if selected.resource_id != resource_id or selected.lifecycle not in {
+        "pending",
+        "active",
+    }:
+        return None
+    resource = connection.exec_driver_sql(
+        "SELECT 1 FROM reg_account_resource WHERE resource_id=? "
+        "AND account_id=? AND lifecycle='active'",
+        (resource_id.value, account_id.value),
+    ).first()
+    return selected if resource is not None else None
+
+
 def resolve_billing_access_in_transaction(
     connection: Connection,
     account_id: OpaqueIdV1,

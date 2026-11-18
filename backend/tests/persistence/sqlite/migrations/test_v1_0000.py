@@ -180,8 +180,8 @@ def test_changed_catalog_or_revision_fails_before_database_creation(
 def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
     schema = implementation()
     catalog = schema.load_migration_catalog()
-    assert len(catalog.revisions) == 44
-    assert catalog.head == "v1_0734"
+    assert len(catalog.revisions) == 46
+    assert catalog.head == "v1_0736"
     metadata = catalog.revisions[0]
     assert metadata.revision == "v1_0000"
     assert metadata.parent_revision is None
@@ -263,6 +263,8 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
         "v1_0732",
         "v1_0733",
         "v1_0734",
+        "v1_0735",
+        "v1_0736",
     )
     assert tuple(item.owner for item in catalog.revisions[18:]) == (
         "M07",
@@ -291,6 +293,8 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
         "M05",
         "M04",
         "M02",
+        "M05",
+        "M05",
     )
     ollama_admission = next(
         item for item in catalog.revisions if item.revision == "v1_0708"

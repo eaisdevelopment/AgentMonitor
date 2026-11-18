@@ -1,194 +1,67 @@
 # Security architecture
 
-## Security objectives
+AgentMonitor handles sensitive operational metadata: account identities, usage,
+costs, project paths and connection state. The authenticated dashboard is the
+boundary for viewing that data. A public source repository or a reachable static
+login page does not make account data public.
 
-1. Do not compromise provider accounts or local source code.
-2. Do not let a browser or unrelated local program mutate AgentMonitor without authorization.
-3. Do not leak secrets or content through storage, logs, tests, diagnostics, backups, or exports.
-4. Do not disturb running agents or default provider profiles.
-5. Contain provider parser/process failures.
-6. Preserve a safe path from local single-user deployment to later remote hosting.
+## Credentials
 
-## Protected assets
+Provider OAuth credentials remain in provider-managed storage. Official,
+user-visible sign-in flows may write to separate AgentMonitor-managed profiles;
+the user's default profiles are not modified.
 
-- provider OAuth tokens and refresh state;
-- API/admin keys and GitLab/SMTP credentials;
-- dashboard password and sessions;
-- AgentMonitor API tokens;
-- provider account identity, usage, cost, and budget data;
-- local project paths and operational metadata;
-- SQLite history and backups;
-- integrity of process/session correlation and alerts.
+Owner-entered Anthropic/OpenAI administrative billing keys and Ollama cloud keys
+use the selected protected AgentMonitor `.env`. Only the runtime receives the
+selected binding transiently for its admitted provider operation. Coding agents
+must not view these values. Keys do not belong in browser forms, command
+arguments, database records, logs, tests, screenshots, exports or backups.
 
-## Trust boundaries
+Local setup commands use hidden terminal input. A stored key, verified access
+and enabled monitoring are distinct states. Rotation, scope changes and
+disconnection invalidate stale collection authority while preserving history.
+Removing a local key does not revoke it at its provider.
 
-- Browser ↔ local FastAPI service.
-- API boundary ↔ application modules.
-- AgentMonitor ↔ provider network APIs.
-- AgentMonitor ↔ provider CLIs/subprocesses.
-- AgentMonitor ↔ provider-owned local files.
-- AgentMonitor ↔ `/proc`/platform process APIs.
-- Service ↔ `.env`, SQLite, backups, and exports.
-- GitLab CI ↔ repository and build artifacts.
+Passwords and session/API-token verification use their configured hashing
+mechanisms. Token plaintext is not a recoverable account property. Sign-out and
+revocation remain explicit operations.
 
-Local-only does not mean trusted. A malicious web page, local process, repository hook, provider file, or dependency may attack the service.
+## Browser and API
 
-## Secret model
+The local service validates hosts, origins, authorization and request bounds.
+Cookie-authenticated mutations require CSRF protection. The UI uses the
+versioned API and generated client; it does not inspect the database or provider
+files. Authenticated API documentation does not bypass authorization.
 
-### AgentMonitor-managed secrets
+Trusted-LAN mode is opt-in and restricted to its selected private interface and
+subnet. It retains application authentication. Its HTTP transport does not
+protect against observers on that network, and it is not an Internet-hosting
+configuration. Forwarded headers do not establish trusted peer identity.
 
-Examples: session-signing secret, GitLab token used by development automation, and post-V1 SMTP credentials.
+## Provider and local inspection
 
-- Stored in `.env` with owner-only permissions.
-- Development path may be repository-local and gitignored; installed path follows the user's protected configuration directory.
-- Loaded once through typed configuration and never returned by configuration APIs.
-- Error messages name missing variables, never values.
-- Not inherited by provider subprocesses unless a specific allowlisted variable is required.
-- Rotation has a runbook and invalidates affected sessions/tokens where applicable.
+Adapters admit specific provider interfaces, versions, fields and operations.
+Requests and subprocesses have bounded output and deadlines. Secrets go only to
+the owning provider operation. Provider failures, missing fields and unsupported
+schemas remain explicit rather than becoming invented successful readings.
 
-### Provider-managed credentials
+Process inspection is limited to permitted operational metadata. AgentMonitor
+does not collect prompts, responses, source-code content or arbitrary process
+environment values. Process identity checks account for PID reuse. Monitoring
+does not stop, switch or restart user agents.
 
-- Remain in official provider profile storage.
-- Referred to by opaque profile reference.
-- Never copied into `.env`, SQLite, exports, tests, or logs.
-- Default profiles are immutable from AgentMonitor.
-- AgentMonitor-managed profiles are changed only through official user-visible authentication flows.
+## Storage and operation
 
-### Approved managed billing credential exception
+Normalized reports retain provenance and immutable history; no raw provider
+response is used as a replayed live reading. Failed collections do not refresh
+the age of old observations. Storage, migration, retention and recovery use
+explicit boundaries and preserve original report/receipt identity.
 
-The [M7 implementation instruction](../evidence/m7-implementation-authority-2026-11-11.md)
-extends the M6 Ollama exception: owner-entered Anthropic/OpenAI administrative
-billing keys and Ollama usage keys may be stored by the runtime in the selected
-protected managed `.env`. Only the owning adapter receives its selected binding
-for allowlisted official read-only billing calls. Agents never view values.
-No browser key input, key-bearing JSON/arguments/logs, inference spending, raw
-payload persistence, provider mutation or default-profile access is permitted.
-Key rotation and scope changes fence in-flight work; identity/access proof and
-monitoring remain distinct. R-025 applies to all admitted managed billing keys.
+Keep configuration and data under the intended service user's control. Avoid
+broad debug logging and unredacted diagnostic uploads. Treat a credential
+exposure as an incident: revoke or rotate the affected credential at its owner,
+preserve a minimal sanitized account of what happened, and follow
+[the reporting policy](../../SECURITY.md).
 
-### Stored verification material
-
-- Passwords use an approved memory-hard hash with per-record salt and current parameter metadata.
-- API tokens and browser-session tokens are stored only as keyed/cryptographic hashes or equivalent verification material.
-- Token plaintext is shown once at creation and cannot be recovered.
-
-## Local web security
-
-- Bind to `127.0.0.1`/`::1` only in local mode.
-- Validate `Host` and `Origin`; deny unexpected origins and avoid wildcard CORS.
-- For cookie-authenticated reads, require canonical Origin or approved same-origin/direct-navigation Fetch Metadata before session resolution; see [ADR 0012](../decisions/0012-cookie-read-origin-proof.md).
-- Same-origin UI and API are preferred.
-- Browser authentication uses HTTP-only, SameSite cookies; enable Secure whenever TLS is present.
-- State-changing browser requests require CSRF protection.
-- Login endpoints use rate limiting and constant-time verification behavior.
-- Sessions have idle/absolute expiry, logout, rotation after login, and server-side revocation.
-- API bearer tokens are not stored in browser localStorage.
-- Security headers include CSP, frame denial, content-type protection, and conservative referrer policy.
-- Swagger is authenticated; mutating calls require appropriate token scopes.
-
-## Authorization
-
-### Explicit trusted LAN exception
-
-The owner-directed [ADR 0014](../decisions/0014-trusted-lan-dashboard.md) admits
-one private IPv4 interface/subnet through opt-in runner flags, retaining the
-loopback listener. Actual peer subnet, exact Host, mutation Origin/CSRF, IAM
-permissions, request bounds, and authenticated docs remain enforced. LAN HTTP
-cookie reads require canonical Origin, valid Fetch Metadata, or an exact
-same-origin Referer before session resolution; public static SPA navigation
-does not disclose account data. LAN responses use `Referrer-Policy: same-origin`.
-Default loopback admission and its no-referrer policy remain unchanged.
-
-This is trusted-LAN HTTP, with no protection against network observers or
-transport attackers inside that subnet. It is not TLS, proxy, Internet,
-multi-user, or remote-collector hosting. Forwarded headers are not trusted,
-and neither wildcard binding nor wildcard CORS is admitted.
-
-V1 has one administrator role but still checks explicit permissions. Proposed token scopes include:
-
-- `read:status`
-- `read:accounts`
-- `read:telemetry`
-- `read:diagnostics`
-- `write:configuration`
-- `write:accounts`
-- `write:alerts`
-- `write:reauth`
-- `write:tokens`
-- `write:backup`
-
-The single-user shortcut must not bypass the authorization service, preserving a future multi-user seam.
-
-## Safe local inspection
-
-- Standard roots and filenames are allowlisted per provider/version.
-- All reads are non-mutating, bounded in size/time, and checked against symlink/path traversal.
-- Parsers discard content-bearing and secret-bearing fields before returning contracts.
-- Arbitrary process environment reads are prohibited.
-- Process working directories are operational metadata but may reveal names; expose them only to the authenticated owner.
-- `/proc` race conditions and PID reuse require process start-time validation.
-- Never attach/debug or read process memory.
-
-## Safe subprocess execution
-
-- No shell strings; use executable plus arguments.
-- Fixed/validated executable paths and supported versions.
-- Minimal clean environment.
-- No secret command-line arguments.
-- Output size limits, deadlines, cancellation, and process-group cleanup.
-- Sanitized logging with command category, duration, exit code, and correlation ID—not sensitive output.
-- Commands used for read-only collection are reviewed for side effects.
-
-## Provider network policy
-
-- HTTPS certificate verification enabled; no global insecure override.
-- Hostnames allowlisted per provider adapter.
-- Bounded timeouts, connection pools, response sizes, and redirects.
-- Credentials sent only to their owning provider host.
-- Private/browser endpoints disabled by default and clearly experimental when explicitly enabled.
-- Rate limits respected; re-auth/auth failures are not blindly retried.
-
-## Data protection
-
-- Operational metadata only in V1.
-- Database/backups/files use owner-only permissions.
-- Backups and exports exclude `.env` and provider profiles.
-- Diagnostic bundles use an allowlist and automated secret scan before creation.
-- Logs are structured, local, rotated, and redacted at source.
-- Sensitive values are represented by safe identifiers or masked labels.
-- No external product analytics or automatic crash reports.
-
-## Threats and required controls
-
-| Threat | Required controls |
-|---|---|
-| Malicious website calls localhost | password/session auth, CSRF, strict origin/host, no wildcard CORS |
-| Local process reads `.env` | owner-only permissions, least privilege, no unnecessary long-lived tokens |
-| Provider file includes malicious/huge content | allowlisted paths/fields, bounded reads, safe parser, no eval/deserialization |
-| CLI output leaks token/content | bounded capture, redaction, discard raw output, no debug logging |
-| Wrong account enrolled | stable identity check and explicit owner confirmation |
-| Default profile modified | protected flag and adapter precondition; live regression test |
-| PID reused/misattributed | validate process start time and evidence; unresolved rather than guess |
-| Dependency compromise | lockfiles, hashes where supported, SBOM, license/security scanning, minimal dependencies |
-| SQLite corruption | WAL/transaction discipline, integrity checks, rotating verified backups |
-| API token theft | scoped token, hash at rest, one-time reveal, rotation/revocation, audit |
-| Secret committed | `.gitignore`, secret scanning, review gate, incident rotation runbook |
-
-## Security review triggers
-
-An explicit threat-model update and ADR are required before:
-
-- remote network binding;
-- multi-user access;
-- transcript/prompt/tool storage;
-- process control or routing;
-- arbitrary plugin execution;
-- browser automation/private endpoints;
-- reading any process environment field;
-- moving secrets out of the agreed stores;
-- adding telemetry/crash reporting;
-- accepting community code or distributing binaries.
-
-## Incident baseline
-
-If a secret may have leaked: stop affected integration, preserve sanitized evidence, revoke/rotate at the provider, rotate AgentMonitor sessions/tokens if implicated, scan history/artifacts, document scope, and only resume after a verified clean test. Never paste the secret into an issue or chat during investigation.
+These controls describe the application boundary, not a security certification
+or a guarantee against a compromised host.

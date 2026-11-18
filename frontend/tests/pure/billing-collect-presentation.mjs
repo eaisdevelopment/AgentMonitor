@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { collectionContext, sameCollectionContext, restoreCollectionIntent, matchesCollectionEligibility, matchesCollectionRun, collectionReason, collectionReadRequired, collectionRetryAllowed } from "../../src/features/accounts/billingCollectPresentation.ts";
+import { billingContextForView, collectionContext, sameCollectionContext, restoreCollectionIntent, matchesCollectionEligibility, matchesCollectionRun, collectionReason, collectionReadRequired, collectionRetryAllowed } from "../../src/features/accounts/billingCollectPresentation.ts";
 
 // Pure intent/identity decisions; these values never cross an I/O boundary.
 const context = collectionContext("2026-11-05T00:00:00Z", "2026-11-12T00:00:00Z");
@@ -11,7 +11,7 @@ for (const change of [{ source_category: "usage" }, { range_key: "30d" }, { grou
 const intent = { accountId: "account", resourceId: "resource", accountVersion: 3, connectionVersion: 2, scopeGeneration: 1, bindingGeneration: 4, idempotencyKey: "a".repeat(32), reportContext: context, runId: null, deadlineAt: null, handled: false, retryRequiresEligibility: false };
 assert.deepEqual(restoreCollectionIntent(JSON.stringify(intent), "account", "resource"), intent);
 assert.equal(restoreCollectionIntent(JSON.stringify(intent), "other", "resource"), null);
-for (const change of [{ bindingGeneration: null }, { accountVersion: 0 }, { unexpected: "secret" }, { handled: true }, { runId: "run" }, { reportContext: { ...context, source_category: "usage" } }]) assert.equal(restoreCollectionIntent(JSON.stringify({ ...intent, ...change }), "account", "resource"), null);
+for (const change of [{ bindingGeneration: null }, { accountVersion: 0 }, { unexpected: "secret" }, { handled: true }, { runId: "run" }, { reportContext: { ...context, source_category: "../invalid" } }]) assert.equal(restoreCollectionIntent(JSON.stringify({ ...intent, ...change }), "account", "resource"), null);
 const eligibility = { account_id: "account", resource_id: "resource", account_record_version: 3, connection_record_version: 2, scope_generation: 1, binding_generation: 4, report_context: context, can_collect: false };
 assert.equal(matchesCollectionEligibility(intent, eligibility), true, "cooldown does not erase an admitted request");
 for (const change of [{ binding_generation: 5 }, { scope_generation: 2 }, { account_record_version: 4 }, { resource_id: "other" }]) assert.equal(matchesCollectionEligibility(intent, { ...eligibility, ...change }), false);
@@ -25,6 +25,9 @@ assert.equal(collectionReadRequired(admitted, { ...run, state: "partial" }, cont
 assert.equal(collectionReadRequired(admitted, { ...run, state: "failed" }, context), false);
 assert.deepEqual(restoreCollectionIntent(JSON.stringify({ ...admitted, handled: true }), "account", "resource"), { ...admitted, handled: true });
 assert.match(collectionReason("billing_collect_credential_required"), /Manage connection/);
+assert.match(collectionReason("openai_report_request_rejected"), /OpenAI rejected this report request/);
+assert.doesNotMatch(collectionReason("openai_report_request_rejected"), /credential|Manage connection/);
+assert.match(collectionReason("openai_cost_data_invalid"), /could not be read/);
 assert.doesNotMatch(collectionReason("private arbitrary diagnostic"), /private arbitrary/);
 const otherWindow = collectionContext("2026-10-29T00:00:00Z", "2026-11-05T00:00:00Z");
 const restoredElsewhere = restoreCollectionIntent(JSON.stringify(admitted), "account", "resource");
@@ -37,4 +40,25 @@ assert.equal(collectionRetryAllowed(throttled, eligibility), false, "confirmed 4
 assert.equal(collectionRetryAllowed(throttled, { ...eligibility, can_collect: true }), true);
 assert.equal(collectionRetryAllowed(throttled, { ...eligibility, can_collect: true, binding_generation: 5 }), false);
 assert.deepEqual(restoreCollectionIntent(JSON.stringify(throttled), "account", "resource"), throttled);
+
+
+const grouped = collectionContext(context.interval_start, context.interval_end, "usage", ["model"]);
+assert.equal(grouped.source_category, "usage");
+assert.deepEqual(grouped.grouping, ["model"]);
+assert.equal(sameCollectionContext(grouped, grouped), true);
+assert.equal(sameCollectionContext(context, grouped), false);
+const groupedIntent = { ...admitted, reportContext: grouped };
+assert.deepEqual(restoreCollectionIntent(JSON.stringify(groupedIntent), "account", "resource"), groupedIntent);
+assert.equal(collectionReadRequired(groupedIntent, { ...run, report_context: grouped }, context), false);
+assert.equal(collectionReadRequired(groupedIntent, { ...run, report_context: grouped }, grouped), true);
+assert.throws(() => collectionContext(context.interval_start, context.interval_end, "usage", ["model", "project"]));
+assert.throws(() => collectionContext(context.interval_start, context.interval_end, "../usage", []));
+
+
+
+assert.equal(billingContextForView(context.interval_start, context.interval_end, true, null, null), null, "unknown historical context must not become cost");
+assert.deepEqual(billingContextForView(context.interval_start, context.interval_end, true, grouped, null), grouped);
+assert.deepEqual(billingContextForView(context.interval_start, context.interval_end, false, null, grouped), grouped);
+assert.deepEqual(billingContextForView(context.interval_start, context.interval_end, false, null, null), context);
+
 console.log("billing-collect-presentation: passed");

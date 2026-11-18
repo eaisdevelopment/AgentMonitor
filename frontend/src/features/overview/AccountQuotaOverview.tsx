@@ -165,10 +165,32 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount, selection, onSo
         callbacks.current.onInventory({ accounts: accounts.data, organizations: organizations.ok ? organizations.data : null });
         const visible = accounts.data.items.filter(account => account.lifecycle !== "archived");
         const readings: AccountReading[] = [];
+        const activeIds = new Set(visible.map(account => account.account_id));
+        const publish = (completed: readonly AccountReading[]) => setState(current => {
+          if (controller.signal.aborted) return current;
+          const previous = new Map(current.kind === "ready" ? current.readings.map(reading => [reading.account.account_id, reading] as const) : []);
+          const completedIds = new Set(completed.map(reading => reading.account.account_id));
+          const merged = [
+            ...completed.map(reading => ({
+              ...reading,
+              quota: reading.quota ?? previous.get(reading.account.account_id)?.quota ?? null,
+              identity: reading.identity ?? previous.get(reading.account.account_id)?.identity ?? null,
+            })),
+            ...[...previous.values()].filter(reading => activeIds.has(reading.account.account_id) && !completedIds.has(reading.account.account_id)),
+          ];
+          return {
+            kind: "ready", accounts: accounts.data,
+            organizations: organizations.ok ? organizations.data : current.kind === "ready" ? current.organizations : null,
+            readings: merged,
+            refreshFailed: !organizations.ok || merged.some(reading => reading.refreshFailed),
+          };
+        });
         let expired = false;
-        // Bound simultaneous requests while retaining every returned account.
-        for (let offset = 0; offset < visible.length; offset += 6) {
-          const batch = await Promise.all(visible.slice(offset, offset + 6).map(async account => {
+        // Each account starts two or three reads. Leave room for financial
+        // Overview and other open pages instead of flooding the local service.
+        const batchSize = 2;
+        for (let offset = 0; offset < visible.length; offset += batchSize) {
+          const batch = await Promise.all(visible.slice(offset, offset + batchSize).map(async account => {
             try {
               const [quota, identity, monitoring] = await Promise.all([
                 capacity.account(account.account_id, controller.signal),
@@ -184,16 +206,9 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount, selection, onSo
           if (controller.signal.aborted) return;
           if (expired) { callbacks.current.onExpired(); return; }
           readings.push(...batch);
+          publish([...readings]);
         }
-        setState(current => ({
-          kind: "ready", accounts: accounts.data,
-          organizations: organizations.ok ? organizations.data : current.kind === "ready" ? current.organizations : null,
-          readings: readings.map(reading => {
-            const previous = current.kind === "ready" ? current.readings.find(item => item.account.account_id === reading.account.account_id) : undefined;
-            return { ...reading, quota: reading.quota ?? previous?.quota ?? null, identity: reading.identity ?? previous?.identity ?? null };
-          }),
-          refreshFailed: !organizations.ok || readings.some(reading => reading.refreshFailed),
-        }));
+        if (visible.length === 0) publish([]);
       } catch {
         if (!controller.signal.aborted) setState(current => current.kind === "ready"
           ? { ...current, refreshFailed: true, readings: current.readings.map(reading => ({ ...reading, refreshFailed: true })) }
@@ -235,7 +250,8 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount, selection, onSo
       {state.kind === "loading" && <p className="fleet-overview-notice" role="status">Reading accounts and quota…</p>}
       {state.kind === "error" && <p className="fleet-overview-notice" role="alert">Account readings are unavailable. Refresh to try again.</p>}
       {state.kind === "ready" && <>
-        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 && !selection.includeUngrouped ? "No organizations selected. Choose an organization or All organizations." : activeProvider !== null ? `No ${providerDisplayName(activeProvider)} accounts in the selected organizations. Choose another provider or organization.` : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
+        {busy && <p className="fleet-overview-notice" role="status">Reading remaining accounts; available readings are shown.</p>}
+        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{busy ? "Reading quota for the remaining accounts…" : selectedOrganizations?.length === 0 && !selection.includeUngrouped ? "No organizations selected. Choose an organization or All organizations." : activeProvider !== null ? `No ${providerDisplayName(activeProvider)} accounts in the selected organizations. Choose another provider or organization.` : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
           <table className="fleet-overview-table" aria-label="Account quota overview" aria-describedby="overview-quota-order">
             <thead><tr><th scope="col">Account</th>
               <th scope="col" aria-sort={sort.key === "organization" ? sort.direction : undefined}><button type="button" className="overview-sort-button" onClick={() => selectSort("organization")}>Organization<span aria-hidden="true">{sort.key === "organization" ? sort.direction === "ascending" ? "↑" : "↓" : "↕"}</span></button></th>
@@ -253,7 +269,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount, selection, onSo
               return <tr key={account.account_id} data-account-id={account.account_id}>
                 <th scope="row" data-label="Account"><button type="button" className="overview-account-link" aria-label={`Open account ${displayedName}`} onClick={() => onOpenAccount(account.account_id)}>{displayedName}</button><small>{account.provider_key} · {verified ? "Identity verified" : "Admin name"}</small>
                   {verified && account.friendly_name !== identity?.email && <small className="connection-warning">Registered as {account.friendly_name}</small>}
-                  {additional.length > 0 && <div className="additional-connections"><strong>{additional.length + 1} connected profiles · one quota balance</strong>{additional.map(other => <button key={other.account.account_id} type="button" className="quiet-button" onClick={() => onOpenAccount(other.account.account_id)}>Review {other.account.friendly_name} connection</button>)}</div>}
+                  {additional.length > 0 && <div className="additional-connections"><strong>{additional.length + 1} connected profiles · one quota balance</strong>{additional.map(other => <button key={other.account.account_id} data-connection-account-id={other.account.account_id} type="button" className="quiet-button" onClick={() => onOpenAccount(other.account.account_id)}>Review {other.account.friendly_name} connection</button>)}</div>}
                 </th>
                 <td data-label="Organization"><span className="organization-tag">{organization}</span></td>
                 <td data-label="State"><span className={`overview-reading-state overview-state-${status.tone}`}><span aria-hidden="true">{status.icon}</span><span>{status.label}</span></span><small>{account.provider_key === "ollama" ? reading.monitoring === null ? "Monitoring unavailable" : ollamaMonitoringCopy(reading.monitoring.monitoring_state, reading.monitoring.monitoring_reason) : `Monitoring ${account.is_effective_monitoring_enabled ? "on" : "off"}`}</small></td>

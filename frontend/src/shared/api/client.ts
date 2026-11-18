@@ -20,9 +20,9 @@ import {
   type CloudUsageContextV1,
   type CloudUsageEligibilityWireV1,
   type CloudUsageRunStatusV1,
-  type BillingReportContextV1,
-  type BillingCollectionEligibilityWireV1,
-  type BudgetRunStatusV1,
+  type BillingReportContextV2,
+  type BillingCollectionEligibilityWireV2,
+  type BudgetRunStatusV2,
   type BillingMonitoringStatusV1,
   type BillingMonitoringResultV1,
   type AccountCapacityViewV2,
@@ -105,9 +105,9 @@ export type {
   CloudUsageContextV1,
   CloudUsageEligibilityWireV1,
   CloudUsageRunStatusV1,
-  BillingReportContextV1,
-  BillingCollectionEligibilityWireV1,
-  BudgetRunStatusV1,
+  BillingReportContextV2,
+  BillingCollectionEligibilityWireV2,
+  BudgetRunStatusV2,
   BillingMonitoringStatusV1,
   BillingMonitoringResultV1,
   ApiTokenCredentialIssueV1,
@@ -433,18 +433,18 @@ export const registry = Object.freeze({
       headers: { ...mutationHeaders({ id: intent.accountId, recordVersion: intent.accountVersion }), "Idempotency-Key": intent.idempotencyKey },
       signal,
     }),
-  billingCollectionEligibility: (accountId: string, resourceId: string, context: BillingReportContextV1, signal?: AbortSignal): Promise<ClientResult<BillingCollectionEligibilityWireV1>> =>
-    apiClient.billing_get_collection_eligibility_v1({ path: { account_id: accountId, resource_id: resourceId },
-      query: { range_key: context.range_key, interval_start: context.interval_start, interval_end: context.interval_end }, signal }),
+  billingCollectionEligibility: (accountId: string, resourceId: string, context: BillingReportContextV2, signal?: AbortSignal): Promise<ClientResult<BillingCollectionEligibilityWireV2>> =>
+    apiClient.billing_get_collection_eligibility_v2({ path: { account_id: accountId, resource_id: resourceId },
+      query: { range_key: context.range_key, interval_start: context.interval_start, interval_end: context.interval_end, source_category: context.source_category, grouping: context.grouping?.[0] }, signal }),
   collectBilling: (
-    intent: Readonly<{ accountId: string; resourceId: string; accountVersion: number; connectionVersion: number; idempotencyKey: string; reportContext: BillingReportContextV1 }>,
+    intent: Readonly<{ accountId: string; resourceId: string; accountVersion: number; connectionVersion: number; idempotencyKey: string; reportContext: BillingReportContextV2 }>,
     signal?: AbortSignal,
   ): Promise<ClientResult<BillingCheckRunV1>> =>
-    apiClient.billing_collect_now_v1({ path: { account_id: intent.accountId, resource_id: intent.resourceId },
+    apiClient.billing_collect_now_v2({ path: { account_id: intent.accountId, resource_id: intent.resourceId },
       body: { expected_connection_version: intent.connectionVersion, report_context: intent.reportContext },
       headers: { ...mutationHeaders({ id: intent.accountId, recordVersion: intent.accountVersion }), "Idempotency-Key": intent.idempotencyKey }, signal }),
-  billingRun: (runId: string, signal?: AbortSignal): Promise<ClientResult<BudgetRunStatusV1>> =>
-    apiClient.billing_get_run_status_v1({ path: { run_id: runId }, signal }),
+  billingRun: (runId: string, signal?: AbortSignal): Promise<ClientResult<BudgetRunStatusV2>> =>
+    apiClient.billing_get_run_status_v2({ path: { run_id: runId }, signal }),
   billingMonitoring: (accountId: string, resourceId: string, signal?: AbortSignal): Promise<ClientResult<BillingMonitoringStatusV1>> =>
     apiClient.billing_get_monitoring_v1({ path: { account_id: accountId, resource_id: resourceId }, signal }),
   setBillingMonitoring: (
@@ -700,6 +700,10 @@ export const capacity = Object.freeze({
       before: string;
       metric?: "used" | "remaining" | "limit" | "remaining_ratio";
       seriesKind?: "raw_provider" | "poll_snapshot" | "derived";
+      resourceId?: string;
+      windowId?: string;
+      asOf?: string;
+      limit?: number;
       cursor?: string;
       signal?: AbortSignal;
     }>,
@@ -711,7 +715,10 @@ export const capacity = Object.freeze({
         before: options.before,
         metric: options.metric ?? "remaining_ratio",
         series_kind: options.seriesKind ?? "poll_snapshot",
-        limit: 200,
+        limit: options.limit ?? 200,
+        ...(options.resourceId === undefined ? {} : { resource_id: options.resourceId }),
+        ...(options.windowId === undefined ? {} : { window_id: options.windowId }),
+        ...(options.asOf === undefined ? {} : { as_of: options.asOf }),
         ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
       },
       signal: options.signal,
@@ -781,7 +788,7 @@ export function safeProblemMessage(problem: SafeProblemV1): string {
 
 export const cloudUsage = {
   eligibility: (accountId: string, resourceId: string, context: CloudUsageContextV1, signal?: AbortSignal): Promise<ClientResult<CloudUsageEligibilityWireV1>> =>
-    apiClient.cloud_usage_eligibility_v1({ path: { account_id: accountId, resource_id: resourceId }, query: { ...context }, signal }),
+    apiClient.cloud_usage_eligibility_v1({ path: { account_id: accountId, resource_id: resourceId }, query: { ...context, grouping: context.grouping?.[0] }, signal }),
   collect: (accountId: string, resourceId: string, accountVersion: number, targetVersion: number,
     context: CloudUsageContextV1, idempotencyKey: string, signal?: AbortSignal): Promise<ClientResult<CloudUsageRunStatusV1>> =>
     apiClient.cloud_usage_collect_v1({ path: { account_id: accountId, resource_id: resourceId },

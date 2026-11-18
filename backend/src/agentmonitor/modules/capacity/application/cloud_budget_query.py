@@ -10,11 +10,36 @@ from agentmonitor.contracts.capacity_v1 import (
     BudgetCurrentQueryV1,
     BudgetCurrentReportsPortV1,
     BudgetPeriodV1,
+    BudgetReportSelectionV1,
 )
 from agentmonitor.contracts.collection_control_v1 import CloudBudgetReportContextV1
 from agentmonitor.contracts.common_v1 import QueryAvailabilityV1
 from agentmonitor.contracts.registry_v1 import CloudMonitoringTargetV1
 from agentmonitor.modules.capacity.domain.budget_account_spend import reported_spend
+
+
+def visible_cloud_reports(
+    selections: tuple[BudgetReportSelectionV1, ...],
+) -> tuple[BudgetReportSelectionV1, ...]:
+    return tuple(
+        selection
+        for selection in selections
+        if (view := selection.latest_attempt or selection.current) is not None
+        and view.report.source_category
+        in {"self_requests_and_cost", "team_requests_and_cost"}
+    )
+
+
+def default_cloud_spend_reports(
+    selections: tuple[BudgetReportSelectionV1, ...],
+) -> tuple[BudgetReportSelectionV1, ...]:
+    return tuple(
+        selection
+        for selection in selections
+        if (view := selection.latest_attempt or selection.current) is not None
+        and view.report.source_category == "self_requests_and_cost"
+        and not view.report.grouping
+    )
 
 
 def cloud_budget_current(
@@ -51,12 +76,7 @@ def cloud_budget_current(
             active_binding=target.binding,
         )
     )
-    selected = tuple(
-        item
-        for item in result.items
-        if (report := item.latest_attempt or item.current) is not None
-        and report.report.source_category == "self_requests_and_cost"
-    )
+    selected = visible_cloud_reports(result.items)
     try:
         latest = collection.get_latest_budget_run(
             target.account_id,
@@ -83,7 +103,7 @@ def cloud_budget_current(
         else result.availability,
         tuple(
             value
-            for selection in selected
+            for selection in default_cloud_spend_reports(selected)
             if (value := reported_spend(selection)) is not None
         ),
         latest,

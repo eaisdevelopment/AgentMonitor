@@ -5,7 +5,10 @@ import json
 import re
 from datetime import datetime
 
+from agentmonitor.contracts.budget_forecast_v1 import BudgetSourceEvidenceV1
 from agentmonitor.contracts.budget_query_v1 import (
+    BudgetDailyCostRowV1,
+    BudgetDailyCostsV1,
     BudgetHistoryQueryV1,
     BudgetHistoryResultV1,
     BudgetHistoryRowV1,
@@ -19,6 +22,7 @@ from agentmonitor.modules.capacity.domain.budget_codec import (
     budget_report_digest,
     utc_text,
 )
+from agentmonitor.modules.capacity.domain.budget_daily_chart import daily_chart
 from agentmonitor.modules.capacity.domain.budget_history_chart import chart_rows
 
 # At most 10,000 report facts means the last continuation offset is 9,999.
@@ -50,7 +54,10 @@ def _fingerprint(selected: BudgetSelectedReportV1, query: BudgetHistoryQueryV1) 
 
 
 def history_result(
-    selected: BudgetSelectedReportV1, query: BudgetHistoryQueryV1
+    selected: BudgetSelectedReportV1,
+    query: BudgetHistoryQueryV1,
+    *,
+    evidence: BudgetSourceEvidenceV1 | None = None,
 ) -> BudgetHistoryResultV1:
     """The caller reauthorizes the retained selection on every page.
 
@@ -102,6 +109,7 @@ def history_result(
             raise ValueError("budget_history_cursor_invalid")
     end = min(offset + query.limit, len(rows))
     has_more = end < len(rows)
+    daily = daily_chart(selected, evidence=evidence)
     return BudgetHistoryResultV1(
         selected.report,
         selected.reported_spend,
@@ -112,5 +120,26 @@ def history_result(
             has_more,
             f"v1_{fingerprint}_{end}" if has_more else None,
             QueryAvailabilityV1("available", "budget_daily_history_read", query.as_of),
+        ),
+        BudgetDailyCostsV1(
+            tuple(
+                BudgetDailyCostRowV1(
+                    point.day.period,
+                    point.day.amount,
+                    len(point.day.input_bucket_keys),
+                    point.day.has_adjustment,
+                    point.day.derived_zero,
+                    point.chart,
+                )
+                for point in daily.points
+            ),
+            "unavailable"
+            if not daily.points
+            else "partial"
+            if daily.reason
+            else "available",
+            daily.reason or "daily_costs_calculated",
+            evidence.policy_id if evidence else None,
+            evidence.policy_version if evidence else None,
         ),
     )

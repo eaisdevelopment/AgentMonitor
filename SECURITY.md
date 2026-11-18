@@ -2,7 +2,7 @@
 
 ## Current project status
 
-AgentMonitor is in specification phase and has no released production version. Security reports about documentation, planned architecture, repository exposure, or future implementation are still welcome.
+AgentMonitor is a source-available application for locally monitoring AI accounts and provider-reported usage. Report vulnerabilities affecting the application, provider integrations, stored metadata or deployment tools. Identify the exact revision; public source availability is not a claim of security certification.
 
 ## Reporting
 
@@ -28,7 +28,7 @@ If proof requires sensitive evidence, first describe the evidence category and a
 
 ## Response expectations
 
-The owner will acknowledge receipt when practical, assess severity and affected scope, coordinate safe reproduction/mitigation, and agree disclosure timing. Exact response-time commitments will be established before public release.
+The owner will acknowledge receipt when practical, assess severity and affected scope, coordinate safe reproduction/mitigation, and agree disclosure timing. No fixed response-time commitment is published.
 
 ## Security architecture
 

@@ -8,8 +8,10 @@ from typing import Any, Literal, cast
 import pytest
 from agentmonitor.adapters.providers.codex.openai_api.manifest import (
     ADAPTER_ID,
-    ADAPTER_VERSION,
     PROVIDER_VERSION,
+)
+from agentmonitor.adapters.providers.codex.openai_api.manifest import (
+    ANALYTICS_VERSION as ADAPTER_VERSION,
 )
 from agentmonitor.adapters.providers.codex.openai_api.policy import (
     COST_BASIS,
@@ -383,6 +385,26 @@ def test_success_with_changed_report_identity_fails_closed() -> None:
     assert outcome.state == "internal_adapter_error"
     assert outcome.error is not None
     assert outcome.error.code == "openai_cost_result_invalid"
+
+
+@pytest.mark.parametrize("status", [400, 404, 422])
+def test_rejected_http_request_is_distinct_from_invalid_report_data(
+    status: int,
+) -> None:
+    admission = _admission()
+    outcome = openai_billing_outcome(
+        admission,
+        OpenAICostResultV1("unexpected_response", "must_not_escape", None, 1, status),
+        NOW + timedelta(seconds=3),
+    )
+    assert outcome.error is not None
+    assert outcome.error.code == "openai_report_request_rejected"
+    failed = normalize_openai_billing_outcome(
+        admission, outcome, NOW + timedelta(seconds=3)
+    )
+    assert isinstance(failed, CollectionFailedV1)
+    assert failed.error_code == "openai_report_request_rejected"
+    assert failed.terminal_state == "blocked"
 
 
 def _build(**changes: Any) -> BudgetCollectionRunAdmissionV1:

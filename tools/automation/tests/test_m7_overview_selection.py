@@ -19,3 +19,17 @@ def test_overview_check_rejects_ambiguous_revision_or_lane(
 ) -> None:
     with pytest.raises(ValueError, match="m7_selection_invalid"):
         validate_selection(lane, "overview", revision)
+
+
+def test_overview_runner_executes_available_real_pool_test_node() -> None:
+    """Select real populated evidence without requiring absent extra examples."""
+    from tools.automation.implementations.auto_m7 import _run_pytest
+
+    result = _run_pytest(
+        "available_pool_totals",
+        (
+            "backend/tests/live/ollama/test_budget_pool_totals_live.py"
+            "::test_genuine_available_filtered_pool_totals",
+        ),
+    )
+    assert result.status == "passed", result.reason_code

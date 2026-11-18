@@ -1,5 +1,6 @@
 """FND-BND-001..003: real source policy and immutable technical V1 values."""
 
+import cProfile
 import dataclasses
 import importlib
 import subprocess
@@ -9,6 +10,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
+from typing import get_type_hints
 
 import pytest
 
@@ -680,6 +682,7 @@ def test_allowed_inward_dependencies(tmp_path: Path) -> None:
         f"from {SQLITE_POLICY} import DatabaseRefV1",
         f"from {SQLITE_POLICY} import SqliteDatabaseHandleV1 as DatabaseHandle",
         f"from {SQLITE_POLICY} import checkpoint_sqlite_database",
+        f"from {SQLITE_POLICY} import sqlite_read_query_scope",
         f"from {SQLITE_POLICY} import open_sqlite_database",
         f"from {SQLITE_COMPATIBILITY} import application_schema_range",
         f"from {SQLITE_COMPATIBILITY} import InspectSchemaCompatibilityV1 as Inspector",
@@ -1109,6 +1112,36 @@ def test_all_literal_statuses_are_closed_at_construction() -> None:
         )
 
 
+def test_repeated_technical_values_reuse_type_metadata_but_validate_each_value() -> (
+    None
+):
+    """Overview hot path: immutable type reflection must not scale with rows."""
+    cls = contract("foundation_v1").OpenApiArtifactAndGeneratedClientPipelineV1
+    values = dict(
+        source_hash="a",
+        openapi_hash="b",
+        client_hash="c",
+        generator_name="g",
+        generator_version="1",
+        api_major=1,
+        compatibility="compatible",
+    )
+    profile = cProfile.Profile()
+    with profile:
+        for _ in range(100):
+            cls(**values)
+    reflections = sum(
+        item.callcount
+        for item in profile.getstats()
+        if item.code == get_type_hints.__code__
+    )
+    assert reflections <= 1, f"type_reflection_scales_with_values: {reflections}"
+    with pytest.raises(ValueError, match="unsupported-field-state"):
+        cls(**(values | {"compatibility": "invented"}))
+    with pytest.raises(TypeError, match="immutable-technical-value-required"):
+        cls(**(values | {"source_hash": ["mutable"]}))
+
+
 def test_source_tree_ancestor_symlink_is_not_followed(tmp_path: Path) -> None:
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -1241,3 +1274,49 @@ def test_provider_retry_after_date_parser_keeps_domain_io_boundary() -> None:
     assert not policy._allowed(
         adapter, "agentmonitor.modules.registry.domain.billing_connection"
     )
+
+
+def test_retention_contract_and_exact_owner_dependencies_are_admitted() -> None:
+    policy = checker()
+    assert "capacity_retention_v1" in policy.CONTRACT_MODULES
+    source = "agentmonitor.adapters.persistence.capacity.sqlite.budget_retention"
+    for target in (
+        "agentmonitor.modules.capacity.application.budget_commit.validate_budget_commit",
+        "agentmonitor.modules.capacity.domain.budget_codec.decode_budget_provenance",
+        "agentmonitor.modules.capacity.domain.budget_retention.request_identity",
+    ):
+        assert policy._allowed(source, target, symbol_import=True)
+        assert not policy._allowed(
+            source.replace("capacity.sqlite", "registry.sqlite"),
+            target,
+            symbol_import=True,
+        )
+        assert not policy._allowed(source, target.rpartition(".")[0])
+    assert not policy._allowed(
+        source, "agentmonitor.modules.registry.domain.billing_connection"
+    )
+    assert not policy._allowed(
+        "agentmonitor.composition.budget_retention",
+        "agentmonitor.modules.capacity.domain.budget_retention_codec",
+    )
+
+
+def test_retention_cursor_encoding_does_not_allow_general_domain_io() -> None:
+    policy = checker()
+    source = "agentmonitor.modules.capacity.domain.budget_retention"
+    assert policy._allowed(source, "base64")
+    assert not policy._allowed(source, "os")
+    assert not policy._allowed(source, "sqlite3")
+    assert not policy._allowed("agentmonitor.modules.registry.domain.rule", "base64")
+
+
+def test_retention_focused_ownership_adopts_only_published_operations_contract() -> (
+    None
+):
+    ownership = tomllib.loads((ROOT / "docs/plans/parallel-ownership.toml").read_text())
+    path = "backend/src/agentmonitor/contracts/capacity_retention_v1.py"
+    writers = [item for item in ownership["shared_writers"] if path in item["paths"]]
+    assert len(writers) == 1
+    adoption = tomllib.loads((ROOT / "docs/plans/contract-adoption.toml").read_text())
+    foundation = next(item for item in adoption["plans"] if item["id"] == "PLAN-FND")
+    assert "CTR-OPS-007" in foundation["consumes"]

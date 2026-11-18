@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import cProfile
 import http.cookiejar
 import json
 import secrets
+import sqlite3
 import urllib.parse
+from contextlib import closing
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +21,194 @@ from backend.tests.integration.api.test_iam_http import (
     _running,
     _session_cookies,
 )
+
+
+def test_pending_api_inventory_avoids_empty_financial_reads_and_pages_over_http(
+    tmp_path: Path,
+) -> None:
+    """Real owner metadata, production projection and HTTP; no provider source."""
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+    )
+    from agentmonitor.adapters.persistence.registry.sqlite.repository import (
+        SqliteRegistryRepositoryV1,
+    )
+    from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
+    from agentmonitor.contracts.budget_query_v1 import BudgetOverviewQueryV1
+    from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1
+    from agentmonitor.contracts.common_v1 import OpaqueIdV1
+    from agentmonitor.modules.capacity.application.budget_queries import (
+        GetAccountBudgetCurrentV1,
+    )
+    from agentmonitor.modules.provider_system.application.gateway import (
+        get_manifest_fingerprint_v1,
+    )
+    from agentmonitor.modules.registry.application.accounts import (
+        CreatePendingAccountCommandV1,
+        RegisterAccountV1,
+    )
+
+    app, credential = _installation(tmp_path)
+    runtime = app.state.lifecycle
+    runtime.hooks = replace(runtime.hooks, tasks=())
+    database = tmp_path / "agentmonitor.db"
+    with closing(sqlite3.connect(database)) as connection:
+        row = connection.execute(
+            "SELECT administrator_id FROM iam_administrator"
+        ).fetchone()
+    assert row is not None, "real_test_administrator_required"
+    principal = OpaqueIdV1(row[0])
+    registry = SqliteRegistryRepositoryV1(DatabaseRefV1(database, tmp_path))
+    register = RegisterAccountV1(registry)
+    manifest = get_manifest_fingerprint_v1(build_claude_manifest())
+    for index in range(51):
+        register.pending(
+            CreatePendingAccountCommandV1(
+                command_id=OpaqueIdV1(secrets.token_urlsafe(24)),
+                principal_id=principal,
+                provider_key="claude",
+                manifest_reference=manifest,
+                friendly_name=f"Sort account {index:03d}",
+                organization_id=None,
+                requested_at=datetime.now(UTC),
+                initial_connection_purpose="api",
+            )
+        )
+    now = datetime.now(UTC)
+    end = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    query = BudgetOverviewQueryV1(
+        BudgetPeriodV1(end - timedelta(days=7), end),
+        now,
+        include_ungrouped=True,
+        provider_key="claude",
+        limit=50,
+        sort_by="account",
+        sort_direction="descending",
+    )
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            port = app.state.observation_ports.list_budget_overview
+            assert port is not None
+            profile = cProfile.Profile()
+            result = await asyncio.to_thread(profile.runcall, port, query)
+            assert result.page.availability.state == "available"
+            assert result.inventory_count == 51
+            calls = sum(
+                item.callcount
+                for item in profile.getstats()
+                if item.code == GetAccountBudgetCurrentV1.__call__.__code__
+            )
+            assert calls == 0, "unenrolled_api_financial_reads_are_unnecessary"
+            jar = http.cookiejar.CookieJar()
+            login = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                "/api/v1/session",
+                body={"password": credential},
+                headers={"Origin": origin},
+                cookies=jar,
+            )
+            assert login[0] == 204
+            parameters = {
+                "period_start": query.period.start.isoformat(),
+                "period_end": query.period.end.isoformat(),
+                "as_of": now.isoformat(),
+                "provider_key": "claude",
+                "include_ungrouped": "true",
+                "sort_by": "account",
+                "sort_direction": "descending",
+                "limit": "50",
+            }
+            pages: list[dict[str, Any]] = []
+            for page_number in range(2):
+                response = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "GET",
+                    "/api/v1/budgets?" + urllib.parse.urlencode(parameters),
+                    cookies=jar,
+                )
+                assert response[0] == 200, "pending_api_overview_http_unavailable"
+                payload = json.loads(response[2])
+                assert payload["availability"]["state"] == "available"
+                assert payload["inventory_count"] == 51
+                assert payload["summaries"] == []
+                assert len(payload["items"]) == (50 if page_number == 0 else 1)
+                assert payload["page"]["has_more"] is (page_number == 0)
+                for item in payload["items"]:
+                    assert item["resource_kind"] == "unconfigured"
+                    assert item["resource_id"] is None
+                    assert item["state_code"] == "setup_required"
+                    assert item["monitoring_enabled"] is False
+                    assert item["contexts"] == [] and item["funds"] == []
+                pages.append(payload)
+                cursor = payload["page"]["next_cursor"]
+                if page_number == 0:
+                    assert isinstance(cursor, str)
+                    parameters["cursor"] = cursor
+                else:
+                    assert cursor is None
+            items = [item for page in pages for item in page["items"]]
+            assert [item["account"]["friendly_name"] for item in items] == [
+                f"Sort account {index:03d}" for index in reversed(range(51))
+            ]
+            assert len({item["row_id"] for item in items}) == 51
+            assert pages[0]["registry_revision"] == pages[1]["registry_revision"]
+            # Genuine owner enrollment must restore financial reads immediately;
+            # skipping empty setup accounts must never hide a retained resource.
+            account_id = items[0]["account"]["account_id"]
+            account = await asyncio.to_thread(
+                _request, origin, "GET", f"/api/v1/accounts/{account_id}", cookies=jar
+            )
+            assert account[0] == 200
+            enrolled = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                f"/api/v1/accounts/{account_id}/billing-connections",
+                body={"scope_id": None},
+                headers={
+                    "Origin": origin,
+                    "X-CSRF-Token": _session_cookies(jar)["agentmonitor_csrf"],
+                    "If-Match": account[1]["ETag"],
+                    "Idempotency-Key": secrets.token_urlsafe(24),
+                },
+                cookies=jar,
+            )
+            assert enrolled[0] == 201
+            resource_id = json.loads(enrolled[2])["resource_id"]
+            registered = registry.list_account_resources(OpaqueIdV1(account_id))
+            assert len(registered) == 1
+            assert registered[0].resource_id.value == resource_id
+            assert registered[0].kind == "api_organization"
+            after_profile = cProfile.Profile()
+            after = await asyncio.to_thread(
+                after_profile.runcall,
+                port,
+                replace(query, as_of=datetime.now(UTC)),
+            )
+            assert after.page.availability.state == "available"
+            assert (
+                sum(
+                    item.callcount
+                    for item in after_profile.getstats()
+                    if item.code == GetAccountBudgetCurrentV1.__call__.__code__
+                )
+                == 1
+            ), "enrolled_api_account_requires_financial_read"
+            enrolled_row = next(
+                item
+                for item in after.page.items
+                if item.account.account_id.value == account_id
+            )
+            assert enrolled_row.resource_id == registered[0].resource_id
+            assert enrolled_row.resource_kind == "billing"
+            assert enrolled_row.state_code == "connection_required"
+            assert enrolled_row.contexts == () and enrolled_row.funds == ()
+
+    asyncio.run(exercise())
 
 
 def _overview_path(**overrides: str) -> str:

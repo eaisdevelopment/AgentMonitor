@@ -22,6 +22,30 @@ from agentmonitor.modules.identity_access.application.sessions import (
 )
 
 
+def test_recent_session_resolves_while_unrelated_writer_holds_database(
+    real_iam_installation: tuple[DatabaseRefV1, str],
+) -> None:
+    """A dashboard read with no activity update must not queue behind telemetry."""
+    reference, owner_credential = real_iam_installation
+    repository = SqliteIdentityAccessSessionRepositoryV1(reference)
+    issued = AuthenticateAdministratorV1(repository, Argon2PasswordV1())(
+        SecretInputV1(owner_credential), correlation_id="read-contention-login"
+    )
+    assert isinstance(issued, SessionCredentialIssueV1)
+    with open_sqlite_database(reference, "runtime_read_write") as handle:
+        with handle.connect() as writer:
+            writer.exec_driver_sql("BEGIN IMMEDIATE")
+            result = ResolveBrowserSessionV1(repository)(
+                SecretInputV1(issued.session_credential),
+                correlation_id="read-contention-resolve",
+            )
+            assert result.code == "authenticated"
+            assert result.session is not None
+            assert result.session.record_version == issued.session.record_version
+            assert result.session.last_activity_at == issued.session.last_activity_at
+            writer.rollback()
+
+
 def test_two_real_requests_after_elapsed_minute_coalesce_to_one_durable_touch(
     real_iam_installation: tuple[DatabaseRefV1, str],
 ) -> None:

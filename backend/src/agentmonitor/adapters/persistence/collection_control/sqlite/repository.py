@@ -1317,6 +1317,32 @@ class SqliteCollectionRepositoryV1:
             result.append(row)
         return tuple(result)
 
+    def claim_expired_running_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        limit: int,
+    ) -> tuple[CollectionRunViewV1, ...]:
+        """Claim interrupted observations; budget and committing runs stay separate."""
+        return self._claim_expired_runs(
+            provider_key=provider_key,
+            capability_id=capability_id,
+            source_id=source_id,
+            as_of=as_of,
+            owner_stale_before=owner_stale_before,
+            recovery_instance_id=recovery_instance_id,
+            recovery_lease_expires_at=recovery_lease_expires_at,
+            limit=limit,
+            pre_commit=True,
+            running_only=True,
+        )
+
     def _claim_expired_runs(
         self,
         *,
@@ -1330,6 +1356,7 @@ class SqliteCollectionRepositoryV1:
         limit: int,
         budget_only: bool = False,
         pre_commit: bool = False,
+        running_only: bool = False,
     ) -> tuple[CollectionRunViewV1, ...]:
         """Atomically re-fence an oldest-first expired/stale recovery batch."""
         if (
@@ -1356,10 +1383,14 @@ class SqliteCollectionRepositoryV1:
                     budget_filter = (
                         "AND EXISTS (SELECT 1 FROM collection_budget_run b WHERE b.run_id=r.run_id) "
                         if budget_only
+                        else "AND NOT EXISTS (SELECT 1 FROM collection_budget_run b WHERE b.run_id=r.run_id) "
+                        if running_only
                         else ""
                     )
                     state_predicate = (
-                        "r.state IN ('queued','running') AND r.deadline_at<=? "
+                        "r.state='running' AND r.deadline_at<=? "
+                        if running_only
+                        else "r.state IN ('queued','running') AND r.deadline_at<=? "
                         if pre_commit
                         else "r.state='committing' "
                     )
@@ -1579,8 +1610,12 @@ class SqliteCollectionRepositoryV1:
             authority_sql = cloud_sql
             context_sql = (
                 " AND json_extract(b.canonical_target_json, '$.report_context.scope')=?"
+                " AND coalesce(json_extract(b.canonical_target_json, '$.report_context.grouping'), '[]')=?"
             )
-            context_parameters = (report_context.scope,)
+            context_parameters = (
+                report_context.scope,
+                json.dumps(report_context.grouping, separators=(",", ":")),
+            )
         else:
             authority_sql = (
                 "(" + raw_billing_sql + " OR " + billing_sql + " OR " + cloud_sql + ")"
@@ -1659,20 +1694,37 @@ class SqliteCollectionRepositoryV1:
                 self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
+                    # Schedule ownership is immutable and checked on admission.
+                    # Find each schedule's latest matching run through the existing
+                    # schedule/time index, then select the newest of those rows.
+                    # This preserves source/cutoff/tie ordering without scanning
+                    # the complete run history on every idle collector tick.
+                    run_account = " AND candidate.account_id=?" if account_id else ""
+                    schedule_account = " AND s.account_id=?" if account_id else ""
+                    parameters: tuple[object, ...] = (
+                        provider_key,
+                        capability_id,
+                        source_id,
+                        _utc_text(as_of),
+                    )
+                    if account_id is not None:
+                        parameters += (account_id.value,)
+                    parameters += (provider_key, capability_id)
+                    if account_id is not None:
+                        parameters += (account_id.value,)
                     row = (
                         connection.exec_driver_sql(
-                            "SELECT * FROM collection_run WHERE provider_key=? "
-                            "AND capability_id=? AND source_id=? AND requested_at<=? "
-                            "AND (? IS NULL OR account_id=?) "
-                            "ORDER BY requested_at DESC, run_id LIMIT 1",
-                            (
-                                provider_key,
-                                capability_id,
-                                source_id,
-                                _utc_text(as_of),
-                                account_id.value if account_id else None,
-                                account_id.value if account_id else None,
-                            ),
+                            "SELECT r.* FROM collection_schedule s JOIN collection_run r "
+                            "ON r.run_id=(SELECT candidate.run_id FROM collection_run candidate "
+                            "WHERE candidate.schedule_id=s.schedule_id "
+                            "AND candidate.provider_key=? AND candidate.capability_id=? "
+                            "AND candidate.source_id=? AND candidate.requested_at<=?"
+                            + run_account
+                            + " ORDER BY candidate.requested_at DESC,candidate.run_id LIMIT 1) "
+                            "WHERE s.provider_key=? AND s.capability_id=?"
+                            + schedule_account
+                            + " ORDER BY r.requested_at DESC,r.run_id LIMIT 1",
+                            parameters,
                         )
                         .mappings()
                         .one_or_none()

@@ -49,6 +49,7 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
     from agentmonitor.composition.bootstrap import create_iam_application
     from agentmonitor.composition.budget_analysis import StoredBudgetSourceEvidenceV1
     from agentmonitor.composition.budget_funds import StoredAccountBudgetFundsV1
+    from agentmonitor.contracts.capacity_v1 import BudgetReportHistoryQueryV1
     from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
     from agentmonitor.contracts.common_v1 import OpaqueIdV1
     from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
@@ -89,7 +90,7 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
     runs = SqliteCollectionRepositoryV1(reference)
     bindings = SqliteCredentialBindingsV1(reference)
     now = datetime.now(UTC)
-    genuine = []
+    stored = None
     for run in runs.list_runs("ollama", None, now, 500):
         if (
             not isinstance(run, BudgetCollectionRunViewV1)
@@ -109,13 +110,28 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
                 and not report.report.grouping
             )
         ):
-            genuine.append(report)
-    assert genuine, (
+            # Report discovery pagination requires multiple genuine revisions
+            # of this exact account/resource/period. A newly started reporting
+            # period can legitimately have only one, even with many daily facts.
+            revisions = reports.list_reports(
+                BudgetReportHistoryQueryV1(
+                    report.report.subject.account_id,
+                    report.report.subject.resource_id,
+                    report.report.requested_period,
+                    limit=1,
+                    as_of=now,
+                )
+            )
+            if not revisions.has_more:
+                continue
+            # Keep the selected genuine report's exact period and identity.
+            stored = report
+            break
+    assert stored is not None, (
         "genuine_stored_complete_monetary_report_required"
         if require_money
         else "genuine_stored_report_with_daily_facts_required"
     )
-    stored = min(genuine, key=lambda item: (item.stored_at, item.report_id.value))
 
     def active_binding(account_id: OpaqueIdV1) -> ActiveCredentialBindingRefV1 | None:
         return resolve_active_credential_binding(bindings.read(account_id))
@@ -145,7 +161,9 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
         app.state.observation_ports,
         get_account_budget_current=current,
         get_selected_budget_report=selected,
-        list_budget_history=ListBudgetHistoryV1(selected),
+        list_budget_history=ListBudgetHistoryV1(
+            selected, StoredBudgetSourceEvidenceV1(reports.get_report_provenance)
+        ),
         get_budget_forecast=GetBudgetForecastV1(
             selected,
             StoredBudgetSourceEvidenceV1(reports.get_report_provenance),
@@ -408,9 +426,39 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
             )
             assert first[0] == 200, "genuine_budget_history_http_failed"
             first_payload = json.loads(first[2])
+            if require_money:
+                daily = first_payload.get("daily_costs")
+                assert daily is not None, "genuine_daily_cost_projection_missing"
+                assert daily["state"] == "available"
+                assert daily["policy_id"] and daily["policy_version"]
+                groups: dict[str, list[Any]] = {}
+                for bucket in stored.report.cost_buckets:
+                    groups.setdefault(
+                        bucket.period.start.isoformat().replace("+00:00", "Z"), []
+                    ).append(bucket)
+                assert len(daily["items"]) == len(groups) <= 30
+                for row in daily["items"]:
+                    original_rows = groups[row["period"]["start"]]
+                    atoms = sum(
+                        int(bucket.amount.amount.coefficient)
+                        * 10 ** (18 - bucket.amount.amount.scale)
+                        for bucket in original_rows
+                    )
+                    amount = row["amount"]
+                    assert (
+                        int(amount["coefficient"]) * 10 ** (18 - amount["scale"])
+                        == atoms
+                    )
+                    assert amount["currency"] == stored.report.currency
+                    assert row["source_entry_count"] == len(original_rows)
+                    assert row["has_adjustment"] == any(
+                        bucket.kind == "adjustment" for bucket in original_rows
+                    )
+                    assert row["derived_zero"] is False
             page = first_payload
             rows = []
             while True:
+                assert page.get("daily_costs") == first_payload.get("daily_costs")
                 assert page["report"] == expected_metadata
                 assert page["reported_spend"] == full_payload["reported_spend"]
                 assert page["availability"]["state"] == "available"

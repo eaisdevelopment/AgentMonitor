@@ -68,7 +68,16 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
     callbacks.current.onSubscriptions(null);
     void (async () => {
       try {
-        const result = await budgets.overview({ ...query, ...(cursor === undefined ? {} : { cursor }) }, controller.signal);
+        const request = { ...query, ...(cursor === undefined ? {} : { cursor }) };
+        let result = await budgets.overview(request, controller.signal);
+        // A concurrent registry commit invalidates the assembled read. Retry
+        // the first page once with the identical financial cutoff and filters.
+        // Never combine pages from different revisions or retry auth failures.
+        if (!controller.signal.aborted && cursor === undefined && result.ok
+            && result.data.availability.state === "unavailable"
+            && result.data.availability.reason_code === "budget_overview_registry_changed") {
+          result = await budgets.overview(request, controller.signal);
+        }
         if (controller.signal.aborted) return;
         if (!result.ok) {
           if (result.problem.code === "dashboard_authentication_required") callbacks.current.onExpired();

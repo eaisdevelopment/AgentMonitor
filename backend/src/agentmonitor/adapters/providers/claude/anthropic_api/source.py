@@ -1,4 +1,4 @@
-"""Official cost GET, callable only inside the supervised billing worker.
+"""Official analytics GETs, callable only inside the supervised billing worker.
 
 The composition root owns a dedicated process and hard 120-second lifetime.
 Each request additionally has a hard SIGALRM bound, including DNS/TLS/header
@@ -27,7 +27,7 @@ from typing import Literal, Protocol, cast
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     API_VERSION,
     BETA_VERSION,
-    COST_BASIS,
+    GROUP_FIELDS,
     HOST,
     MAX_NORMALIZED_BYTES,
     MAX_REQUESTS,
@@ -35,16 +35,25 @@ from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     MAX_ROWS,
     REPORT_SECONDS,
     REQUEST_SECONDS,
-    SOURCE_ID,
     AnthropicCostRequestV1,
+    AnthropicUsageRequestV1,
     bounded_deadline,
     cents_to_usd,
     request_path,
 )
+from agentmonitor.adapters.providers.claude.anthropic_api.usage_policy import (
+    AnthropicUsageMeasuresV1,
+    bucket_key,
+    build_analytics_report,
+    dimensions_for_grouping,
+    usage_buckets,
+)
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCostBucketV1,
+    BudgetDimensionV1,
     BudgetPeriodV1,
     BudgetReportInputV1,
+    BudgetUsageBucketV1,
 )
 
 State = Literal[
@@ -85,6 +94,23 @@ class AnthropicCostSourceV1(Protocol):
         authorization: AnthropicCostAuthorizationV1 | None,
         deadline_monotonic: float | None = None,
     ) -> AnthropicCostResultV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class AnthropicUsageResultV1(AnthropicCostResultV1):
+    """Usage-only normalized report with no monetary/balance inference."""
+
+
+class AnthropicUsageSourceV1(Protocol):
+    """Additive typed usage port sharing the existing sealed credential grant."""
+
+    def __call__(
+        self,
+        request: AnthropicUsageRequestV1,
+        *,
+        authorization: AnthropicCostAuthorizationV1 | None,
+        deadline_monotonic: float | None = None,
+    ) -> AnthropicUsageResultV1: ...
 
 
 class _WorkerRequired(ValueError):
@@ -386,14 +412,9 @@ _GROUP_KEYS = frozenset(
 )
 
 
-def _bucket(value: object, request: AnthropicCostRequestV1) -> BudgetCostBucketV1:
-    if not isinstance(value, dict) or set(value) != {
-        "starting_at",
-        "ending_at",
-        "group",
-        "cost",
-    }:
-        raise ValueError("anthropic_cost_row_invalid")
+def _period(
+    value: dict[str, object], request: AnthropicCostRequestV1
+) -> BudgetPeriodV1:
     period = BudgetPeriodV1(
         _timestamp(value["starting_at"]), _timestamp(value["ending_at"])
     )
@@ -404,72 +425,132 @@ def _bucket(value: object, request: AnthropicCostRequestV1) -> BudgetCostBucketV
         or period.end - period.start != timedelta(days=1)
     ):
         raise ValueError("anthropic_cost_row_period_invalid")
+    return period
+
+
+def _dimensions(
+    value: object,
+    request: AnthropicCostRequestV1,
+) -> tuple[BudgetDimensionV1, ...]:
+    grouping = request.grouping
+    token_usage = isinstance(request, AnthropicUsageRequestV1) and grouping == (
+        "token_category",
+    )
+    selected = GROUP_FIELDS[grouping[0]] if grouping and not token_usage else None
+    # The live API can add empty, unselected dimensions before its published
+    # schema catches up. Null adds no grouping or attribution. Never accept a
+    # non-null unknown dimension or project it into the financial report.
+    if not isinstance(value, dict) or any(
+        key not in _GROUP_KEYS and item is not None for key, item in value.items()
+    ):
+        raise ValueError("anthropic_analytics_group_invalid")
+    for key, item in value.items():
+        if key == selected:
+            continue
+        # The provider emits this fixed qualifier for token_type-only costs.
+        if key == "cost_type" and selected == "token_type" and item == "tokens":
+            continue
+        if item is not None:
+            raise ValueError("anthropic_analytics_unrequested_group")
+    if selected == "token_type" and value.get("cost_type") != "tokens":
+        raise ValueError("anthropic_cost_token_component_invalid")
+    item = value.get(selected) if selected else None
+    if item is not None and type(item) is not str:
+        raise ValueError("anthropic_analytics_group_invalid")
+    if selected == "token_type" and item is None:
+        raise ValueError("anthropic_cost_token_component_invalid")
+    return dimensions_for_grouping(() if token_usage else grouping, item)
+
+
+def _bucket(value: object, request: AnthropicCostRequestV1) -> BudgetCostBucketV1:
+    if not isinstance(value, dict) or set(value) != {
+        "starting_at",
+        "ending_at",
+        "group",
+        "cost",
+    }:
+        raise ValueError("anthropic_cost_row_invalid")
+    period = _period(value, request)
     group, cost = value["group"], value["cost"]
+    dimensions = _dimensions(group, request)
     if (
-        not isinstance(group, dict)
-        or set(group) - _GROUP_KEYS
-        or any(item is not None for item in group.values())
-        or not isinstance(cost, dict)
+        not isinstance(cost, dict)
         or set(cost) != {"amount", "list_amount", "currency", "requests"}
         or cost["currency"] != "USD"
         or cost["requests"] is not None
         and (type(cost["requests"]) is not int or cost["requests"] < 0)
+        or request.grouping == ("token_category",)
+        and cost["requests"] is not None
     ):
         raise ValueError("anthropic_cost_row_fields_invalid")
     amount = cents_to_usd(cost["amount"])
     cents_to_usd(cost["list_amount"])
     return BudgetCostBucketV1(
-        bucket_key="daily_" + period.start.strftime("%Y%m%d"),
+        bucket_key=bucket_key(period, dimensions),
         period=period,
         amount=amount,
-        dimensions=(),
+        dimensions=dimensions,
         kind="adjustment" if int(amount.amount.coefficient) < 0 else "charge",
     )
 
 
-def _report(
-    request: AnthropicCostRequestV1,
-    rows: list[BudgetCostBucketV1],
-    refreshed: datetime | None,
-    omission: str | None,
-) -> BudgetReportInputV1:
-    collected = datetime.now(UTC)
-    if refreshed is not None and refreshed > collected:
-        raise ValueError("anthropic_cost_future_refresh")
-    if omission is None and (refreshed is None or refreshed < request.period.end):
-        omission = (
-            "provider_data_not_ready" if refreshed is None else "provider_data_delayed"
-        )
-    complete = omission is None
-    return BudgetReportInputV1(
-        subject=request.subject,
-        binding_id=request.binding.binding_id,
-        binding_generation=request.binding.generation,
-        scope_generation=request.scope_generation,
-        scope_id=request.scope_id,
-        scope_evidence=request.scope_evidence,
-        source_id=SOURCE_ID,
-        source_category="cost",
-        cost_basis=COST_BASIS,
-        grouping=(),
-        requested_period=request.period,
-        covered_period=request.period if complete else None,
-        source_data_through=refreshed,
-        collected_at=collected,
-        completeness="complete"
-        if complete
-        else "unknown"
-        if refreshed is None
-        else "partial",
-        omission_codes=() if complete else (cast(str, omission),),
-        currency="USD",
-        empty_means_zero=complete,
-        cost_buckets=tuple(rows),
-        usage_buckets=(),
+def _usage_rows(
+    value: object,
+    request: AnthropicUsageRequestV1,
+) -> tuple[BudgetUsageBucketV1, ...]:
+    if not isinstance(value, dict) or set(value) != {
+        "starting_at",
+        "ending_at",
+        "group",
+        "usage",
+    }:
+        raise ValueError("anthropic_usage_row_invalid")
+    period = _period(value, request)
+    dimensions = _dimensions(value["group"], request)
+    usage = value["usage"]
+    required = {
+        "cache_creation",
+        "cache_read_input_tokens",
+        "output_tokens",
+        "server_tool_use",
+        "total_tokens",
+        "uncached_input_tokens",
+    }
+    if (
+        not isinstance(usage, dict)
+        or not required <= set(usage)
+        or set(usage) - required - {"requests"}
+    ):
+        raise ValueError("anthropic_usage_measures_invalid")
+    cache, tool = usage["cache_creation"], usage["server_tool_use"]
+    if (
+        not isinstance(cache, dict)
+        or set(cache) != {"ephemeral_1h_input_tokens", "ephemeral_5m_input_tokens"}
+        or not isinstance(tool, dict)
+        or set(tool) != {"web_search_requests"}
+    ):
+        raise ValueError("anthropic_usage_measures_invalid")
+    # The value object validates exact runtime types and bounds; no coercion or
+    # default zero is performed, including the nullable/optional requests field.
+    measures = AnthropicUsageMeasuresV1(
+        usage["uncached_input_tokens"],
+        usage["cache_read_input_tokens"],
+        usage["output_tokens"],
+        cache["ephemeral_1h_input_tokens"],
+        cache["ephemeral_5m_input_tokens"],
+        usage["total_tokens"],
+        usage.get("requests"),
+        tool["web_search_requests"],
+    )
+    return usage_buckets(
+        period,
+        measures,
+        dimensions,
+        token_categories=request.grouping == ("token_category",),
     )
 
 
-def collect_cost_report_in_worker_v1(
+def _collect_report(
     request: AnthropicCostRequestV1,
     *,
     authorization: AnthropicCostAuthorizationV1 | None,
@@ -481,15 +562,20 @@ def collect_cost_report_in_worker_v1(
     self-admit scheduling or claim that any credential has been live verified.
     No automatic retries, redirects, provider writes or environment lookups.
     """
+    prefix = (
+        "anthropic_usage_"
+        if isinstance(request, AnthropicUsageRequestV1)
+        else "anthropic_cost_"
+    )
     if authorization is None:
         return AnthropicCostResultV1(
             "authorization_unavailable",
-            "anthropic_cost_authorization_unavailable",
+            prefix + "authorization_unavailable",
             None,
             0,
         )
     started = time.monotonic()
-    rows: list[BudgetCostBucketV1] = []
+    rows: list[BudgetCostBucketV1 | BudgetUsageBucketV1] = []
     seen: set[str] = set()
     cursors: set[str] = set()
     cursor: str | None = None
@@ -522,15 +608,20 @@ def collect_cost_report_in_worker_v1(
                 raise ValueError("anthropic_cost_snapshot_invalid")
             refreshed = watermark
             for value in data:
-                row = _bucket(value, request)
-                if row.bucket_key in seen:
-                    raise ValueError("anthropic_cost_duplicate_bucket")
-                # Conservative serialized normalized bound, before retaining row.
-                normalized_bytes += 512 + len(row.amount.amount.coefficient)
-                if normalized_bytes > MAX_NORMALIZED_BYTES:
-                    raise ValueError("anthropic_cost_normalized_too_large")
-                seen.add(row.bucket_key)
-                rows.append(row)
+                batch: tuple[BudgetCostBucketV1 | BudgetUsageBucketV1, ...] = (
+                    _usage_rows(value, request)
+                    if isinstance(request, AnthropicUsageRequestV1)
+                    else (_bucket(value, request),)
+                )
+                for row in batch:
+                    if row.bucket_key in seen:
+                        raise ValueError("anthropic_analytics_duplicate_bucket")
+                    # Bound normalized fan-out, not merely provider JSON rows.
+                    normalized_bytes += 1024
+                    if len(rows) >= MAX_ROWS or normalized_bytes > MAX_NORMALIZED_BYTES:
+                        raise ValueError("anthropic_analytics_normalized_too_large")
+                    seen.add(row.bucket_key)
+                    rows.append(row)
             next_page = page["next_page"]
             if page["has_more"]:
                 if type(next_page) is not str or next_page in cursors:
@@ -542,26 +633,30 @@ def collect_cost_report_in_worker_v1(
                 if next_page is not None:
                     raise ValueError("anthropic_cost_pagination_invalid")
                 bounded_deadline(time.monotonic(), deadline, REPORT_SECONDS)
-                report = _report(request, rows, refreshed, None)
+                report = build_analytics_report(
+                    request, rows, refreshed, None, datetime.now(UTC)
+                )
                 bounded_deadline(time.monotonic(), deadline, REPORT_SECONDS)
                 state: State = (
                     "success" if report.completeness == "complete" else "partial"
                 )
                 return AnthropicCostResultV1(
-                    state, "anthropic_cost_" + state, report, requests, 200
+                    state, prefix + state, report, requests, 200
                 )
             if time.monotonic() >= deadline:
                 raise TimeoutError
         bounded_deadline(time.monotonic(), deadline, REPORT_SECONDS)
-        report = _report(request, rows, refreshed, "page_budget_exceeded")
+        report = build_analytics_report(
+            request, rows, refreshed, "page_budget_exceeded", datetime.now(UTC)
+        )
         bounded_deadline(time.monotonic(), deadline, REPORT_SECONDS)
         return AnthropicCostResultV1(
-            "partial", "anthropic_cost_page_budget_exceeded", report, requests, 200
+            "partial", prefix + "page_budget_exceeded", report, requests, 200
         )
     except _SourceFailure as failure:
         return AnthropicCostResultV1(
             failure.state,
-            "anthropic_cost_" + failure.state,
+            prefix + failure.state,
             None,
             requests,
             failure.status,
@@ -569,27 +664,63 @@ def collect_cost_report_in_worker_v1(
         )
     except TimeoutError:
         return AnthropicCostResultV1(
-            "deadline_exceeded", "anthropic_cost_deadline_exceeded", None, requests
+            "deadline_exceeded", prefix + "deadline_exceeded", None, requests
         )
     except (ssl.SSLError, OSError, http.client.HTTPException):
         return AnthropicCostResultV1(
             "provider_unavailable",
-            "anthropic_cost_transport_unavailable",
+            prefix + "transport_unavailable",
             None,
             requests,
         )
     except _WorkerRequired:
         return AnthropicCostResultV1(
             "worker_required",
-            "anthropic_cost_dedicated_worker_required",
+            prefix + "dedicated_worker_required",
             None,
             requests,
         )
     except (ValueError, RecursionError):
         return AnthropicCostResultV1(
-            "invalid_provider_data", "anthropic_cost_data_invalid", None, requests
+            "invalid_provider_data", prefix + "data_invalid", None, requests
         )
     except Exception:
         return AnthropicCostResultV1(
-            "internal_error", "anthropic_cost_internal_error", None, requests
+            "internal_error", prefix + "internal_error", None, requests
         )
+
+
+def collect_cost_report_in_worker_v1(
+    request: AnthropicCostRequestV1,
+    *,
+    authorization: AnthropicCostAuthorizationV1 | None,
+    deadline_monotonic: float | None = None,
+) -> AnthropicCostResultV1:
+    """Existing cost port; additive single-dimension requests remain fenced."""
+    if type(request) is not AnthropicCostRequestV1:
+        raise ValueError("anthropic_cost_request_required")
+    return _collect_report(
+        request, authorization=authorization, deadline_monotonic=deadline_monotonic
+    )
+
+
+def collect_usage_report_in_worker_v1(
+    request: AnthropicUsageRequestV1,
+    *,
+    authorization: AnthropicCostAuthorizationV1 | None,
+    deadline_monotonic: float | None = None,
+) -> AnthropicUsageResultV1:
+    """Additive usage port; no provider writes, retries or credential reads."""
+    if type(request) is not AnthropicUsageRequestV1:
+        raise ValueError("anthropic_usage_request_required")
+    result = _collect_report(
+        request, authorization=authorization, deadline_monotonic=deadline_monotonic
+    )
+    return AnthropicUsageResultV1(
+        result.state,
+        result.reason_code,
+        result.report,
+        result.requests_made,
+        result.http_status,
+        result.retry_after_seconds,
+    )

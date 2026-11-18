@@ -337,3 +337,44 @@ def test_normalization_rejects_partial_money_without_any_cost_bucket() -> None:
     invalid = replace(outcome, value=replace(report, cost_buckets=(), currency=None))
     with pytest.raises(ValueError, match="ollama_usage_outcome_invalid"):
         _module().normalize_usage_report(admission, invalid, NOW + timedelta(seconds=3))
+
+
+def test_model_report_fences_grouping_and_preserves_partial_money() -> None:
+    from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
+        BudgetCollectionError,
+        require_budget_report_authority,
+    )
+    from agentmonitor.contracts.capacity_v1 import BudgetDimensionV1
+
+    run = _admission()
+    grouped_run = replace(
+        run, report_context=replace(run.report_context, grouping=("model",))
+    )
+    base = _report(run)
+    report = replace(
+        base,
+        grouping=("model",),
+        cost_buckets=(),
+        currency=None,
+        completeness="partial",
+        omission_codes=("cost_not_reported_for_all_buckets",),
+        usage_buckets=tuple(
+            replace(row, dimensions=(BudgetDimensionV1("model", None, True),))
+            for row in base.usage_buckets
+        ),
+    )
+    result = OllamaUsageResultV1(
+        "partial", "ollama_usage_partial", report, 1, "partial", 200
+    )
+    assert _outcome(grouped_run, result).state == "partial"
+    assert _outcome(run, result).state == "internal_adapter_error"
+    authority = (
+        grouped_run.cloud_target,
+        grouped_run.service_target,
+        grouped_run.report_context,
+    )
+    require_budget_report_authority(authority, report)
+    with pytest.raises(BudgetCollectionError):
+        require_budget_report_authority(
+            (run.cloud_target, run.service_target, run.report_context), report
+        )

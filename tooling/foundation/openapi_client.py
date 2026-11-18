@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.14"
+GENERATOR_VERSION = "2.0.15"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -161,6 +161,7 @@ IAM_OPERATIONS = {
         "put",
     ): "billing_set_monitoring_v1",
     ("/api/v1/collection-runs/{run_id}/budget", "get"): "billing_get_run_status_v1",
+    ("/api/v1/collection-runs/{run_id}/budget/v2", "get"): "billing_get_run_status_v2",
     (
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/checks",
         "post",
@@ -170,9 +171,17 @@ IAM_OPERATIONS = {
         "post",
     ): "billing_collect_now_v1",
     (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collections/v2",
+        "post",
+    ): "billing_collect_now_v2",
+    (
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collection-eligibility",
         "get",
     ): "billing_get_collection_eligibility_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collection-eligibility/v2",
+        "get",
+    ): "billing_get_collection_eligibility_v2",
     (
         "/api/v1/accounts/{account_id}/cloud-usage/{resource_id}/collections",
         "post",
@@ -326,6 +335,10 @@ IAM_OPERATIONS = {
     ("/api/v1/budgets/{budget_id}", "get"): "capacity_get_budget_v1",
     ("/api/v1/accounts/{account_id}/budgets", "get"): "capacity_list_budgets_v1",
     ("/api/v1/budgets/{budget_id}/history", "get"): "capacity_list_budget_history_v1",
+    (
+        "/api/v1/budgets/{budget_id}/usage-breakdowns",
+        "get",
+    ): "capacity_list_usage_breakdowns_v1",
     ("/api/v1/budgets/{budget_id}/forecast", "get"): "capacity_get_budget_forecast_v1",
     ("/api/v1/budgets/{budget_id}/reports", "get"): "capacity_list_budget_reports_v1",
     (
@@ -1281,6 +1294,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "billing_get_run_status_v2": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BillingCheckPortV1.get_status",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetRunStatusV2",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "billing_collect_now_v1": (
         "browser_cookie_only",
         "write:accounts",
@@ -1293,6 +1318,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         "BillingCollectInputV1",
     ),
+    "billing_collect_now_v2": (
+        "browser_cookie_only",
+        "write:accounts",
+        "BillingCheckPortV1.collect",
+        "replay_safe_representation",
+        _COOKIE_CSRF,
+        "202",
+        "BillingCheckRunV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "BillingCollectInputV2",
+    ),
     "billing_get_collection_eligibility_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1301,6 +1338,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _COOKIE_BEARER,
         "200",
         "BillingCollectionEligibilityWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "billing_get_collection_eligibility_v2": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BillingCheckPortV1.get_collect_eligibility",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BillingCollectionEligibilityWireV2",
         "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES,
         None,
@@ -1397,6 +1446,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _COOKIE_BEARER,
         "200",
         "BudgetForecastWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "capacity_list_usage_breakdowns_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BudgetHistoryPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetHistoryWireV1",
         "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES,
         None,
@@ -1799,7 +1860,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 102
+        or len(identifiers) != 106
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

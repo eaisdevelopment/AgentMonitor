@@ -30,6 +30,17 @@ assert.equal(canRetainFinancialReading(context, { ...context, authorityRevision:
 const selection = new URLSearchParams({ budget_resource: "resource-1", budget_report: "report-1", budget_start: context.periodStart, budget_end: context.periodEnd, budget_as_of: "2026-11-11T12:00:00.123456Z" });
 const selected = selectedFinancialReport(selection.toString());
 assert.equal(selected.kind, "selected");
+assert.equal(selectedFinancialReport(`${selection}&budget_scope=team`).kind, "selected");
+assert.equal(selectedFinancialReport(`${selection}&budget_scope=team&budget_grouping=model`).kind, "selected");
+for (const suffix of ["budget_grouping=model", "budget_scope=team&budget_category=cost&budget_grouping=model", "budget_scope=team&budget_grouping=workspace", "budget_scope=team&budget_grouping=model&budget_grouping=model"]) {
+  assert.equal(selectedFinancialReport(`${selection}&${suffix}`).kind, "invalid");
+}
+for (const suffix of ["budget_scope=other", "budget_scope=team&budget_scope=self"]) {
+  assert.equal(selectedFinancialReport(`${selection}&${suffix}`).kind, "invalid");
+}
+const scopeWithoutResource = new URLSearchParams(selection);
+scopeWithoutResource.delete("budget_resource"); scopeWithoutResource.delete("budget_report"); scopeWithoutResource.set("budget_scope", "team");
+assert.equal(selectedFinancialReport(scopeWithoutResource.toString()).kind, "invalid");
 assert.equal(selected.query.as_of, "2026-11-11T12:00:00.123456Z", "An immutable cutoff must not lose microseconds");
 const connection = { resource_id: "resource-1", account_id: "account", provider_key: "claude", scope_id: "current-scope", scope_generation: 2 };
 const report = { ...connection, report_id: "report-1" };

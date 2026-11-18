@@ -12,7 +12,11 @@ from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     completed_week,
     request_path,
 )
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, CapacitySubjectV2
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetDimensionKindV1,
+    BudgetPeriodV1,
+    CapacitySubjectV2,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
@@ -91,6 +95,22 @@ def test_query_keeps_opaque_cursor_inside_one_fixed_path() -> None:
     assert "time_bucket_width=1d" in path
     assert "page=opaque%2F%2B%3F%3D%26cursor" in path
     assert "group_by" not in path
+
+
+@pytest.mark.parametrize(
+    ("dimension", "provider_field"),
+    [
+        ("workspace", "workspace_id"),
+        ("api_key_id", "api_key_id"),
+        ("model", "model"),
+        ("token_category", "token_type"),
+    ],
+)
+def test_cost_query_admits_one_selected_dimension(
+    dimension: BudgetDimensionKindV1, provider_field: str
+) -> None:
+    selected = replace(request(), grouping=(dimension,))
+    assert "group_by%5B%5D=" + provider_field in request_path(selected, None)
 
 
 @pytest.mark.parametrize("days", [7, 30])

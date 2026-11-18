@@ -55,6 +55,22 @@ def test_check_identity_is_stable_for_exact_retry_and_scoped_to_owner_intent() -
     assert other_resource.idempotency_key_digest != first.idempotency_key_digest
 
 
+def test_adapter_upgrade_changes_schedule_without_changing_owner_request() -> None:
+    before = billing_check_identifiers(
+        _command(), collection_policy_version="1.2.0", adapter_version="1.1.0"
+    )
+    after = billing_check_identifiers(
+        _command(), collection_policy_version="1.2.0", adapter_version="1.1.1"
+    )
+    assert before.schedule_id != after.schedule_id
+    assert before.run_id == after.run_id
+    assert before.request_id == after.request_id
+    assert before.idempotency_key_digest == after.idempotency_key_digest
+    assert before == billing_check_identifiers(
+        _command(), collection_policy_version="1.2.0", adapter_version="1.1.0"
+    )
+
+
 def test_empty_real_database_refuses_before_creating_target_or_run(
     tmp_path: Path,
 ) -> None:

@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { checkEligibility, pendingRun, matchesCheckRun, advanceFinancialRead, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent } from "../../src/features/accounts/billingCheckPresentation.ts";
+import { selectedFinancialReport } from "../../src/features/accounts/financialReadPresentation.ts";
 
 // Pure policy values only: never credentials or simulated external responses.
 const connection = { provider_key: "claude", lifecycle: "pending", account_id: "account", resource_id: "resource" };
@@ -28,6 +29,21 @@ assert.equal(matchesCheckRun(intent, { account_id: "account", resource_id: "diff
 assert.equal(matchesCheckRun(intent, { account_id: "account", resource_id: "resource", run_id: "different" }), false);
 const query = { period_start: "2026-11-03T00:00:00Z", period_end: "2026-11-10T00:00:00Z", as_of: "2026-11-10T23:59:00Z" };
 assert.deepEqual(advanceFinancialRead(query, new Date("2026-11-11T00:01:00Z")), { ...query, as_of: "2026-11-11T00:01:00.000Z" });
+const exactSnapshot = { ...query, as_of: "2026-11-10T23:59:00.123456Z" };
+const explicitPeriod = new URLSearchParams({ budget_start: exactSnapshot.period_start, budget_end: exactSnapshot.period_end, budget_as_of: exactSnapshot.as_of });
+const statusTime = new Date("2026-11-11T00:01:00Z");
+for (const search of [explicitPeriod.toString(), `${explicitPeriod}&budget_resource=resource&budget_report=report`]) {
+  const selection = selectedFinancialReport(search);
+  assert.ok(["period", "selected"].includes(selection.kind));
+  const reread = advanceFinancialRead(exactSnapshot, statusTime, selection);
+  assert.deepEqual(reread, exactSnapshot, `${selection.kind} status refresh must preserve the explicit microsecond cutoff`);
+  assert.notEqual(reread, exactSnapshot, "a preserved cutoff must still trigger a fresh GET");
+  assert.notEqual(reread, selection.query, "never reuse the selection object as refresh state");
+  assert.deepEqual(advanceFinancialRead({ ...query, as_of: "2026-11-11T00:00:00Z" }, statusTime, selection), exactSnapshot, "the URL snapshot wins over an accidentally advanced local query");
+}
+assert.deepEqual(advanceFinancialRead(exactSnapshot, statusTime, { kind: "none" }), { ...exactSnapshot, as_of: statusTime.toISOString() }, "ordinary unpinned status reads advance");
+assert.deepEqual(advanceFinancialRead(exactSnapshot, statusTime), { ...exactSnapshot, as_of: statusTime.toISOString() }, "explicit Refresh/collection completion still advances");
+assert.deepEqual(advanceFinancialRead(exactSnapshot, statusTime, { kind: "invalid" }), exactSnapshot, "invalid links must not silently advance a fallback snapshot");
 const retained = { accountId: "account", resourceId: "resource", accountVersion: 1, connectionVersion: 2,
   scopeGeneration: 1, credentialGeneration: 1, idempotencyKey: "a".repeat(32), runId: null, deadlineAt: null };
 assert.deepEqual(restoreCheckIntent(JSON.stringify(retained), "account"), retained);

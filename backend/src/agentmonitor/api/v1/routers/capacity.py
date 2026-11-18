@@ -476,6 +476,7 @@ def list_capacity_history(
     bucket_seconds: int | None = Query(None, ge=1, le=31_536_000),
     limit: int = Query(50, ge=1, le=200),
     cursor: str | None = Query(None, max_length=1024),
+    as_of: Annotated[datetime | None, Query()] = None,
 ) -> CapacityHistoryPageV1 | CapacityHistoryPageV2:
     v2 = request.url.path.endswith("/v2")
     operation = "capacity_list_history_v2" if v2 else "capacity_list_history_v1"
@@ -495,6 +496,7 @@ def list_capacity_history(
                 "bucket_seconds",
                 "limit",
                 "cursor",
+                "as_of",
             }
         ),
     )
@@ -516,6 +518,12 @@ def list_capacity_history(
         "bucket_method": bucket_method,
         "bucket_seconds": (str(bucket_seconds) if bucket_seconds is not None else None),
     }
+    # An explicit snapshot is bound into continuation cursors. Omitted cutoffs
+    # retain the legacy filter identity and behavior for existing consumers.
+    if as_of is not None:
+        filters["as_of"] = _utc_filter(as_of)
+        if as_of > datetime.now(UTC):
+            raise ProblemError(400, "invalid_filter")
     after_key = decode_cursor(
         request,
         caller,
@@ -524,7 +532,7 @@ def list_capacity_history(
         limit=limit,
         filters=filters,
     )
-    as_of = datetime.now(UTC)
+    as_of = datetime.now(UTC) if as_of is None else as_of
     try:
         query = CapacityHistoryQueryV1(
             subject_id=OpaqueIdV1(subject_id),

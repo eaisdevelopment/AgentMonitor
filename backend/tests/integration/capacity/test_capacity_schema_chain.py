@@ -53,6 +53,7 @@ CAPACITY_TABLES = {
     "capacity_retention_run",
     "capacity_budget_report",
     "capacity_budget_signed_cost_measure",
+    "capacity_budget_expired_report",
 }
 
 

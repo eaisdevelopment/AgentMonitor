@@ -178,3 +178,35 @@ def test_legacy_schedule_replay_is_readable_but_other_intent_still_conflicts() -
             replace(stored, schedule_id=OpaqueIdV1("unrelated")),
             target,
         )
+
+
+def test_published_report_choices_match_runtime_admission() -> None:
+    from dataclasses import replace
+
+    from agentmonitor.composition.billing_context import (
+        billing_context_supported,
+        billing_report_options,
+        completed_billing_cost_context,
+    )
+
+    context = completed_billing_cost_context(datetime(2026, 11, 12, tzinfo=UTC))
+    options = billing_report_options("claude")
+    assert len(options) == 10
+    for option in options:
+        selected = replace(
+            context, source_category=option.source_category, grouping=option.grouping
+        )
+        assert billing_context_supported("claude", selected)
+        assert option.label
+        assert option.source_id == (
+            "anthropic.analytics.usage.v1"
+            if option.source_category.startswith("usage")
+            else "anthropic.analytics.cost.v1"
+        )
+    assert "excludes other costs" in next(
+        option.label for option in options if option.source_category == "cost_tokens"
+    )
+    assert not billing_context_supported(
+        "claude", replace(context, grouping=("token_category",))
+    )
+    assert billing_report_options("unknown") == ()

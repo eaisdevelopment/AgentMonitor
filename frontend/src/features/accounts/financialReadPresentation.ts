@@ -18,7 +18,7 @@ export function canRetainFinancialReading(previous: FinancialReadContext, next: 
     Date.parse(previous.periodEnd) === Date.parse(next.periodEnd);
 }
 
-type SelectedFinancialReport =
+export type SelectedFinancialReport =
   | Readonly<{ kind: "none" | "invalid" }>
   | Readonly<{ kind: "period"; days: 7 | 30; query: { period_start: string; period_end: string; as_of: string } }>
   | Readonly<{ kind: "selected"; resourceId: string; reportId: string | null;
@@ -56,11 +56,16 @@ export function billingReportCollectable(selection: SelectedFinancialReport, res
 export function selectedFinancialReport(search: string): SelectedFinancialReport {
   const params = new URLSearchParams(search);
   if (params.has("budget_selection")) return { kind: "invalid" };
-  const keys = ["budget_resource", "budget_report", "budget_start", "budget_end", "budget_as_of"];
+  const keys = ["budget_resource", "budget_report", "budget_start", "budget_end", "budget_as_of", "budget_scope", "budget_category", "budget_grouping"];
   if (!keys.some(key => params.has(key))) return { kind: "none" };
   if (keys.some(key => params.getAll(key).length > 1)) return { kind: "invalid" };
   const resourceId = params.get("budget_resource");
   const reportId = params.get("budget_report");
+  const scope = params.get("budget_scope");
+  const category = params.get("budget_category"), grouping = params.get("budget_grouping");
+  if (category !== null && (resourceId === null || !/^[a-z][a-z0-9_]{0,63}$/.test(category) || scope !== null)) return { kind: "invalid" };
+  if (grouping !== null && !(scope !== null ? category === null && grouping === "model" : category !== null && ["workspace", "project", "api_key_id", "model", "token_category"].includes(grouping))) return { kind: "invalid" };
+  if (scope !== null && (resourceId === null || (scope !== "self" && scope !== "team"))) return { kind: "invalid" };
   const safeId = /^[A-Za-z0-9._:-]{1,256}$/;
   if ((resourceId !== null && !safeId.test(resourceId)) || (reportId !== null && (resourceId === null || !safeId.test(reportId)))) return { kind: "invalid" };
   const readTime = (key: string) => {

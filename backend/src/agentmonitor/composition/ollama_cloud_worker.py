@@ -27,6 +27,7 @@ from agentmonitor.composition.ollama_env_store import (
     recover_env_location_if_unused,
     recover_ollama_env_staging,
 )
+from agentmonitor.composition.worker_invocation import checked_worker_invocation
 from agentmonitor.composition.worker_start_authority import (
     consume_worker_start_authority_v1,
     valid_worker_start_token_v1,
@@ -198,9 +199,8 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_unit_output_invalid")
         return process.returncode or 0, output.decode("utf-8", "strict")
 
-    @staticmethod
-    async def _start_command(authority_reader: int, *args: str) -> int:
-        """Start through the real manager while passing only the read authority."""
+    async def _start_command(self, authority_reader: int, *args: str) -> int:
+        """Keep the pipe launcher alive for the bounded worker it supervises."""
         process = await asyncio.create_subprocess_exec(
             *args,
             stdin=authority_reader,
@@ -209,7 +209,12 @@ class OllamaCloudWorkerSupervisorV1:
             env=_manager_environment(),
         )
         try:
-            await asyncio.wait_for(process.wait(), _COMMAND_TIMEOUT_SECONDS)
+            # systemd-run --pipe remains attached until the worker exits.
+            # The separate startup loop still allows only eight seconds to
+            # establish identity and START authority; this wait spans execution.
+            await asyncio.wait_for(
+                process.wait(), self._runtime_seconds + _COMMAND_TIMEOUT_SECONDS
+            )
         except (TimeoutError, asyncio.CancelledError):
             if process.returncode is None:
                 process.kill()
@@ -246,8 +251,9 @@ class OllamaCloudWorkerSupervisorV1:
         description: str,
         start_token: str,
         properties: dict[str, str],
+        *,
+        allow_pending: bool = False,
     ) -> str:
-        invocation = properties.get("InvocationID", "")
         fragment = f"/run/user/{os.getuid()}/systemd/transient/{unit}"
         executable = str(Path(sys.executable))
         exec_start = properties.get("ExecStart", "")
@@ -280,11 +286,9 @@ class OllamaCloudWorkerSupervisorV1:
             or properties.get("RemainAfterExit") != "yes"
             or not exec_start.startswith("{ path=" + executable + " ;")
             or actual_argv != expected_argv
-            or len(invocation) != 32
-            or any(c not in "0123456789abcdef" for c in invocation)
         ):
             raise ValueError("ollama_cloud_unit_identity_invalid")
-        return invocation
+        return checked_worker_invocation(properties, allow_pending=allow_pending)
 
     async def _stop_owned(
         self,
@@ -680,8 +684,11 @@ class OllamaCloudWorkerSupervisorV1:
                         raise ValueError("ollama_cloud_unit_start_failed")
                 properties = await self._show(unit)
                 if properties.get("LoadState") != "not-found":
-                    invocation = self._identity(unit, description, token, properties)
-                    break
+                    invocation = self._identity(
+                        unit, description, token, properties, allow_pending=True
+                    )
+                    if invocation:
+                        break
                 await asyncio.sleep(0.05)
             if not invocation:
                 raise TimeoutError("ollama_cloud_unit_start_timeout")

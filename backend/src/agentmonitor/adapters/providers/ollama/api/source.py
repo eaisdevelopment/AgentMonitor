@@ -22,6 +22,14 @@ from decimal import Decimal
 from types import FrameType
 from typing import Literal, Protocol, cast
 
+from agentmonitor.adapters.providers.ollama.api.grouping import (
+    ModelPartition,
+    ModelUsage,
+    UsageMetrics,
+    reconcile_model_usage,
+    report_money_availability,
+    validate_model_selection,
+)
 from agentmonitor.adapters.providers.ollama.api.policy import (
     COST_BASIS,
     HOST,
@@ -33,18 +41,17 @@ from agentmonitor.adapters.providers.ollama.api.policy import (
     dollars_to_money,
     request_path,
     retry_after_seconds,
+    usage_quantities,
     validate_response_context,
 )
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCostBucketV1,
+    BudgetDimensionV1,
     BudgetPeriodV1,
     BudgetReportInputV1,
     BudgetUsageBucketV1,
 )
-from agentmonitor.contracts.common_quantity_v1 import (
-    CanonicalDecimalV1,
-    ExactQuantityV1,
-)
+from agentmonitor.contracts.common_quantity_v1 import ExactQuantityV1
 
 State = Literal[
     "success",
@@ -348,32 +355,73 @@ _METRICS = frozenset(
 )
 
 
-def _metrics(value: object, *, bucket: bool) -> tuple[int, Decimal | None]:
+def _metrics(
+    value: object, *, bucket: bool
+) -> tuple[tuple[ExactQuantityV1, ...], Decimal | None]:
     if not isinstance(value, dict) or not set(value) <= (
         _METRICS | {"from", "until", "partial"} if bucket else _METRICS
     ):
         raise ValueError("ollama_usage_metrics_invalid")
-    count = value.get("request_count")
-    if type(count) is not int or count < 0 or len(str(count)) > 78:
-        raise ValueError("ollama_usage_count_invalid")
-    # Token fields are only checked; this first slice does not combine/cache-add
-    # them or invent a total. Their mapped breakdown belongs to the next increment.
-    for name in ("input_tokens", "cached_input_tokens", "output_tokens"):
-        token_count = value.get(name)
-        if token_count is not None and (
-            type(token_count) is not int or token_count < 0
-        ):
-            raise ValueError("ollama_usage_token_count_invalid")
+    quantities = usage_quantities(
+        request_count=value.get("request_count"),
+        input_tokens=value.get("input_tokens"),
+        cached_input_tokens=value.get("cached_input_tokens"),
+        output_tokens=value.get("output_tokens"),
+    )
     money = value.get("usage_usd")
     if money is not None and type(money) not in {Decimal, int}:
         raise ValueError("ollama_usage_money_invalid")
-    return count, Decimal(money) if money is not None else None
+    return quantities, Decimal(money) if money is not None else None
+
+
+def _model_summary(value: object, *, bucket: bool) -> ModelPartition:
+    allowed = (
+        _METRICS
+        | {"groups", "remainder"}
+        | ({"from", "until", "partial"} if bucket else set())
+    )
+    if not isinstance(value, dict) or not set(value) <= allowed:
+        raise ValueError("ollama_usage_metrics_invalid")
+    rows = value.get("groups")
+    if not isinstance(rows, list) or len(rows) > 10:
+        raise ValueError("ollama_usage_groups_invalid")
+
+    def metrics(raw: object) -> UsageMetrics:
+        quantities, money = _metrics(raw, bucket=False)
+        return UsageMetrics(
+            quantities, None if money is None else dollars_to_money(money)
+        )
+
+    parent = metrics({key: item for key, item in value.items() if key in _METRICS})
+    groups = []
+    for row in rows:
+        if (
+            not isinstance(row, dict)
+            or not set(row) <= _METRICS | {"model"}
+            or type(row.get("model")) is not str
+        ):
+            raise ValueError("ollama_usage_groups_invalid")
+        groups.append(
+            ModelUsage(
+                BudgetDimensionV1("model", row["model"]),
+                metrics({key: item for key, item in row.items() if key != "model"}),
+            )
+        )
+    remainder = (
+        None
+        if "remainder" not in value
+        else ModelUsage(
+            BudgetDimensionV1("model", None, is_remainder=True),
+            metrics(value["remainder"]),
+        )
+    )
+    return reconcile_model_usage(parent, tuple(groups), remainder)
 
 
 def _report(
     request: OllamaUsageRequestV1, payload: dict[str, object], collected_at: datetime
 ) -> tuple[BudgetReportInputV1, MoneyAvailability]:
-    if set(payload) != {
+    expected = {
         "range",
         "scope",
         "granularity",
@@ -381,7 +429,10 @@ def _report(
         "until",
         "totals",
         "buckets",
-    }:
+    }
+    if request.grouping:
+        expected.add("group_by")
+    if set(payload) != expected:
         raise ValueError("ollama_usage_shape_invalid")
     native_end = _timestamp(payload["until"])
     validate_response_context(
@@ -391,18 +442,59 @@ def _report(
         granularity=payload["granularity"],
         start=_timestamp(payload["from"]),
         end=native_end,
+        grouping=payload.get("group_by"),
     )
-    _metrics(
-        payload["totals"], bucket=False
-    )  # Native total includes today; never selected spend.
+    # Native totals include today: validate, never emit them as selected spend.
+    selection: tuple[str, ...] = ()
+    if request.grouping:
+        total = _model_summary(payload["totals"], bucket=False)
+        selection = tuple(
+            component.dimension.value
+            for component in total.components
+            if component.dimension.value is not None
+        )
+    else:
+        _metrics(payload["totals"], bucket=False)
     buckets = payload["buckets"]
     days = (request.period.end - request.period.start).days
     if not isinstance(buckets, list) or len(buckets) != days + 1:
         raise ValueError("ollama_usage_bucket_coverage_invalid")
     costs: list[BudgetCostBucketV1] = []
     usage: list[BudgetUsageBucketV1] = []
+    money_states: list[MoneyAvailability] = []
     for index, bucket in enumerate(buckets):
-        count, money = _metrics(bucket, bucket=True)
+        components: tuple[tuple[str, tuple[BudgetDimensionV1, ...], UsageMetrics], ...]
+        if request.grouping:
+            partition = _model_summary(bucket, bucket=True)
+            names = tuple(
+                component.dimension.value
+                for component in partition.components
+                if component.dimension.value is not None
+            )
+            validate_model_selection(selection, names)
+            components = tuple(
+                (
+                    "remainder"
+                    if component.dimension.is_remainder
+                    else "model-" + str(selection.index(component.dimension.value)),
+                    (component.dimension,),
+                    component.metrics,
+                )
+                for component in partition.components
+            )
+            bucket_money = partition.money_availability
+        else:
+            quantities, money = _metrics(bucket, bucket=True)
+            components = (
+                (
+                    "",
+                    (),
+                    UsageMetrics(
+                        quantities, None if money is None else dollars_to_money(money)
+                    ),
+                ),
+            )
+            bucket_money = "not_reported" if money is None else "available"
         assert isinstance(bucket, dict)
         start, end = _timestamp(bucket.get("from")), _timestamp(bucket.get("until"))
         expected_start = request.period.start + timedelta(days=index)
@@ -417,28 +509,29 @@ def _report(
             raise ValueError("ollama_usage_bucket_coverage_invalid")
         period = BudgetPeriodV1(start, end)
         key = start.date().isoformat()
-        usage.append(
-            BudgetUsageBucketV1(
-                "requests-" + key,
-                period,
-                ExactQuantityV1(CanonicalDecimalV1(str(count), 0), "requests"),
-                (),
-            )
-        )
-        if money is not None:
-            amount = dollars_to_money(money)
-            costs.append(
-                BudgetCostBucketV1(
-                    "cost-" + key,
-                    period,
-                    amount,
-                    (),
-                    "adjustment" if int(amount.amount.coefficient) < 0 else "charge",
+        money_states.append(bucket_money)
+        for component_key, dimensions, measures in components:
+            suffix = key if not component_key else key + "-" + component_key
+            usage.extend(
+                BudgetUsageBucketV1(
+                    quantity.unit + "-" + suffix, period, quantity, dimensions
                 )
+                for quantity in measures.quantities
             )
-    money_state: MoneyAvailability = (
-        "available" if len(costs) == days else "partial" if costs else "not_reported"
-    )
+            if measures.money is not None:
+                amount = measures.money
+                costs.append(
+                    BudgetCostBucketV1(
+                        "cost-" + suffix,
+                        period,
+                        amount,
+                        dimensions,
+                        "adjustment"
+                        if int(amount.amount.coefficient) < 0
+                        else "charge",
+                    )
+                )
+    money_state = report_money_availability(tuple(money_states), has_costs=bool(costs))
     partial_costs = money_state == "partial"
     report = BudgetReportInputV1(
         subject=request.subject,
@@ -450,7 +543,7 @@ def _report(
         source_id=SOURCE_ID,
         source_category=request.scope + "_requests_and_cost",
         cost_basis=COST_BASIS,
-        grouping=(),
+        grouping=request.grouping,
         requested_period=request.period,
         covered_period=request.period,
         source_data_through=None,

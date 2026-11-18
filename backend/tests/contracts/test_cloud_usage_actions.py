@@ -129,3 +129,49 @@ def test_manual_usage_admission_rejects_wrong_graph_and_stale_native_window() ->
             service=_service(),
             registry_revision=10,
         )
+
+
+def test_manual_upgrade_keeps_original_intent_and_legacy_replay_identity() -> None:
+    from agentmonitor.composition.cloud_usage_actions import cloud_usage_identifiers
+    from agentmonitor.composition.ollama_usage_run import usage_schedule_for_adapter
+
+    legacy = cloud_usage_identifiers(_command(), adapter_version="1.0.0")
+    current = cloud_usage_identifiers(_command())
+    assert legacy.run_id == current.run_id
+    assert legacy.request_id == current.request_id
+    assert legacy.scheduler_instance_id == current.scheduler_instance_id
+    assert legacy.idempotency_key_digest == current.idempotency_key_digest
+    assert legacy.schedule_id != current.schedule_id
+    assert (
+        usage_schedule_for_adapter(legacy.schedule_id, "1.2.0") == current.schedule_id
+    )
+    assert cloud_usage_identifiers(_command(), adapter_version="1.0.0") == legacy
+
+
+def test_model_choice_changes_replay_digest_without_new_request_budget() -> None:
+    from agentmonitor.composition.cloud_usage_actions import (
+        build_manual_usage_run,
+        cloud_usage_identifiers,
+    )
+    from agentmonitor.composition.ollama_usage_run import usage_request_for_run
+
+    from backend.tests.contracts.test_cloud_budget_run_contract import _graph, _service
+
+    command = _command()
+    grouped = replace(
+        command, report_context=replace(command.report_context, grouping=("model",))
+    )
+    plain_ids = cloud_usage_identifiers(command)
+    model_ids = cloud_usage_identifiers(grouped)
+    assert plain_ids.run_id == model_ids.run_id
+    assert plain_ids.idempotency_key_digest != model_ids.idempotency_key_digest
+    assert plain_ids.schedule_id != model_ids.schedule_id
+    runs = tuple(
+        build_manual_usage_run(
+            item, graph=_graph(), service=_service(), registry_revision=10
+        )
+        for item in (command, grouped)
+    )
+    assert runs[0].budget_scope_digest == runs[1].budget_scope_digest
+    assert runs[0].request_digest != runs[1].request_digest
+    assert usage_request_for_run(runs[1], dispatched_at=NOW).grouping == ("model",)

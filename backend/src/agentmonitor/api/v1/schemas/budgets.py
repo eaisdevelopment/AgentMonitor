@@ -1,7 +1,7 @@
 """Closed financial wire projections; exact amounts never become JSON numbers."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Self
 
 from agentmonitor.api.v1.schemas.capacity import (
     CapacityObservationProvenanceWireV1,
@@ -22,7 +22,7 @@ from agentmonitor.contracts.capacity_v1 import (
 from agentmonitor.contracts.collection_control_v1 import CollectionRunStateV1
 from agentmonitor.contracts.common_provenance_v1 import PrecisionV1
 from agentmonitor.contracts.common_v1 import AvailabilityStateV1
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _ClosedV1(BaseModel):
@@ -47,6 +47,13 @@ class ExactMoneyWireV1(_ClosedV1):
 class BudgetDimensionWireV1(_ClosedV1):
     kind: BudgetDimensionKindV1
     value: str | None
+    is_remainder: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def valid_remainder(self) -> Self:
+        if self.is_remainder and (self.kind != "model" or self.value is not None):
+            raise ValueError("budget_dimension_remainder_invalid")
+        return self
 
 
 class BudgetCostBucketWireV1(_ClosedV1):
@@ -273,11 +280,29 @@ class BudgetHistoryRowWireV1(_ClosedV1):
     chart_unavailable_reason: Literal["source_interval_not_daily"] | None = None
 
 
+class BudgetDailyCostRowWireV1(_ClosedV1):
+    period: BudgetPeriodWireV1
+    amount: ExactMoneyWireV1
+    source_entry_count: int = Field(ge=0, le=10000)
+    has_adjustment: bool
+    derived_zero: bool
+    chart: BudgetHistoryChartPointWireV1
+
+
+class BudgetDailyCostsWireV1(_ClosedV1):
+    items: list[BudgetDailyCostRowWireV1] = Field(max_length=30)
+    state: Literal["available", "partial", "unavailable"]
+    reason_code: str
+    policy_id: str | None
+    policy_version: str | None
+
+
 class BudgetHistoryWireV1(_ClosedV1):
     report: BudgetReportSummaryWireV1
     reported_spend: BudgetReportedSpendWireV1
     as_of: datetime
     items: list[BudgetHistoryRowWireV1]
+    daily_costs: BudgetDailyCostsWireV1 | None = None
     page: PageMetaV1
     availability: AvailabilityV1
 

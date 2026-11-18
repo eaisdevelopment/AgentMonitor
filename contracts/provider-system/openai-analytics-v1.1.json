@@ -1,0 +1,533 @@
+{
+  "mapping_id": "OPENAI-ANALYTICS-1.1",
+  "mapping_version": "1.1.0",
+  "authority": "openai.organization",
+  "host": "api.openai.com",
+  "reviewed_at": "2026-11-12",
+  "classification": "documented_api",
+  "live_verification": "not_established_by_this_mapping",
+  "credential_role": "owner_entered_admin_api_key",
+  "methods": [
+    "GET"
+  ],
+  "periods": {
+    "ranges": [
+      "7d",
+      "30d"
+    ],
+    "completed_utc_days": true,
+    "bucket_width": "1d",
+    "start_time": "inclusive Unix seconds",
+    "end_time": "exclusive Unix seconds"
+  },
+  "selection_count": 46,
+  "reports": [
+    {
+      "category": "cost",
+      "source_id": "openai.organization.costs.v1",
+      "capability_id": "api.cost",
+      "mechanism_version": "openai-organization-costs-docs-2026-11-11",
+      "endpoint": "/v1/organization/costs",
+      "result_object": "organization.costs.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ]
+      ],
+      "measure": "amount.value",
+      "currency": "amount.currency",
+      "source_unit": "decimal currency units",
+      "basis": "openai_reported_cost",
+      "meaning": "Preserve signed reported amounts; no credits, discounts, tax, invoice, prepaid balance or token-price inference."
+    },
+    {
+      "category": "usage_completions",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/completions",
+      "result_object": "organization.usage.completions.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "input_tokens",
+        "output_tokens",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [
+        "input_audio_tokens",
+        "input_cache_write_12h_tokens",
+        "input_cache_write_30m_tokens",
+        "input_cache_write_tokens",
+        "input_cached_audio_tokens",
+        "input_cached_image_tokens",
+        "input_cached_text_tokens",
+        "input_cached_tokens",
+        "input_image_tokens",
+        "input_text_tokens",
+        "input_uncached_tokens",
+        "output_audio_tokens",
+        "output_image_tokens",
+        "output_text_tokens"
+      ],
+      "nullable_native_measures": [
+        "input_cache_write_30m_tokens"
+      ],
+      "unrequested_metadata_must_be_null": [
+        "user_id",
+        "api_source",
+        "batch",
+        "service_tier"
+      ]
+    },
+    {
+      "category": "usage_embeddings",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/embeddings",
+      "result_object": "organization.usage.embeddings.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "input_tokens",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id"
+      ]
+    },
+    {
+      "category": "usage_moderations",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/moderations",
+      "result_object": "organization.usage.moderations.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "input_tokens",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id"
+      ]
+    },
+    {
+      "category": "usage_images",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/images",
+      "result_object": "organization.usage.images.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "images",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id",
+        "size",
+        "source"
+      ]
+    },
+    {
+      "category": "usage_audio_speeches",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/audio_speeches",
+      "result_object": "organization.usage.audio_speeches.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "characters",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id"
+      ]
+    },
+    {
+      "category": "usage_audio_transcriptions",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/audio_transcriptions",
+      "result_object": "organization.usage.audio_transcriptions.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "seconds",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id"
+      ]
+    },
+    {
+      "category": "usage_code_interpreter_sessions",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/code_interpreter_sessions",
+      "result_object": "organization.usage.code_interpreter_sessions.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ]
+      ],
+      "required_native_measures": [
+        "num_sessions"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": []
+    },
+    {
+      "category": "usage_vector_stores",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/vector_stores",
+      "result_object": "organization.usage.vector_stores.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ]
+      ],
+      "required_native_measures": [
+        "usage_bytes"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [],
+      "meaning": "usage_bytes is per-bucket bytes; never byte-hours or an additive storage charge."
+    },
+    {
+      "category": "usage_file_search_calls",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/file_search_calls",
+      "result_object": "organization.usage.file_searches.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ]
+      ],
+      "required_native_measures": [
+        "num_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id",
+        "vector_store_id"
+      ]
+    },
+    {
+      "category": "usage_web_search_calls",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/web_search_calls",
+      "result_object": "organization.usage.web_searches.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "num_requests",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [],
+      "nullable_native_measures": [],
+      "unrequested_metadata_must_be_null": [
+        "user_id",
+        "context_level",
+        "api_source"
+      ]
+    },
+    {
+      "category": "usage_decisions",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/decisions",
+      "result_object": "organization.usage.decisions.result",
+      "groupings": [
+        [],
+        [
+          "project"
+        ],
+        [
+          "api_key_id"
+        ],
+        [
+          "model"
+        ]
+      ],
+      "required_native_measures": [
+        "input_tokens",
+        "output_tokens",
+        "num_model_requests"
+      ],
+      "optional_native_measures": [
+        "input_audio_tokens",
+        "input_cache_write_12h_tokens",
+        "input_cache_write_30m_tokens",
+        "input_cache_write_tokens",
+        "input_cached_audio_tokens",
+        "input_cached_image_tokens",
+        "input_cached_text_tokens",
+        "input_cached_tokens",
+        "input_image_tokens",
+        "input_text_tokens",
+        "input_uncached_tokens",
+        "output_audio_tokens",
+        "output_image_tokens",
+        "output_text_tokens"
+      ],
+      "nullable_native_measures": [
+        "input_audio_tokens",
+        "input_cache_write_12h_tokens",
+        "input_cache_write_30m_tokens",
+        "input_cache_write_tokens",
+        "input_cached_audio_tokens",
+        "input_cached_image_tokens",
+        "input_cached_text_tokens",
+        "input_cached_tokens",
+        "input_image_tokens",
+        "input_text_tokens",
+        "input_uncached_tokens",
+        "output_audio_tokens",
+        "output_image_tokens",
+        "output_text_tokens"
+      ],
+      "unrequested_metadata_must_be_null": [
+        "user_id",
+        "api_source",
+        "batch",
+        "service_tier"
+      ]
+    },
+    {
+      "category": "usage_completions_tokens",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/completions",
+      "groupings": [
+        [
+          "token_category"
+        ]
+      ],
+      "group_by": null,
+      "native_measures": [
+        "input_tokens",
+        "output_tokens",
+        "input_audio_tokens",
+        "input_cache_write_12h_tokens",
+        "input_cache_write_30m_tokens",
+        "input_cache_write_tokens",
+        "input_cached_audio_tokens",
+        "input_cached_image_tokens",
+        "input_cached_text_tokens",
+        "input_cached_tokens",
+        "input_image_tokens",
+        "input_text_tokens",
+        "input_uncached_tokens",
+        "output_audio_tokens",
+        "output_image_tokens",
+        "output_text_tokens"
+      ],
+      "meaning": "Local projection of present native token fields; preserve each field as a distinct unit and dimension value. Totals and subfields overlap; never sum them or infer missing fields."
+    },
+    {
+      "category": "usage_embeddings_tokens",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/embeddings",
+      "groupings": [
+        [
+          "token_category"
+        ]
+      ],
+      "group_by": null,
+      "native_measures": [
+        "input_tokens"
+      ],
+      "meaning": "Local projection of present native token fields; preserve each field as a distinct unit and dimension value. Totals and subfields overlap; never sum them or infer missing fields."
+    },
+    {
+      "category": "usage_moderations_tokens",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/moderations",
+      "groupings": [
+        [
+          "token_category"
+        ]
+      ],
+      "group_by": null,
+      "native_measures": [
+        "input_tokens"
+      ],
+      "meaning": "Local projection of present native token fields; preserve each field as a distinct unit and dimension value. Totals and subfields overlap; never sum them or infer missing fields."
+    },
+    {
+      "category": "usage_decisions_tokens",
+      "source_id": "openai.organization.usage.v1",
+      "capability_id": "api.usage",
+      "mechanism_version": "openai-organization-usage-docs-2026-11-12",
+      "endpoint": "/v1/organization/usage/decisions",
+      "groupings": [
+        [
+          "token_category"
+        ]
+      ],
+      "group_by": null,
+      "native_measures": [
+        "input_tokens",
+        "output_tokens",
+        "input_audio_tokens",
+        "input_cache_write_12h_tokens",
+        "input_cache_write_30m_tokens",
+        "input_cache_write_tokens",
+        "input_cached_audio_tokens",
+        "input_cached_image_tokens",
+        "input_cached_text_tokens",
+        "input_cached_tokens",
+        "input_image_tokens",
+        "input_text_tokens",
+        "input_uncached_tokens",
+        "output_audio_tokens",
+        "output_image_tokens",
+        "output_text_tokens"
+      ],
+      "meaning": "Local projection of present native token fields; preserve each field as a distinct unit and dimension value. Totals and subfields overlap; never sum them or infer missing fields."
+    }
+  ],
+  "group_parameter": "group_by",
+  "group_fields": {
+    "project": "project_id",
+    "api_key_id": "api_key_id",
+    "model": "model"
+  },
+  "quantity_rules": "Native usage counts are exact nonnegative integers. Optional absent or permitted null fields produce no quantity. Reported zero is retained; no zero, price or uncached-count inference. Counters are provider-native metrics, not independently observed HTTP traffic.",
+  "privacy": "No user, actor, prompt, response or arbitrary grouping. All unrequested grouping metadata must be null; null dimensions remain null. Selected IDs use bounded safe metadata and reject credential-like prefixes.",
+  "coverage": {
+    "source_data_through": null,
+    "empty_means_zero": false,
+    "meaning": "No provider freshness watermark or snapshot revision is documented. Exhausted empty coverage contains no manufactured quantities or currency. Missing daily buckets in a nonempty report or bounded incomplete pagination remain partial; no interpolation."
+  },
+  "bounds": {
+    "requests_per_report": 20,
+    "concurrent_reports": 1,
+    "report_seconds": 120,
+    "request_seconds": 10,
+    "response_bytes": 2097152,
+    "normalized_bytes": 16777216,
+    "normalized_rows": 10000,
+    "automatic_retry_count": 0,
+    "minimum_interval_ms": 900000
+  },
+  "transport": "Verified TLS to the fixed host/path only; no redirects, proxy environment, key logging or raw response persistence. Admin credential is supplied solely through the existing runtime authorization sink.",
+  "sources": [
+    "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage",
+    "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs"
+  ]
+}

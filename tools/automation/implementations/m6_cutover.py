@@ -268,6 +268,8 @@ def _retained_migration_source(catalog_head: str) -> str | None:
         "v1_0732": "v1_0731",
         "v1_0733": "v1_0731",
         "v1_0734": "v1_0733",
+        "v1_0735": "v1_0734",
+        "v1_0736": "v1_0735",
     }.get(catalog_head)
 
 
@@ -1519,17 +1521,35 @@ def _recover_same_schema_candidate_attempt_inner(
         raise CutoverError("update_recovery_journal_invalid")
     receipt = _receipt(data)
     _validate_stopped_journal(data, receipt)
-    reference = DatabaseRefV1(root / "agentmonitor.db", root)
-    view = InspectSchemaCompatibilityV1(
-        reference, application_schema_range(), "runtime_read_write"
-    )
-    if (
-        view.state != "compatible"
-        or view.current_revision != load_migration_catalog().head
-        or view.integrity_state != "passed"
-        or view.policy_state != "passed"
-    ):
-        raise CutoverError("update_recovery_schema_invalid")
+    if _properties(unit).get("ActiveState") == "active":
+        # Startup may have completed before the controller was interrupted.
+        # Verify that exact candidate, including its consistent read-only WAL
+        # snapshot, before changing guards. Offline inspection requires a
+        # quiescent database and would reject a healthy running candidate.
+        # systemd's active state can precede the application's listener.
+        deadline = time.monotonic() + 15
+        while True:
+            try:
+                verify_candidate()
+                break
+            except (CutoverError, OSError):
+                if time.monotonic() >= deadline:
+                    raise CutoverError(
+                        "update_recovery_readiness_unavailable"
+                    ) from None
+                time.sleep(0.1)
+    else:
+        reference = DatabaseRefV1(root / "agentmonitor.db", root)
+        view = InspectSchemaCompatibilityV1(
+            reference, application_schema_range(), "runtime_read_write"
+        )
+        if (
+            view.state != "compatible"
+            or view.current_revision != load_migration_catalog().head
+            or view.integrity_state != "passed"
+            or view.policy_state != "passed"
+        ):
+            raise CutoverError("update_recovery_schema_invalid")
     if retained_migration:
         assert isinstance(source, str) and isinstance(backup_id, str)
         try:

@@ -16,8 +16,16 @@ EXPECTED_SUCCESS = {
     "registry_reconnect_billing_connection_v1": ("200", "BillingConnectionViewV1"),
     "capacity_list_budgets_v1": ("200", "AccountBudgetSummaryWireV1"),
     "capacity_list_budget_history_v1": ("200", "BudgetHistoryWireV1"),
+    "capacity_list_usage_breakdowns_v1": ("200", "BudgetHistoryWireV1"),
     "capacity_list_budget_reports_v1": ("200", "BudgetReportListWireV1"),
     "billing_collect_now_v1": ("202", "BillingCheckRunV1"),
+    "billing_collect_now_v2": ("202", "BillingCheckRunV1"),
+    "billing_get_run_status_v2": ("200", "BudgetRunStatusV2"),
+    "billing_get_collection_eligibility_v2": (
+        "200",
+        "BillingCollectionEligibilityWireV2",
+    ),
+    "capacity_get_budget_forecast_v1": ("200", "BudgetForecastWireV1"),
     "billing_get_collection_eligibility_v1": (
         "200",
         "BillingCollectionEligibilityWireV1",
@@ -155,6 +163,7 @@ EXPECTED_REQUESTS = {
     "registry_change_billing_scope_v1": "ChangeBillingScopeInputV1",
     "registry_reconnect_billing_connection_v1": "ReconnectBillingConnectionInputV1",
     "billing_collect_now_v1": "BillingCollectInputV1",
+    "billing_collect_now_v2": "BillingCollectInputV2",
     "cloud_usage_collect_v1": "CloudUsageCollectInputV1",
     "registry_create_billing_connection_v1": "CreateBillingConnectionInputV1",
     "billing_check_connection_v1": "BillingCheckInputV1",
@@ -211,7 +220,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 101
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 106
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

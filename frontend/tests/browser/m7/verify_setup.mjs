@@ -1,9 +1,12 @@
 "use strict";
+import { currentSetupProof, sameSetupAuthority, setupInstant } from "./setup_evidence.mjs";
 
 // Installed setup surface only. Never submit configuration or inspect credentials.
 const origin = "http://127.0.0.1:43110";
 const expectedRevision = /^[a-f0-9]{40}$/.test(process.argv[2] ?? "") ? process.argv[2] : null;
+const requireConnectedBilling = process.argv.includes("--require-connected-billing");
 const checks = { authentication: "not_run", revision: "not_run", overview: "not_run", setup_form: "not_run", account_layout: "not_run", scope_contract: "not_run", continuity: "not_run", read_only: "not_run" };
+if (requireConnectedBilling) Object.assign(checks, { credential_stored: "not_run", connection_verified: "not_run", monitoring_enabled: "not_run", retained_report: "not_run" });
 let page;
 let status = "blocked";
 let reasonCode = "browser_unavailable";
@@ -14,10 +17,16 @@ let stage = "tooling";
 let setupStep = null;
 let errorKind = null;
 const failedRequests = [];
+let setupDiagnostic = null;
+function pathFamily(url) {
+  const path = new URL(url).pathname;
+  return ({ "/api/v1/accounts": "accounts", "/api/v1/organizations": "organizations", "/api/v1/iam/initialization": "iam_initialization", "/api/v1/session": "iam_session" })[path] ?? "other";
+}
 
 function stop(nextStatus, reason) {
   status = nextStatus;
   reasonCode = reason;
+  if (reason === "authentication_required") checks.authentication = "blocked";
   throw new Error("probe_stopped");
 }
 
@@ -28,6 +37,107 @@ function requireEvidence(condition, reason) {
 
 async function noOverflow() {
   requireEvidence(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "horizontal_overflow");
+}
+
+async function verifyConnectedBilling() {
+  const read = async (path, absent = false) => {
+    requestsObserved++;
+    const response = await page.request.get(`${origin}${path}`, { headers: { Origin: origin }, timeout: 10000, failOnStatusCode: false });
+    if (response.status() === 401) stop("blocked", "authentication_required");
+    if (response.status() === 403) stop("blocked", "owner_setup_permission_required");
+    if (absent && [400, 404].includes(response.status())) return null;
+    requireEvidence(response.status() === 200, "owner_setup_read_unavailable");
+    return response.json();
+  };
+  const accounts = [];
+  let cursor = null;
+  const cursors = new Set();
+  for (let index = 0; index < 100; index++) {
+    const query = new URLSearchParams({ limit: "200", ...(cursor === null ? {} : { cursor }) });
+    const result = await read(`/api/v1/accounts?${query}`);
+    requireEvidence(Array.isArray(result.items) && result.page, "owner_setup_inventory_invalid");
+    accounts.push(...result.items);
+    cursor = result.page.next_cursor;
+    if (cursor === null) break;
+    requireEvidence(typeof cursor === "string" && !cursors.has(cursor) && index < 99, "owner_setup_inventory_incomplete");
+    cursors.add(cursor);
+  }
+  let selected = null;
+  for (const account of accounts) {
+    if (!["claude", "codex"].includes(account.provider_key) || !["pending", "active"].includes(account.lifecycle)) continue;
+    stage = "credential_stored";
+    const path = `/api/v1/accounts/${encodeURIComponent(account.account_id)}/billing-connections`;
+    const status = await read(path);
+    requireEvidence(status.account_id === account.account_id, "owner_setup_account_mismatch");
+    if (status.credential_status?.state !== "stored") continue;
+    checks.credential_stored = "passed";
+    for (const connection of status.connections) {
+      stage = "connection_verified";
+      const monitoringPath = `${path}/${encodeURIComponent(connection.resource_id)}/monitoring`;
+      const monitoring = await read(monitoringPath);
+      if (monitoring.verified_run_id === null) continue;
+      const run = await read(`/api/v1/collection-runs/${encodeURIComponent(monitoring.verified_run_id)}/budget/v2`);
+      if (!currentSetupProof(status, connection, monitoring, run)) continue;
+      checks.connection_verified = "passed";
+      checks.monitoring_enabled = "passed";
+      stage = "retained_report";
+      const context = run.report_context;
+      const end = new Date(run.requested_at);
+      requireEvidence(Number.isFinite(end.getTime()), "owner_setup_run_time_invalid");
+      end.setUTCHours(0, 0, 0, 0);
+      // Legacy Check records omit report_context; inspect only the two admitted
+      // completed windows at the actual request time, never invent report facts.
+      const periods = context ? [{ start: context.interval_start, end: context.interval_end }] : [7, 30].map(days => ({ start: new Date(end.getTime() - days * 86400000).toISOString(), end: end.toISOString() }));
+      const asOf = new Date().toISOString();
+      for (const period of periods) {
+        const query = { account_id: account.account_id, report_id: run.report_id, period_start: period.start, period_end: period.end, as_of: asOf, limit: "50" };
+        const history = await read(`/api/v1/budgets/${encodeURIComponent(connection.resource_id)}/history?${new URLSearchParams(query)}`, context === null);
+        if (history === null) continue;
+        const report = history.report;
+        requireEvidence(history.availability?.state === "available" && report.report_id === run.report_id && report.account_id === account.account_id && report.resource_id === connection.resource_id
+          && report.provider_key === status.provider_key && report.scope_generation === connection.scope_generation && report.scope_id === connection.scope_id && report.scope_evidence === connection.scope_evidence
+          && setupInstant(report.requested_period.start) === setupInstant(period.start) && setupInstant(report.requested_period.end) === setupInstant(period.end)
+          && report.completeness === "complete" && setupInstant(history.as_of) === setupInstant(asOf), "owner_setup_report_mismatch");
+        selected = { path, monitoringPath, status, connection, monitoring, run, history, query };
+        break;
+      }
+      if (selected) break;
+    }
+    if (selected) break;
+  }
+  if (selected === null) stop("blocked", "owner_setup_current_evidence_unavailable");
+  const { path, monitoringPath, status, connection, run, history, query } = selected;
+  const search = new URLSearchParams({ budget_resource: connection.resource_id, budget_report: run.report_id, budget_start: query.period_start.replace("+00:00", "Z"), budget_end: query.period_end.replace("+00:00", "Z"), budget_as_of: query.as_of });
+  const url = `${origin}/accounts/${encodeURIComponent(status.account_id)}?${search}`;
+  const checkView = async () => {
+    const financial = page.getByRole("region", { name: "API usage & spend", exact: true });
+    await financial.waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.querySelector('[aria-label="Selected financial report"] [data-budget-history][aria-busy="false"]') !== null);
+    const retained = financial.getByRole("region", { name: "Selected financial report", exact: true }).locator("[data-budget-history]");
+    requireEvidence(await retained.getAttribute("data-budget-history") === run.report_id, "owner_setup_rendered_report_mismatch");
+    requireEvidence(await retained.locator(':scope > [role="alert"]').count() === 0
+      && setupInstant(await financial.locator("[data-budget-window]").getAttribute("data-read-as-of")) === setupInstant(query.as_of), "owner_setup_rendered_context_mismatch");
+    const expected = history.items.map(row => `${row.kind}:${(row.cost ?? row.usage).bucket_key}`).sort();
+    const actual = await retained.locator("[data-bucket-key]").evaluateAll(rows => rows.map(row => `${row.getAttribute("data-bucket-kind")}:${row.getAttribute("data-bucket-key")}`).sort());
+    requireEvidence(JSON.stringify(actual) === JSON.stringify(expected), "owner_setup_rendered_facts_mismatch");
+    const disclosure = page.locator("details[data-billing-connection]");
+    if (await disclosure.count() && !await disclosure.evaluate(node => node.open)) await disclosure.locator(":scope > summary").click();
+    const setup = page.getByRole("region", { name: "API billing setup", exact: true });
+    await setup.getByText("Credential stored", { exact: true }).waitFor();
+    await setup.getByText("API monitoring is on.", { exact: true }).waitFor();
+    await setup.getByText("Access is confirmed for the current credential and billing scope.", { exact: true }).waitFor();
+  };
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 10000 });
+  await checkView();
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
+  await checkView();
+  const fresh = await read(path), monitoring = await read(monitoringPath);
+  requireEvidence(sameSetupAuthority(status, fresh, connection.resource_id), "owner_setup_authority_changed");
+  requireEvidence(typeof monitoring.verified_run_id === "string", "owner_setup_verification_unavailable");
+  const currentRun = monitoring.verified_run_id === run.run_id ? run
+    : await read(`/api/v1/collection-runs/${encodeURIComponent(monitoring.verified_run_id)}/budget/v2`);
+  requireEvidence(currentSetupProof(fresh, connection, monitoring, currentRun), "owner_setup_authority_changed");
+  checks.retained_report = "passed";
 }
 
 try {
@@ -53,7 +163,7 @@ try {
   });
   page.on("requestfailed", request => {
     const error = request.failure()?.errorText;
-    if (typeof error === "string" && /^net::ERR_[A-Z_]+$/.test(error)) failedRequests.push(error);
+    if (typeof error === "string" && /^net::ERR_[A-Z_]+$/.test(error)) failedRequests.push({ family: pathFamily(request.url()), error });
   });
   await page.setViewportSize({ width: 1366, height: 768 });
   stage = "authentication";
@@ -159,24 +269,34 @@ try {
   requireEvidence(await company.isVisible() && await company.getAttribute("href") === "https://essentialai.uk/", "company_footer_missing");
   await noOverflow();
   checks.continuity = "passed";
+  if (requireConnectedBilling) await verifyConnectedBilling();
   requireEvidence(unsafeRequests === 0, "unexpected_mutation_request");
   status = "passed";
-  reasonCode = "installed_setup_surface_verified";
+  reasonCode = requireConnectedBilling ? "installed_owner_setup_verified" : "installed_setup_surface_verified";
 } catch (error) {
   errorKind = error?.name === "TimeoutError" ? "timeout" : "assertion_or_error";
   if (error?.message !== "probe_stopped") {
     const authRequired = page !== undefined && await page.getByRole("heading", { name: "Sign in", exact: true }).isVisible().catch(() => false);
     status = authRequired || ["tooling", "browser", "authentication", "revision"].includes(stage) ? "blocked" : "failed";
+    if (authRequired) checks.authentication = "blocked";
     reasonCode = authRequired ? "authentication_required" : {
       tooling: "browser_tooling_unavailable", browser: "browser_unavailable",
       authentication: "dashboard_unavailable", revision: "revision_unavailable",
       overview: "overview_unavailable", setup_form: "setup_form_unavailable",
       continuity: "continuity_unavailable", account_layout: "account_layout_unavailable",
       scope_contract: "scope_contract_unavailable",
+      credential_stored: "owner_setup_read_unavailable", connection_verified: "owner_setup_read_unavailable",
+      retained_report: "owner_setup_report_unavailable",
     }[stage];
   }
   if (checks[stage] === "not_run") checks[stage] = status;
 } finally {
+  if (page !== undefined && status !== "passed") setupDiagnostic = await page.evaluate(() => ({
+    local_service_unavailable: [...document.querySelectorAll("h1")].some(node => node.textContent === "Local service unavailable"),
+    connecting: document.querySelector("main.auth-stage[role=status]") !== null,
+    account_loading: [...document.querySelectorAll("p[role=status]")].some(node => node.textContent === "Reading monitored accounts…"),
+    account_error: [...document.querySelectorAll("p[role=alert]")].some(node => ["Accounts could not be loaded from the local service.", "The local account registry is unavailable."].includes(node.textContent)),
+  })).catch(() => null);
   if (page !== undefined) {
     try { await page.close(); }
     catch { status = "failed"; reasonCode = "probe_page_cleanup_failed"; }
@@ -189,7 +309,8 @@ const result = {
   record_type: "agentmonitor.m7_installed_setup_probe.v1", status, reason_code: reasonCode,
   expected_revision: expectedRevision, source_revision: actualRevision, checks,
   requests_observed: requestsObserved, unsafe_requests: unsafeRequests,
-  setup_step: setupStep, error_kind: errorKind, failed_requests: [...new Set(failedRequests)],
+  setup_step: setupStep, setup_diagnostic: setupDiagnostic, error_kind: errorKind, failed_requests: failedRequests.slice(0, 40),
+  ...(requireConnectedBilling ? { evidence_scope: "current_verified_billing_state", resources_verified: checks.retained_report === "passed" ? 1 : 0, physical_rotation_removal: "not_verified", check_click_provenance: "not_verified" } : {}),
   observed_at: new Date().toISOString(),
 };
 // Exiting disconnects CDP without Browser.close or context.close on the shared browser.

@@ -76,6 +76,11 @@ def test_real_same_schema_dashboard_update_and_finalization(
     config_path.write_text("")
     config_path.chmod(0o600)
     repo = Path(__file__).resolve().parents[3]
+    # Pytest's configured pythonpath is process-local; independent traced
+    # workers must import the same checkout explicitly, without ambient setup.
+    child_imports = (
+        f"import sys\nsys.path[:0] = {[str(repo / 'backend/src'), str(repo)]!r}\n"
+    )
     baseline = tmp_path / "baseline"
     subprocess.run(
         ["git", "clone", "--quiet", "--shared", str(repo), str(baseline)], check=True
@@ -191,7 +196,7 @@ _cutover_engine(
                     ),
                     sys.executable,
                     "-c",
-                    code,
+                    child_imports + code,
                     unit,
                     str(root),
                     str(baseline),
@@ -205,7 +210,13 @@ _cutover_engine(
             )
             try:
                 assert worker.stdout is not None
-                worker_pid = int(worker.stdout.readline())
+                worker_pid_line = worker.stdout.readline().strip()
+                if not worker_pid_line.isdecimal():
+                    assert worker.stderr is not None
+                    raise AssertionError(
+                        "update worker failed before PID: " + worker.stderr.read(4096)
+                    )
+                worker_pid = int(worker_pid_line)
                 deadline = time.monotonic() + 20
                 journal = root / ".m6-cutover-journal.json"
                 while time.monotonic() < deadline:
@@ -409,7 +420,7 @@ with _hold_transition_locks(root) as lease:
                         "inject=unlinkat:when=1:delay_exit=10s",
                         sys.executable,
                         "-c",
-                        recovery_code,
+                        child_imports + recovery_code,
                         str(root),
                         unit,
                         str(baseline),
@@ -424,7 +435,14 @@ with _hold_transition_locks(root) as lease:
                 )
                 try:
                     assert tracer.stdout is not None
-                    recovery_pid = int(tracer.stdout.readline())
+                    recovery_pid_line = tracer.stdout.readline().strip()
+                    if not recovery_pid_line.isdecimal():
+                        assert tracer.stderr is not None
+                        raise AssertionError(
+                            "recovery worker failed before PID: "
+                            + tracer.stderr.read(4096)
+                        )
+                    recovery_pid = int(recovery_pid_line)
                     deadline = time.monotonic() + 25
                     while time.monotonic() < deadline:
                         if (

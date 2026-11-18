@@ -59,3 +59,64 @@ def test_actual_terminal_run_history_is_bounded_and_source_exact() -> None:
     assert query.from_at <= item.requested_at < query.before_at
     assert item.completed_at < query.before_at
     assert result.has_more
+
+
+def test_quota_continuity_query_survives_genuine_large_billing_report(
+    tmp_path: Path,
+) -> None:
+    """A billing receipt must not prevent reading unrelated subscription runs.
+
+    Empty quota history is valid query evidence, never successful continuity.
+    """
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        open_sqlite_database,
+    )
+
+    from backend.tests.live.ollama.test_cloud_registry_revision_admission import (
+        _private_real_copy,
+    )
+    from tools.automation.implementations.m6_recovery_interval import _runs
+
+    reference = _private_real_copy(tmp_path)
+    now = datetime.now(UTC)
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            oversized = connection.exec_driver_sql(
+                "SELECT r.provider_key,r.requested_at,count(o.observation_id) "
+                "FROM collection_run r JOIN collection_run_observation_ref o "
+                "ON o.run_id=r.run_id WHERE r.provider_key IN ('claude','codex') "
+                "AND r.capability_id='api.usage' AND r.state='succeeded' "
+                "AND r.requested_at>=? GROUP BY r.run_id "
+                "HAVING count(o.observation_id)>200 "
+                "ORDER BY r.requested_at DESC LIMIT 1",
+                (
+                    (now - timedelta(days=1))
+                    .isoformat(timespec="microseconds")
+                    .replace("+00:00", "Z"),
+                ),
+            ).first()
+            assert oversized is not None, "genuine_large_billing_receipt_required"
+            provider, raw_start, count = oversized
+            assert count > 200
+            start = datetime.fromisoformat(raw_start)
+            expected = connection.exec_driver_sql(
+                "SELECT run_id FROM collection_run WHERE provider_key=? "
+                "AND capability_id='subscription.quota' AND requested_at>=? "
+                "AND requested_at<? AND completed_at<? AND state IN "
+                "('succeeded','partial','failed','blocked','cancelled','unsupported') "
+                "ORDER BY requested_at DESC,run_id DESC LIMIT 501",
+                (
+                    provider,
+                    raw_start,
+                    now.isoformat(timespec="microseconds").replace("+00:00", "Z"),
+                    now.isoformat(timespec="microseconds").replace("+00:00", "Z"),
+                ),
+            ).fetchall()
+            assert len(expected) <= 500, "genuine_quota_history_bound_exceeded"
+
+    actual = _runs(SqliteCollectionRecoveryQueryV1(reference), provider, start, now)
+
+    assert tuple(item.run_id.value for item in actual) == tuple(
+        row[0] for row in expected
+    )
+    assert all(item.capability_id == "subscription.quota" for item in actual)

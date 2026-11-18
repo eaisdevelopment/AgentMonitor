@@ -18,18 +18,11 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
     CollectionRepositoryErrorV1,
     SqliteCollectionRepositoryV1,
 )
-from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
-    SqliteCloudCredentialRegistryV1,
-)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,
 )
-from agentmonitor.adapters.persistence.registry.sqlite.repository import (
-    SqliteRegistryRepositoryV1,
-)
 from agentmonitor.adapters.providers.ollama.api.policy import (
     SOURCE_ID,
-    completed_period,
 )
 from agentmonitor.adapters.providers.ollama.api.source import (
     OllamaUsageResultV1,
@@ -54,7 +47,6 @@ from agentmonitor.composition.ollama_usage_result import (
 )
 from agentmonitor.composition.ollama_usage_run import (
     POLICY_VERSION,
-    build_ollama_usage_run,
     usage_budget_limit,
     usage_manifest_fingerprint,
     usage_request_for_run,
@@ -62,7 +54,6 @@ from agentmonitor.composition.ollama_usage_run import (
 from agentmonitor.contracts.capacity_v1 import BudgetReportInputV1
 from agentmonitor.contracts.collection_control_v1 import (
     CloudBudgetCollectionRunAdmissionV1,
-    CloudBudgetReportContextV1,
     CollectionFailedV1,
     CollectionFailurePolicyV1,
     OllamaCloudNoResponseCompletionV2,
@@ -79,6 +70,25 @@ from agentmonitor.modules.collection_control.application.budget_executor import 
 
 class _UsageAdmissionDeferred(Exception):
     """Known admission race before any provider dispatch."""
+
+
+def _bounded_env_location_matches(
+    root: Path, env_file: Path, deadline_monotonic: float
+) -> bool:
+    """Wait briefly for local staging only, within existing execution authority."""
+    deadline = min(deadline_monotonic, time.monotonic() + 2)
+    if time.monotonic() >= deadline:
+        raise TimeoutError("ollama_usage_credential_location_deadline")
+    while True:
+        try:
+            return env_location_matches(root, env_file)
+        except BlockingIOError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+            time.sleep(min(0.05, remaining))
+            if time.monotonic() >= deadline:
+                raise
 
 
 class _UsageNotStarted(Exception):
@@ -190,55 +200,19 @@ class OllamaUsageCollectionV1:
     def prepare_runs(self) -> tuple[CloudBudgetCollectionRunAdmissionV1, ...]:
         """Read the complete bounded inventory before selecting any usage work."""
         self._recover()
-        registry = SqliteRegistryRepositoryV1(self._reference)
-        cloud = SqliteCloudCredentialRegistryV1(self._reference)
-        cursor = None
-        scanned = 0
-        prepared: list[CloudBudgetCollectionRunAdmissionV1] = []
-        while scanned < 1000:
-            if time.monotonic() >= self._deadline - 20:
-                raise ValueError("ollama_usage_inventory_deadline")
-            accounts = registry.list_accounts(
-                provider_key="ollama", page_size=100, after_key=cursor
-            )
-            scanned += len(accounts)
-            for account in accounts:
-                if (
-                    not account.is_effective_monitoring_enabled
-                    or account.lifecycle != "active"
-                ):
-                    continue
-                graph = cloud.read_monitoring_target(account.account_id)
-                if graph is None or graph.lifecycle != "active":
-                    continue
-                service = cloud.read_active_access_target(graph.access_target_id)
-                if service is None:
-                    continue
-                for scope in ("self", "team"):
-                    for range_key in ("7d", "30d"):
-                        now = datetime.now(UTC)
-                        period = completed_period(now, range_key)
-                        run = build_ollama_usage_run(
-                            graph=graph,
-                            service=service,
-                            context=CloudBudgetReportContextV1(
-                                scope, range_key, period.start, period.end
-                            ),
-                            registry_revision=account.registry_revision,
-                            scheduler_instance_id=self._instance,
-                            run_id=OpaqueIdV1("usage-run-" + uuid.uuid4().hex),
-                            request_id=OpaqueIdV1("usage-request-" + uuid.uuid4().hex),
-                            requested_at=now,
-                        )
-                        # Team reads remain explicit owner requests; inventory
-                        # includes their scope only to find already queued work.
-                        if scope == "self":
-                            self._gate.register_schedule(run)
-                        prepared.append(run)
-            if len(accounts) < 100:
-                return tuple(prepared)
-            cursor = accounts[-1].account_id.value
-        raise ValueError("ollama_usage_target_limit")
+        from agentmonitor.composition.ollama_usage_inventory import read_usage_inventory
+
+        prepared = read_usage_inventory(
+            self._reference,
+            as_of=datetime.now(UTC),
+            deadline_monotonic=self._deadline - 20,
+            scheduler_instance_id=self._instance,
+        )
+        for run in prepared:
+            # Team reads remain explicit owner requests.
+            if run.report_context.scope == "self":
+                self._gate.register_schedule(run)
+        return prepared
 
     def dispatch_scheduled(self, run: CloudBudgetCollectionRunAdmissionV1) -> bool:
         if self._env_file is None or time.monotonic() >= self._deadline - 20:
@@ -322,8 +296,16 @@ class OllamaUsageCollectionV1:
                         self._reference, run.cloud_target.account_id
                     )
                 )
-                if self._env_file is None or not env_location_matches(
-                    self._root, self._env_file
+                location_deadline = min(
+                    self._deadline - 5,
+                    time.monotonic()
+                    + (
+                        min(run.deadline_at, lease.lease_expires_at) - datetime.now(UTC)
+                    ).total_seconds()
+                    - 5,
+                )
+                if self._env_file is None or not _bounded_env_location_matches(
+                    self._root, self._env_file, location_deadline
                 ):
                     raise ValueError("ollama_usage_credential_location_unavailable")
                 file = stack.enter_context(

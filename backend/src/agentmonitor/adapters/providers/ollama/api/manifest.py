@@ -20,10 +20,10 @@ from agentmonitor.contracts.provider_system_v1 import (
 )
 
 ADAPTER_ID = "agentmonitor.ollama.api-usage"
-ADAPTER_VERSION = "1.0.0"
+ADAPTER_VERSION = "1.2.0"
 # Exact documentation/mechanism identity, not a claimed provider server release.
-PROVIDER_VERSION = "ollama-cloud-usage-docs-2026-11-11"
-EVIDENCE_REFERENCE = "M7-A03-OLLAMA-USAGE-DOCS-2026-11-11"
+PROVIDER_VERSION = "ollama-cloud-usage-docs-2026-11-12"
+EVIDENCE_REFERENCE = "M7-A03-OLLAMA-MODEL-DOCS-2026-11-12"
 
 
 def build_ollama_usage_manifest() -> CapabilityManifestV1:
@@ -90,6 +90,6 @@ def build_ollama_usage_manifest() -> CapabilityManifestV1:
         m0_mapping_version="1.0.0",
         # Reviewed documentation artifact only, never live-read evidence.
         m0_mapping_digest=(
-            "c51868e3f798f9b4a2ef27c1237a8ed61fee85996bf8851610c2dc32f9885e91"
+            "398037f4c4a5cf8f3b6aaf54e7a4bd2fe71dfea1adb68dc585164445eafab8b5"
         ),
     )

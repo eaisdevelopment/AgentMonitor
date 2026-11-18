@@ -190,6 +190,47 @@ def test_checkout_reasserts_policy_and_sidecars_have_owner_permissions(
             assert connection.exec_driver_sql("PRAGMA synchronous").scalar() == 2
 
 
+@pytest.mark.parametrize("mode", ["runtime_read_only", "runtime_read_write"])
+def test_compliant_checkout_checks_policy_without_reassigning_it(
+    tmp_path: Path, mode: str
+) -> None:
+    """M7-T012: actual pooled reads retain guards without redundant setup SQL."""
+    policy = implementation()
+    ref = policy.DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    with policy.open_sqlite_database(ref, "migration_initialize"):
+        pass
+    checked: set[str] = set()
+    assignments = 0
+
+    def observe(statement: str) -> None:
+        nonlocal assignments
+        normalized = "".join(statement.lower().split())
+        if normalized.startswith("pragma"):
+            assignments += "=" in normalized
+            if "=" not in normalized:
+                checked.add(normalized.removeprefix("pragma"))
+
+    with policy.open_sqlite_database(ref, mode) as handle:
+        with handle.connect() as connection:
+            driver = connection.connection.driver_connection
+            assert isinstance(driver, sqlite3.Connection)
+            driver.set_trace_callback(observe)
+        with handle.connect() as connection:
+            driver = connection.connection.driver_connection
+            assert isinstance(driver, sqlite3.Connection)
+            driver.set_trace_callback(None)
+        assert checked == {
+            "foreign_keys",
+            "journal_mode",
+            "synchronous",
+            "busy_timeout",
+            "read_uncommitted",
+            "wal_autocheckpoint",
+            "trusted_schema",
+        }
+        assert assignments == 0, "compliant_checkout_rewrites_unchanged_policy"
+
+
 def test_checkpoint_cleans_real_sidecars_left_by_forked_worker_exit(
     tmp_path: Path,
 ) -> None:

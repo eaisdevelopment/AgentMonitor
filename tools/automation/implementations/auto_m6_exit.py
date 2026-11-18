@@ -1354,6 +1354,8 @@ def _run_controlled_recovery_interval(
     try:
         if _controlled_service_invocation() != invocation:
             raise ValueError
+        if result.return_code is None:
+            raise ValueError
         value = _load_json_bytes(result.output.strip())
         if (
             isinstance(value, dict)

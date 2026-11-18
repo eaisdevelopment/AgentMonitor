@@ -198,9 +198,10 @@ export function CloudUsageCollectControl({ account, resourceId, reportContext, o
 
   const unresolved = intent !== null && !intent.handled;
   const eligibleIntent = intent !== null && eligibility !== null && cloudUsageRetryAllowed(intent, eligibility);
+  const viewLabel = (context: CloudUsageContextV1) => context.grouping?.[0] === "model" ? "model breakdown" : "all usage";
   return <section aria-label="Collect cloud usage" data-cloud-collect-resource={resourceId}>
-    <p>Collect {reportContext.scope} usage for {reportContext.interval_start.slice(0, 10)} to {reportContext.interval_end.slice(0, 10)} UTC (end exclusive). Usage collection does not change balance or monitoring settings.</p>
-    {unresolved && !sameCloudUsageContext(reportContext, intent.reportContext) && <p role="status">A {intent.reportContext.scope} usage request for {intent.reportContext.interval_start.slice(0, 10)} to {intent.reportContext.interval_end.slice(0, 10)} UTC (end exclusive) remains unresolved. The controls below reconcile that original interval. A new collection for the selected window is blocked until it is resolved.</p>}
+    <p>Collect {reportContext.scope} usage ({viewLabel(reportContext)}) for {reportContext.interval_start.slice(0, 10)} to {reportContext.interval_end.slice(0, 10)} UTC (end exclusive). Usage collection does not change balance or monitoring settings.</p>
+    {unresolved && !sameCloudUsageContext(reportContext, intent.reportContext) && <p role="status">A {intent.reportContext.scope} usage request ({viewLabel(intent.reportContext)}) for {intent.reportContext.interval_start.slice(0, 10)} to {intent.reportContext.interval_end.slice(0, 10)} UTC (end exclusive) remains unresolved. The controls below reconcile that original interval and breakdown. A new collection for the selected view is blocked until it is resolved.</p>}
     <div role="group" aria-label="Cloud usage collection actions">
       <button type="button" disabled={submitting || reading || unresolved || eligibility?.can_collect !== true} onClick={() => { void collect(); }}>Collect usage</button>
       <button type="button" className="quiet-button" disabled={submitting || reading} onClick={() => { setMessage(null); setRevision(value => value + 1); }}>Refresh usage status</button>
@@ -209,7 +210,7 @@ export function CloudUsageCollectControl({ account, resourceId, reportContext, o
     {reading && <p role="status">Reading usage status…</p>}
     {eligibility !== null && (!unresolved || !eligibility.can_collect) && <p>{cloudUsageReason(eligibility.reason_code)}</p>}
     {eligibility?.next_allowed_at != null && <p>Next allowed collection: <time dateTime={eligibility.next_allowed_at}>{new Date(eligibility.next_allowed_at).toLocaleString(undefined, { timeZoneName: "short" })}</time>.</p>}
-    {run !== null && intent !== null && <p role="status">{intent.reportContext.scope} usage collection for {intent.reportContext.interval_start.slice(0, 10)} to {intent.reportContext.interval_end.slice(0, 10)} UTC: {run.state.replaceAll("_", " ")}.{run.error_code !== null && ` ${cloudUsageReason(run.error_code)}`}</p>}
+    {run !== null && intent !== null && <p role="status">{intent.reportContext.scope} usage collection ({viewLabel(intent.reportContext)}) for {intent.reportContext.interval_start.slice(0, 10)} to {intent.reportContext.interval_end.slice(0, 10)} UTC: {run.state.replaceAll("_", " ")}.{run.error_code !== null && ` ${cloudUsageReason(run.error_code)}`}</p>}
     {unresolved && intent.runId === null && <p>The previous request is unconfirmed. Retry it explicitly to resolve its original identity.</p>}
     {message !== null && <p role="status">{message}</p>}
   </section>;

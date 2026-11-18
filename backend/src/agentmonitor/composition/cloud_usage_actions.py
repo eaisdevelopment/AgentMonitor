@@ -1,6 +1,7 @@
 """Durable owner-selected cloud usage; admission performs no provider I/O."""
 
 import hashlib
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
@@ -21,12 +22,16 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
+from agentmonitor.adapters.providers.ollama.api.manifest import ADAPTER_VERSION
 from agentmonitor.adapters.providers.ollama.api.policy import completed_period
 from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
     ollama_cloud_probe_fingerprint,
 )
 from agentmonitor.composition.ollama_usage_fence import cloud_usage_fence
-from agentmonitor.composition.ollama_usage_run import build_ollama_usage_run
+from agentmonitor.composition.ollama_usage_run import (
+    build_ollama_usage_run,
+    usage_schedule_for_adapter,
+)
 from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1
 from agentmonitor.contracts.cloud_usage_actions_v1 import (
     CloudUsageCollectCommandV1,
@@ -63,10 +68,12 @@ def _digest(*values: str) -> str:
 
 def cloud_usage_identifiers(
     command: CloudUsageCollectCommandV1,
+    *,
+    adapter_version: str = ADAPTER_VERSION,
 ) -> CloudUsageIdentifiersV1:
     owner = (command.principal_id.value, command.command_id.value)
     context = command.report_context
-    target = (
+    target: tuple[str, ...] = (
         command.account_id.value,
         command.resource_id.value,
         str(command.expected_account_version),
@@ -76,9 +83,14 @@ def cloud_usage_identifiers(
         context.interval_start.isoformat(),
         context.interval_end.isoformat(),
     )
+    if context.grouping:
+        target += ("grouping", *context.grouping)
     return CloudUsageIdentifiersV1(
         OpaqueIdV1("usage-manual-run-" + _digest(*owner)[:40]),
-        OpaqueIdV1("usage-manual-schedule-" + _digest(*target)[:40]),
+        usage_schedule_for_adapter(
+            OpaqueIdV1("usage-manual-schedule-" + _digest(*target)[:40]),
+            adapter_version,
+        ),
         OpaqueIdV1("usage-manual-request-" + _digest(*owner)[:40]),
         OpaqueIdV1("usage-manual-producer-" + _digest(*owner)[:40]),
         _digest("cloud-usage-command-v1", *owner, *target),
@@ -220,12 +232,9 @@ class CloudUsageActionsV1:
             reason = "cloud_usage_interval_unavailable"
         else:
             state, next_allowed = self._gate.read_usage_gate_status(as_of)
-            if state != "ready":
-                reason = (
-                    "cloud_usage_request_unresolved"
-                    if state == "unresolved"
-                    else "cloud_usage_rate_limited"
-                )
+            if state == "unresolved":
+                reason = "cloud_usage_request_unresolved"
+                next_allowed = None
             else:
                 sample = build_ollama_usage_run(
                     graph=graph,
@@ -237,10 +246,16 @@ class CloudUsageActionsV1:
                     request_id=OpaqueIdV1("usage-eligibility"),
                     requested_at=as_of,
                 )
-                next_allowed = self._runs.get_budget_next_allowed_at(
+                budget_boundary = self._runs.get_budget_next_allowed_at(
                     sample.budget_scope_digest, "request", "count", as_of
                 )
-                if next_allowed is not None:
+                if next_allowed is None or (
+                    budget_boundary is not None and budget_boundary > next_allowed
+                ):
+                    next_allowed = budget_boundary
+                if state != "ready" or next_allowed is not None:
+                    reason = "cloud_usage_rate_limited"
+                elif not self._has_dispatch_turn(sample, as_of):
                     reason = "cloud_usage_rate_limited"
                 else:
                     try:
@@ -267,13 +282,48 @@ class CloudUsageActionsV1:
             as_of,
         )
 
+    def _has_dispatch_turn(
+        self, proposed: CloudBudgetCollectionRunAdmissionV1, as_of: datetime
+    ) -> bool:
+        """Do not accept short-lived work behind an older shared-budget contender."""
+        from agentmonitor.composition.financial_dispatch import (
+            prepare_financial_dispatch,
+        )
+        from agentmonitor.composition.ollama_usage_inventory import read_usage_inventory
+
+        deadline = time.monotonic() + 5
+        inventory = read_usage_inventory(
+            self._reference,
+            as_of=as_of,
+            deadline_monotonic=deadline,
+            scheduler_instance_id=OpaqueIdV1("usage-eligibility"),
+        )
+        work, _, _ = prepare_financial_dispatch(
+            self._runs,
+            None,
+            inventory,
+            deadline_monotonic=deadline,
+            as_of=as_of,
+            proposed_cloud_run=proposed,
+        )
+        key = ("ollama", proposed.budget_scope_digest, proposed.operation_family)
+        return bool(work and work[0].key == key)
+
     def collect(self, command: CloudUsageCollectCommandV1) -> BudgetCollectionRunViewV1:
 
         ids = cloud_usage_identifiers(command)
         previous = self.get_status(command.account_id, command.resource_id, ids.run_id)
         if previous is not None:
             run, context = previous
-            if run.schedule_id != ids.schedule_id or context != command.report_context:
+            # Existing intent belongs to its original adapter, even after an
+            # upgrade. Return that run; never mint a replacement or recollect.
+            previous_ids = cloud_usage_identifiers(
+                command, adapter_version=run.adapter_version
+            )
+            if (
+                run.schedule_id != previous_ids.schedule_id
+                or context != command.report_context
+            ):
                 raise ValueError("cloud_usage_idempotency_conflict")
             self._notify(run)
             return run

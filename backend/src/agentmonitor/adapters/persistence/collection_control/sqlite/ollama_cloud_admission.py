@@ -3118,6 +3118,30 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         if request.requested_at < next_allowed:
             return OllamaCloudAdmissionDecisionV1("not_due", None, next_allowed)
 
+        if verification is None and claimed_usage is None:
+            # An accepted owner request has a bounded queue deadline. Automatic
+            # balance/usage work must not consume its shared slot and push the
+            # next allowed request beyond that deadline. Claiming the queued
+            # request still uses the same atomic rate/authority fences below.
+            queued_deadline = connection.exec_driver_sql(
+                "SELECT min(r.deadline_at) FROM collection_run r "
+                "JOIN collection_schedule s ON s.schedule_id=r.schedule_id "
+                "JOIN collection_lease l ON l.run_id=r.run_id AND l.schedule_id=r.schedule_id "
+                "JOIN collection_budget_reservation b ON b.reservation_id=r.budget_reservation_id AND b.run_id=r.run_id "
+                "WHERE r.provider_key='ollama' AND r.capability_id='api.usage' "
+                "AND r.source_id='ollama.cloud.usage.v1' AND r.payload_schema='budget.report.v1' "
+                "AND r.trigger_kind='manual' AND r.state='queued' "
+                "AND r.requested_at<=? AND r.deadline_at>? "
+                "AND s.state='enabled' AND s.target_generation=r.target_generation "
+                "AND l.fencing_token=r.fencing_token AND l.expires_at>? "
+                "AND b.state='reserved'",
+                (requested_text, requested_text, requested_text),
+            ).scalar_one()
+            if queued_deadline is not None:
+                return OllamaCloudAdmissionDecisionV1(
+                    "not_due", None, _utc_value(queued_deadline)
+                )
+
         cursor = gate["fair_cursor_schedule_id"]
         if claimed_usage is not None:
             # This path is reachable only from the post-claim transaction hook.

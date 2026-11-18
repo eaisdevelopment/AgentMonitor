@@ -859,7 +859,7 @@ def classify_direct_m6_evidence_v1(
     else:
         outcomes["M6-A05"] = history_base
 
-    recovery_limit = ("sampled_dashboard_and_collection_continuity",)
+    recovery_limit: tuple[str, ...] = ("sampled_dashboard_and_collection_continuity",)
     interval = facts.recovery_interval
     interval_check = facts.recovery_observation
     if interval is not None:

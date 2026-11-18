@@ -120,7 +120,7 @@ def collect_usage(
     try:
         c = body.report_context
         context = CloudBudgetReportContextV1(
-            c.scope, c.range_key, c.interval_start, c.interval_end
+            c.scope, c.range_key, c.interval_start, c.interval_end, tuple(c.grouping)
         )
         command = CloudUsageCollectCommandV1(
             OpaqueIdV1(account_id),
@@ -159,16 +159,22 @@ def usage_eligibility(
     range_key: Literal["7d", "30d"],
     interval_start: datetime,
     interval_end: datetime,
+    grouping: Literal["model"] | None = None,
     account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
     resource_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
 ) -> CloudUsageEligibilityWireV1:
     authorize_request(request, "read:telemetry")
     reject_unknown_query(
-        request, frozenset({"scope", "range_key", "interval_start", "interval_end"})
+        request,
+        frozenset({"scope", "range_key", "interval_start", "interval_end", "grouping"}),
     )
     try:
         context = CloudBudgetReportContextV1(
-            scope, range_key, interval_start, interval_end
+            scope,
+            range_key,
+            interval_start,
+            interval_end,
+            () if grouping is None else (grouping,),
         )
     except ValueError:
         raise ProblemError(422, "invalid_request_fields") from None

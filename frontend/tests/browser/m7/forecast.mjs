@@ -1,10 +1,13 @@
 const origin = process.argv[2], expectedRevision = process.argv[3];
 const installed = origin === "http://127.0.0.1:43110";
-let page, stage = "origin", mutations = 0, forecastReads = 0, historyPages = 0, rateAvailable = false;
+let page, denialSession, stage = "origin", mutations = 0, forecastReads = 0, historyPages = 0, rateAvailable = false;
 let status = "failed";
 const renderedPaths = [];
 const requestDiagnostics = [];
 let errorKind = null;
+let detailDiagnostic = null;
+let paginationDiagnostic = null;
+let denialDiagnostic = null;
 const check = condition => { if (!condition) throw new Error(); };
 const instant = value => value.replace(/(?:\.(\d{1,6}))?Z$/, (_, fraction) => `.${(fraction ?? "").padEnd(6, "0")}Z`);
 const exact = value => {
@@ -27,10 +30,12 @@ try {
     if (error?.code !== "ERR_MODULE_NOT_FOUND") throw error;
     playwright = await import("/home/dev/.local/share/agentmonitor/worktrees/dashboard-product-promotion/frontend/node_modules/@playwright/test/index.mjs");
   }
-  stage = "browser";
-  const browser = await playwright.chromium.connectOverCDP("http://127.0.0.1:9225", { timeout: 5000 });
+  stage = "browser_connect";
+  const browser = await playwright.chromium.connectOverCDP("http://127.0.0.1:9225", { timeout: 15000 });
+  stage = "browser_context";
   const context = browser.contexts().find(value => value.pages().some(tab => tab.url().startsWith("http://127.0.0.1:43110/")));
   check(context !== undefined);
+  stage = "browser_page";
   page = await context.newPage(); page.setDefaultTimeout(10000);
   page.on("request", request => {
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) mutations++;
@@ -142,6 +147,7 @@ try {
   check(facts.reduce((sum, bucket) => sum + atoms(bucket.amount), 0n) === atoms(expected.rate.cost));
   rateAvailable = true;
   async function verifyRate() {
+    stage = "forecast_render_settle";
     await section.locator('[data-budget-rate][aria-busy="false"]').waitFor();
     stage = "forecast_context";
     check(await rate.getAttribute("data-budget-rate") === expected.report.report_id && instant(await rate.getAttribute("data-rate-as-of")) === instant(expected.as_of));
@@ -150,9 +156,16 @@ try {
     check(text.includes(expected.rate.display_text ?? `${exact(expected.rate.cost)} / ${expected.rate.covered_seconds} seconds`));
     check(text.includes(expected.rate.period.start.slice(0, 10)) && text.includes(expected.rate.period.end.slice(0, 10)));
     const details = rate.locator("details");
-    if (!(await details.getAttribute("open"))) await details.locator("summary").click();
+    stage = "forecast_details_open";
+    if ((await details.getAttribute("open")) === null) await details.locator("summary").click();
+    stage = "forecast_details_visible";
+    detailDiagnostic = { count: await details.count(), open: await details.getAttribute("open") !== null, visible: await details.locator("dl").isVisible() };
+    await details.locator("dl").waitFor({ state: "visible" });
+    stage = "forecast_details_values";
     check((await details.textContent()).includes(exact(expected.rate.cost)) && (await details.textContent()).includes(`${expected.rate.covered_seconds} seconds`));
     check((await details.textContent()).includes(expected.method_id) && (await details.textContent()).includes(expected.method_version));
+    stage = "forecast_exhaustion_display";
+    detailDiagnostic = { ...detailDiagnostic, expected_exhaustion_present: Object.hasOwn(expected, "exhaustion_at"), expected_exhaustion_null: expected.exhaustion_at === null, expected_exhaustion_type: typeof expected.exhaustion_at, exhaustion_elements: await rate.locator("time[data-exhaustion-at]").count() };
     check(expected.exhaustion_at === null ? text.includes(expected.exhaustion_reason.replaceAll("_", " "))
       : await rate.locator("time[data-exhaustion-at]").getAttribute("datetime") === expected.exhaustion_at);
   }
@@ -162,7 +175,26 @@ try {
   for (let index = 0; index < 200; index++) {
     const more = section.getByRole("button", { name: "Load more history", exact: true });
     if (await more.count() === 0) break;
-    await more.click(); await section.locator('[data-budget-history][aria-busy="false"]').waitFor(); historyPages++;
+    stage = "forecast_history_pagination_click";
+    const beforeRows = await section.locator("[data-bucket-key]").count();
+    const continuation = page.waitForResponse(response => {
+      const address = new URL(response.url());
+      return response.request().method() === "GET" && address.pathname === `/api/v1/budgets/${resource}/history` &&
+        address.searchParams.get("report_id") === selected.report.report_id && address.searchParams.has("cursor");
+    }).then(response => ({ response }), error => ({ error }));
+    paginationDiagnostic = { count: await more.count(), visible: await more.isVisible(), enabled: await more.isEnabled() };
+    await more.click();
+    stage = "forecast_history_pagination_response";
+    const continued = await continuation;
+    if (continued.error) throw continued.error;
+    check(continued.response.ok());
+    const next = await continued.response.json();
+    check(next.report.report_id === selected.report.report_id && instant(next.as_of) === instant(selection.as_of));
+    stage = "forecast_history_pagination_settle";
+    // React's loading effect can run after click resolves. Wait for the actual
+    // continuation's rows, not the previous render's transient aria-busy=false.
+    await playwright.expect(section.locator("[data-bucket-key]")).toHaveCount(beforeRows + next.items.length);
+    await section.locator('[data-budget-history][aria-busy="false"]').waitFor(); historyPages++;
     check(index < 199);
   }
   check(forecastReads === readsBeforePages); await verifyRate();
@@ -171,14 +203,102 @@ try {
   const reloaded = await read(`/api/v1/budgets/${resource}/forecast?${query}`);
   check(JSON.stringify(reloaded) === JSON.stringify(expected));
   check(!renderedPaths.includes(`/api/v1/budgets/${resource}`));
+  // Deny one real browser transport request only on this disposable probe tab.
+  // No response is supplied and no provider failure is simulated. The existing
+  // installed service and all other tabs continue serving ordinary reads.
+  stage = "forecast_read_error_baseline";
+  const history = section.locator('[data-budget-history]');
+  await section.locator('[data-budget-history][aria-busy="false"]').waitFor();
+  async function retainedFinancialState() {
+    return history.evaluate(node => ({
+      report: node.getAttribute("data-budget-history"),
+      summary: [...node.children].filter(child => child.tagName === "P").map(child => ({
+        text: child.textContent, exact: [...child.querySelectorAll('[title]')].map(value => value.getAttribute("title")),
+      })),
+      rows: [...node.querySelectorAll('[data-bucket-key]')].map(row => ({
+        key: row.getAttribute("data-bucket-key"), kind: row.getAttribute("data-bucket-kind"),
+        cells: [...row.querySelectorAll('td')].map(cell => cell.textContent),
+      })),
+    }));
+  }
+  const retained = await retainedFinancialState(), pinnedUrl = page.url();
+  check(retained.report === selected.report.report_id && retained.rows.length > 0);
+  const costRows = retained.rows.filter(row => row.kind === "cost");
+  check(costRows.length > 0 && costRows.every(row => {
+    const source = selected.report.cost_buckets.find(value => value.bucket_key === row.key);
+    return source !== undefined && row.cells[1] === exact(source.amount);
+  }));
+  check(selected.reported_spend.total !== null && retained.summary.some(value => value.exact.includes(exact(selected.reported_spend.total))));
+  function matchesForecastAddress(url, method) {
+    const address = new URL(url);
+    return method === "GET" && address.origin === origin &&
+      address.pathname === `/api/v1/budgets/${resource}/forecast` &&
+      ["account_id", "report_id"].every(key => address.searchParams.get(key) === query.get(key)) &&
+      ["period_start", "period_end", "as_of"].every(key => address.searchParams.get(key) !== null &&
+        instant(address.searchParams.get(key)) === instant(query.get(key)));
+  }
+  const matchesForecast = request => matchesForecastAddress(request.url(), request.method());
+  denialSession = await context.newCDPSession(page);
+  const deniedRequestIds = new Set();
+  let transportFailure = null;
+  denialSession.on("Network.requestWillBeSent", event => {
+    if (matchesForecastAddress(event.request.url, event.request.method)) deniedRequestIds.add(event.requestId);
+  });
+  denialSession.on("Network.loadingFailed", event => {
+    if (deniedRequestIds.has(event.requestId)) transportFailure = {
+      error: event.errorText, blocked_reason: event.blockedReason ?? null,
+    };
+  });
+  await denialSession.send("Network.enable");
+  await denialSession.send("Network.setBlockedURLs", { urls: [`${origin}/api/v1/budgets/${resource}/forecast?*`] });
+  stage = "forecast_browser_request_denied";
+  const deniedRead = page.waitForEvent("requestfailed", { predicate: matchesForecast })
+    .then(request => ({ request }), error => ({ error }));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  stage = "forecast_denied_request_event";
+  const denied = await deniedRead;
+  if (denied.error) throw denied.error;
+  stage = "forecast_denied_transport_event";
+  await playwright.expect.poll(() => transportFailure).not.toBeNull();
+  denialDiagnostic = { playwright_error: denied.request.failure()?.errorText ?? null,
+    transport: transportFailure, exact_context: matchesForecast(denied.request) };
+  // CDP identifies this failure by blockedReason; this Chrome build leaves
+  // errorText empty. Require the matched failed request and inspector denial.
+  check(transportFailure.blocked_reason === "inspector" && denialDiagnostic.exact_context);
+  stage = "forecast_read_error_retains_financial_state";
+  await rate.getByRole("alert").waitFor();
+  check((await rate.getByRole("alert").textContent()).includes("Spend, balances and history remain unchanged."));
+  await section.locator('[data-budget-rate][aria-busy="false"]').waitFor();
+  await section.locator('[data-budget-history][aria-busy="false"]').waitFor();
+  check(page.url() === pinnedUrl && JSON.stringify(await retainedFinancialState()) === JSON.stringify(retained));
+  check(await rate.getAttribute("data-budget-rate") === selected.report.report_id &&
+    instant(await rate.getAttribute("data-rate-as-of")) === instant(selection.as_of));
+  stage = "forecast_retry_same_selection";
+  await denialSession.send("Network.setBlockedURLs", { urls: [] });
+  const readsBeforeRetry = forecastReads;
+  const retriedRead = page.waitForResponse(response => matchesForecast(response.request()))
+    .then(response => ({ response }), error => ({ error }));
+  await rate.getByRole("button", { name: "Retry analysis", exact: true }).click();
+  const retried = await retriedRead;
+  if (retried.error) throw retried.error;
+  check(retried.response.ok() && JSON.stringify(await retried.response.json()) === JSON.stringify(expected));
+  await playwright.expect(rate.getByRole("button", { name: "Retry analysis", exact: true })).toHaveCount(0);
+  await verifyRate();
+  check(forecastReads === readsBeforeRetry + 1 && await rate.getByRole("alert").count() === 0);
+  check(await rate.getByRole("button", { name: "Retry analysis", exact: true }).count() === 0);
+  check(page.url() === pinnedUrl && JSON.stringify(await retainedFinancialState()) === JSON.stringify(retained));
   stage = "read_only"; check(mutations === 0);
   status = "passed";
-  console.log(`M7 FORECAST BROWSER: PASSED rate_available=${rateAvailable} history_continuations=${historyPages}`);
+  console.log(`M7 FORECAST BROWSER: PASSED rate_available=${rateAvailable} history_continuations=${historyPages} read_error_retry=passed error_boundary=browser_request_denial`);
 } catch (error) {
   errorKind = error?.name === "TimeoutError" || /timeout/i.test(error?.message ?? "") ? "timeout" : "assertion_or_error";
   console.log(`M7 FORECAST BROWSER: FAILED — ${stage}`);
-  console.log(JSON.stringify({ error_kind: errorKind, requests: requestDiagnostics.slice(-10) }));
+  console.log(JSON.stringify({ error_kind: errorKind, details: detailDiagnostic, pagination: paginationDiagnostic, denial: denialDiagnostic, actionability: { intercepted: /intercepts pointer events/.test(error?.message ?? ""), unstable: /not stable/.test(error?.message ?? ""), outside_viewport: /outside of the viewport/.test(error?.message ?? ""), hidden: /not visible/.test(error?.message ?? "") }, requests: requestDiagnostics.slice(-10) }));
 } finally {
+  if (denialSession) {
+    await denialSession.send("Network.setBlockedURLs", { urls: [] }).catch(() => { status = "failed"; });
+    await denialSession.detach().catch(() => { status = "failed"; });
+  }
   if (page) await page.close().catch(() => { status = "failed"; });
 }
 process.stdout.write("", () => process.exit(status === "passed" ? 0 : 1));

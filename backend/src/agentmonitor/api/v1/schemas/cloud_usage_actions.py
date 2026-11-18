@@ -13,6 +13,7 @@ class CloudUsageContextV1(BaseModel):
     range_key: Literal["7d", "30d"]
     interval_start: datetime
     interval_end: datetime
+    grouping: list[Literal["model"]] = Field(default_factory=list, max_length=1)
 
 
 class CloudUsageCollectInputV1(BaseModel):

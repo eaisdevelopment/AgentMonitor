@@ -1,31 +1,44 @@
-"""Compose one bounded OpenAI cost report with published M02--M05 types."""
+"""Compose one bounded OpenAI cost or usage report with published M02--M05 types."""
 
 import hashlib
 from dataclasses import fields
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, cast
 
 from agentmonitor.adapters.providers.codex.openai_api.manifest import (
     ADAPTER_ID,
-    ADAPTER_VERSION,
-    EVIDENCE_REFERENCE,
     PROVIDER_VERSION,
-    build_openai_cost_manifest,
+    USAGE_PROVIDER_VERSION,
+    build_openai_analytics_manifest,
+)
+from agentmonitor.adapters.providers.codex.openai_api.manifest import (
+    ANALYTICS_REFERENCE as EVIDENCE_REFERENCE,
+)
+from agentmonitor.adapters.providers.codex.openai_api.manifest import (
+    ANALYTICS_VERSION as ADAPTER_VERSION,
 )
 from agentmonitor.adapters.providers.codex.openai_api.policy import (
     COST_BASIS,
     MAX_REQUESTS,
     REPORT_SECONDS,
     SOURCE_ID,
+    USAGE_SOURCE_ID,
     OpenAICostRequestV1,
+    OpenAIUsageRequestV1,
+    analytics_selection_is_usage,
     completed_period,
     validate_period,
 )
 from agentmonitor.adapters.providers.codex.openai_api.source import (
     OpenAICostResultV1,
+    OpenAIUsageResultV1,
+)
+from agentmonitor.adapters.providers.codex.openai_api.usage_mapping import (
+    UsageCategoryV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCollectionInputV1,
+    BudgetDimensionKindV1,
     BudgetPeriodV1,
     BudgetReportInputV1,
     CapacitySubjectV2,
@@ -62,8 +75,7 @@ OPENAI_COST_OPERATION_FAMILY_V1 = "billing.openai.cost.7d"
 OPENAI_COST_30D_OPERATION_FAMILY_V1 = "billing.openai.cost.30d"
 OPENAI_COST_BUDGET_POLICY_ID_V1 = "openai-cost-report-requests-v1"
 OPENAI_COST_BUDGET_POLICY_VERSION_V1 = "1.0.0"
-OPENAI_COST_COLLECTION_POLICY_VERSION_V1 = "1.1.0"
-_CAPABILITY_ID = "api.cost"
+OPENAI_COST_COLLECTION_POLICY_VERSION_V1 = "1.2.0"
 _CAPABILITY_SCHEMA_VERSION = "2.0.0"
 _PAYLOAD_SCHEMA = "budget.report.v1"
 _PROTOCOL_VERSION = "1.0.0"
@@ -80,7 +92,7 @@ def openai_cost_manifest_fingerprint() -> str:
     """Bind M03's catalog identity to M04/M02's SHA-256 audit field."""
     return _digest(
         "provider-manifest-fingerprint-v1",
-        get_manifest_fingerprint_v1(build_openai_cost_manifest()),
+        get_manifest_fingerprint_v1(build_openai_analytics_manifest()),
     )
 
 
@@ -135,22 +147,38 @@ def _report_period(
 ) -> BudgetPeriodV1:
     if context is None:
         return completed_period(requested_at, 7)
-    if (
-        not isinstance(context, BillingBudgetReportContextV1)
-        or context.source_category != "cost"
-        or context.grouping != ()
-    ):
+    if not isinstance(context, BillingBudgetReportContextV1):
         raise ValueError("openai_billing_run_invalid")
+    _selection(context)
     period = BudgetPeriodV1(context.interval_start, context.interval_end)
     validate_period(period, requested_at)
     return period
 
 
-def _operation_family(context: BillingBudgetReportContextV1 | None) -> str:
+def _selection(context: BillingBudgetReportContextV1 | None) -> tuple[str, str, str]:
+    usage = False
+    if context is not None:
+        try:
+            usage = analytics_selection_is_usage(
+                context.source_category, context.grouping
+            )
+        except ValueError as error:
+            raise ValueError("openai_billing_run_invalid") from error
     return (
-        OPENAI_COST_30D_OPERATION_FAMILY_V1
-        if context is not None and context.range_key == "30d"
-        else OPENAI_COST_OPERATION_FAMILY_V1
+        "api.usage" if usage else "api.cost",
+        USAGE_SOURCE_ID if usage else SOURCE_ID,
+        USAGE_PROVIDER_VERSION if usage else PROVIDER_VERSION,
+    )
+
+
+def openai_billing_operation_family(
+    context: BillingBudgetReportContextV1 | None,
+) -> str:
+    if context is None:
+        return OPENAI_COST_OPERATION_FAMILY_V1
+    _selection(context)
+    return f"billing.openai.{context.source_category}.{context.range_key}" + (
+        "." + context.grouping[0] if context.grouping else ""
     )
 
 
@@ -170,7 +198,7 @@ def _request_digest(
         if report_context is None
         else "openai-cost-request-v2",
         target_key_digest,
-        _operation_family(report_context),
+        openai_billing_operation_family(report_context),
         trigger,
         "" if request_principal_id is None else request_principal_id.value,
         idempotency_key_digest or "",
@@ -272,6 +300,7 @@ def build_openai_billing_run(
         raise ValueError("openai_billing_run_invalid")
     # Validate the completed interval before any durable admission is built.
     _report_period(requested_at, report_context)
+    capability, source, mechanism = _selection(report_context)
     budget_window_start, budget_window_end = _budget_window(requested_at)
     provider_target = ProviderTargetRefV1(
         "cloud_service", access_target.access_target_id
@@ -287,8 +316,8 @@ def build_openai_billing_run(
         schedule_id=schedule_id,
         request_id=request_id,
         trigger=trigger,
-        operation_family=_operation_family(report_context),
-        requested_capability_ids=(_CAPABILITY_ID,),
+        operation_family=openai_billing_operation_family(report_context),
+        requested_capability_ids=(capability,),
         capability_set_version=_CAPABILITY_SCHEMA_VERSION,
         request_auth_method=(
             "internal_scheduler" if trigger == "scheduled" else "dashboard_session"
@@ -302,10 +331,10 @@ def build_openai_billing_run(
         account_id=target.connection.account_id,
         profile_id=None,
         resource_id=target.connection.resource_id,
-        capability_id=_CAPABILITY_ID,
-        source_id=SOURCE_ID,
+        capability_id=capability,
+        source_id=source,
         adapter_version=ADAPTER_VERSION,
-        provider_version=PROVIDER_VERSION,
+        provider_version=mechanism,
         adapter_protocol_version=_PROTOCOL_VERSION,
         manifest_fingerprint=fingerprint,
         collection_policy_version=OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
@@ -373,19 +402,20 @@ def _require_openai_admission(
         report_context=context,
     )
     expected_budget_window = _budget_window(admission.requested_at)
+    capability, source, mechanism = _selection(context)
     if (
-        admission.operation_family != _operation_family(context)
-        or admission.requested_capability_ids != (_CAPABILITY_ID,)
+        admission.operation_family != openai_billing_operation_family(context)
+        or admission.requested_capability_ids != (capability,)
         or admission.capability_set_version != _CAPABILITY_SCHEMA_VERSION
         or admission.provider_key != "codex"
         or admission.provider_target.target_kind != "cloud_service"
         or admission.account_id != target.connection.account_id
         or admission.profile_id is not None
         or admission.resource_id != target.connection.resource_id
-        or admission.capability_id != _CAPABILITY_ID
-        or admission.source_id != SOURCE_ID
+        or admission.capability_id != capability
+        or admission.source_id != source
         or admission.adapter_version != ADAPTER_VERSION
-        or admission.provider_version != PROVIDER_VERSION
+        or admission.provider_version != mechanism
         or admission.adapter_protocol_version != _PROTOCOL_VERSION
         or admission.manifest_fingerprint != openai_cost_manifest_fingerprint()
         or admission.collection_policy_version
@@ -437,7 +467,12 @@ def openai_billing_request(
     _require_openai_admission(admission)
     target = admission.billing_target
     connection = target.connection
-    return OpenAICostRequestV1(
+    context = (
+        admission.report_context
+        if isinstance(admission, BudgetCollectionRunAdmissionV2)
+        else None
+    )
+    request = OpenAICostRequestV1(
         subject=CapacitySubjectV2(
             provider_key="codex",
             provider_target=admission.provider_target,
@@ -458,6 +493,23 @@ def openai_billing_request(
         ),
         requested_at=admission.requested_at,
     )
+    grouping = (
+        ()
+        if context is None
+        else cast(tuple[BudgetDimensionKindV1, ...], context.grouping)
+    )
+    values = {field.name: getattr(request, field.name) for field in fields(request)}
+    values["grouping"] = grouping
+    if admission.capability_id == "api.usage":
+        assert context is not None
+        return OpenAIUsageRequestV1(
+            **values,
+            category=cast(
+                UsageCategoryV1,
+                context.source_category.removeprefix("usage_").removesuffix("_tokens"),
+            ),
+        )
+    return OpenAICostRequestV1(**values)
 
 
 def _result_valid(
@@ -466,7 +518,12 @@ def _result_valid(
     completed_at: datetime,
 ) -> bool:
     if (
-        type(result) is not OpenAICostResultV1
+        type(result)
+        is not (
+            OpenAIUsageResultV1
+            if isinstance(request, OpenAIUsageRequestV1)
+            else OpenAICostResultV1
+        )
         or type(result.requests_made) is not int
         or not 0 <= result.requests_made <= MAX_REQUESTS
         or result.http_status is not None
@@ -502,6 +559,14 @@ def _report_valid(
     report: BudgetReportInputV1,
     completed_at: datetime,
 ) -> bool:
+    usage = isinstance(request, OpenAIUsageRequestV1)
+    category = (
+        "usage_"
+        + request.category
+        + ("_tokens" if request.grouping == ("token_category",) else "")
+        if isinstance(request, OpenAIUsageRequestV1)
+        else "cost"
+    )
     return (
         report.subject == request.subject
         and report.binding_id == request.binding.binding_id
@@ -509,15 +574,19 @@ def _report_valid(
         and report.scope_generation == request.scope_generation
         and report.scope_id == request.scope_id
         and report.scope_evidence == request.scope_evidence
-        and report.source_id == SOURCE_ID
-        and report.source_category == "cost"
-        and report.cost_basis == COST_BASIS
-        and report.grouping == ()
+        and report.source_id == (USAGE_SOURCE_ID if usage else SOURCE_ID)
+        and report.source_category == category
+        and report.cost_basis == ("not_applicable" if usage else COST_BASIS)
+        and report.grouping == request.grouping
         and report.requested_period == request.period
-        and (report.currency is None) == (not report.cost_buckets)
+        and (
+            report.currency is None
+            if usage
+            else (report.currency is None) == (not report.cost_buckets)
+        )
         and report.source_data_through is None
         and not report.empty_means_zero
-        and report.usage_buckets == ()
+        and (report.cost_buckets == () if usage else report.usage_buckets == ())
         and request.requested_at <= report.collected_at <= completed_at
     )
 
@@ -526,20 +595,21 @@ def _provenance(
     admission: BudgetCollectionRunAdmissionV1,
     report: BudgetReportInputV1,
 ) -> ObservationProvenanceV1:
+    assert admission.provider_version is not None
     observed = report.source_data_through
     availability = FieldAvailabilityV1(
         "available" if observed is not None else "unknown"
     )
     return ObservationProvenanceV1(
         provider_key="codex",
-        capability_id=_CAPABILITY_ID,
+        capability_id=admission.capability_id,
         capability_schema_version=_CAPABILITY_SCHEMA_VERSION,
         adapter_id=ADAPTER_ID,
         adapter_version=ADAPTER_VERSION,
         provider_protocol_version=_PROTOCOL_VERSION,
-        source_id=SOURCE_ID,
+        source_id=admission.source_id,
         source_class="documented_api",
-        mechanism_version=PROVIDER_VERSION,
+        mechanism_version=admission.provider_version,
         parser_version=ADAPTER_VERSION,
         # The admission pins documentation/mechanism, not a server release.
         provider_version=None,
@@ -552,7 +622,9 @@ def _provenance(
         freshness_policy_id="openai_cost_source_watermark_v1",
         precision="exact",
         confidence="confirmed",
-        confidence_reason_code="provider_reported_cost",
+        confidence_reason_code="provider_reported_usage"
+        if admission.capability_id == "api.usage"
+        else "provider_reported_cost",
         value_kind="provider_reported",
         is_experimental=True,
         fallback_lineage=(),
@@ -610,6 +682,16 @@ def _map_failure(
             "provider_unavailable",
             "openai_cost_provider_unavailable",
             RetryAdviceV1("after_delay", 60, "estimated"),
+        )
+    if (
+        result.state == "unexpected_response"
+        and result.http_status is not None
+        and 400 <= result.http_status < 500
+    ):
+        return _failure(
+            "invalid_provider_data",
+            "openai_report_request_rejected",
+            RetryAdviceV1("after_version_review"),
         )
     if result.state in {"unexpected_response", "invalid_provider_data"}:
         return _failure(

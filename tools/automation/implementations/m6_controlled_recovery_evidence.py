@@ -71,7 +71,7 @@ def _digest(value: object) -> str:
     ).hexdigest()
 
 
-def _lineage(value: dict) -> str:
+def _lineage(value: dict[str, object]) -> str:
     return _digest(
         {key: item for key, item in value.items() if key != "lineage_sha256"}
     )

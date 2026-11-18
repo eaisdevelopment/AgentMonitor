@@ -231,3 +231,19 @@ def test_existing_profile_free_billing_admission_is_unchanged() -> None:
     assert billing.profile_id is None
     assert billing.billing_target.connection.provider_key == "claude"
     assert billing.CONTRACT_VERSION == "2.1.0"
+
+
+def test_cloud_model_grouping_is_captured_and_ungrouped_default_preserved() -> None:
+    assert _context().grouping == ()
+    context = _context(grouping=("model",))
+    assert _admission(report_context=context).report_context.grouping == ("model",)
+
+
+@pytest.mark.parametrize(
+    "grouping", [("project",), ("model", "model"), ["model"], "model", None]
+)
+def test_cloud_grouping_rejects_unreviewed_or_noncanonical_values(
+    grouping: object,
+) -> None:
+    with pytest.raises((ValueError, TypeError)):
+        _context(grouping=grouping)

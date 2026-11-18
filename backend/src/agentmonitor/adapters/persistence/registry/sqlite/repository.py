@@ -577,7 +577,7 @@ class SqliteRegistryRepositoryV1:
     ) -> OrganizationViewV1 | None:
         try:
             with open_sqlite_database(
-                self._database_ref, "runtime_read_write"
+                self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
                     exists = connection.exec_driver_sql(
@@ -3108,7 +3108,7 @@ class SqliteRegistryRepositoryV1:
     def get_account(self, account_id: OpaqueIdV1) -> AccountViewV1 | None:
         try:
             with open_sqlite_database(
-                self._database_ref, "runtime_read_write"
+                self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
                     row = (
@@ -3145,7 +3145,7 @@ class SqliteRegistryRepositoryV1:
         parameters = (*parameters, page_size)
         try:
             with open_sqlite_database(
-                self._database_ref, "runtime_read_write"
+                self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
                     rows = (

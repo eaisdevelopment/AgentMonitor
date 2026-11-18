@@ -39,6 +39,8 @@ from agentmonitor.api.v1.schemas.budget_overview import (
     BudgetSelectedReportWireV1,
 )
 from agentmonitor.api.v1.schemas.budgets import (
+    BudgetDailyCostRowWireV1,
+    BudgetDailyCostsWireV1,
     BudgetHistoryChartPointWireV1,
     BudgetHistoryRowWireV1,
     BudgetHistoryWireV1,
@@ -53,6 +55,7 @@ from agentmonitor.contracts.budget_query_v1 import (
     BudgetOverviewRowV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
+    BudgetDimensionKindV1,
     BudgetPeriodV1,
     BudgetReportHistoryQueryV1,
 )
@@ -347,6 +350,72 @@ def list_budget_history(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
 ) -> BudgetHistoryWireV1:
+    return _budget_history(
+        budget_id,
+        request,
+        account_id,
+        report_id,
+        period_start,
+        period_end,
+        as_of,
+        limit,
+        cursor,
+        operation="capacity_list_budget_history_v1",
+    )
+
+
+@router.get(
+    "/budgets/{budget_id}/usage-breakdowns",
+    operation_id="capacity_list_usage_breakdowns_v1",
+    response_model=BudgetHistoryWireV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "BudgetHistoryPortV1"),
+)
+def list_usage_breakdowns(
+    budget_id: str,
+    request: Request,
+    account_id: str,
+    report_id: str,
+    dimension_kind: Annotated[
+        BudgetDimensionKindV1,
+        Query(description="The selected report's single grouping dimension."),
+    ],
+    period_start: Annotated[datetime, Query()],
+    period_end: Annotated[datetime, Query()],
+    as_of: Annotated[datetime, Query()],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    cursor: Annotated[str | None, Query(max_length=4096)] = None,
+) -> BudgetHistoryWireV1:
+    """Page original grouped facts without aggregating or collecting new data."""
+    return _budget_history(
+        budget_id,
+        request,
+        account_id,
+        report_id,
+        period_start,
+        period_end,
+        as_of,
+        limit,
+        cursor,
+        operation="capacity_list_usage_breakdowns_v1",
+        dimension_kind=dimension_kind,
+    )
+
+
+def _budget_history(
+    budget_id: str,
+    request: Request,
+    account_id: str,
+    report_id: str,
+    period_start: datetime,
+    period_end: datetime,
+    as_of: datetime,
+    limit: int,
+    cursor: str | None,
+    *,
+    operation: str,
+    dimension_kind: BudgetDimensionKindV1 | None = None,
+) -> BudgetHistoryWireV1:
     caller = authorize_request(request, "read:telemetry")
     reject_unknown_query(
         request,
@@ -360,6 +429,9 @@ def list_budget_history(
                 "limit",
                 "cursor",
             }
+        )
+        | (
+            frozenset({"dimension_kind"}) if dimension_kind is not None else frozenset()
         ),
     )
     for value in (budget_id, account_id, report_id):
@@ -368,7 +440,6 @@ def list_budget_history(
         v.utcoffset() != UTC.utcoffset(v) for v in (period_start, period_end, as_of)
     ):
         raise ProblemError(400, "invalid_filter")
-    operation = "capacity_list_budget_history_v1"
     filters: dict[str, str | None] = {
         "budget_id": budget_id,
         "account_id": account_id,
@@ -377,6 +448,8 @@ def list_budget_history(
         "period_end": period_end.isoformat(),
         "as_of": as_of.isoformat(),
     }
+    if dimension_kind is not None:
+        filters["dimension_kind"] = dimension_kind
     after_key = decode_cursor(
         request, caller, cursor, operation_id=operation, limit=limit, filters=filters
     )
@@ -405,7 +478,36 @@ def list_budget_history(
         raise ProblemError(503, "observation_repository_unavailable") from None
     if result is None:
         raise ProblemError(404, "budget_report_not_found")
+    if dimension_kind is not None and result.report.report.grouping != (
+        dimension_kind,
+    ):
+        raise ProblemError(400, "invalid_filter")
+    daily = result.daily_costs
     return BudgetHistoryWireV1(
+        daily_costs=None
+        if daily is None
+        else BudgetDailyCostsWireV1(
+            items=[
+                BudgetDailyCostRowWireV1(
+                    period=_period(row.period),
+                    amount=_money(row.amount),
+                    source_entry_count=row.source_entry_count,
+                    has_adjustment=row.has_adjustment,
+                    derived_zero=row.derived_zero,
+                    chart=BudgetHistoryChartPointWireV1(
+                        series_key=row.chart.series_key,
+                        label=row.chart.label,
+                        magnitude_basis_points=row.chart.magnitude_basis_points,
+                        direction=row.chart.direction,
+                    ),
+                )
+                for row in daily.items
+            ],
+            state=daily.state,
+            reason_code=daily.reason_code,
+            policy_id=daily.policy_id,
+            policy_version=daily.policy_version,
+        ),
         report=report_summary_wire(result.report),
         reported_spend=reported_spend_wire(result.reported_spend),
         as_of=result.as_of,

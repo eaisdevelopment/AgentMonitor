@@ -510,16 +510,82 @@ class BudgetHistoryRowV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
-class BudgetHistoryResultV1:
-    """API projects report metadata only; bucket bodies are bounded by page."""
+class BudgetDailyCostRowV1(TechnicalValueV1):
+    """Derived daily total, explicitly separate from stored provider facts."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.11.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    period: BudgetPeriodV1
+    amount: ExactMoneyV1
+    source_entry_count: int
+    has_adjustment: bool
+    derived_zero: bool
+    chart: BudgetHistoryChartPointV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.period.end - self.period.start != timedelta(days=1)
+            or any(
+                (
+                    self.period.start.hour,
+                    self.period.start.minute,
+                    self.period.start.second,
+                    self.period.start.microsecond,
+                )
+            )
+            or type(self.source_entry_count) is not int
+            or not 0 <= self.source_entry_count <= 10000
+            or type(self.has_adjustment) is not bool
+            or type(self.derived_zero) is not bool
+            or self.derived_zero != (self.source_entry_count == 0)
+            or self.derived_zero
+            and (self.has_adjustment or int(self.amount.amount.coefficient) != 0)
+        ):
+            raise ValueError("budget_daily_cost_row_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetDailyCostsV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.11.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    items: tuple[BudgetDailyCostRowV1, ...]
+    state: Literal["available", "partial", "unavailable"]
+    reason_code: str
+    policy_id: str | None
+    policy_version: str | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            len(self.items) > 30
+            or not self.reason_code
+            or (self.policy_id is None) != (self.policy_version is None)
+            or self.items
+            and self.policy_id is None
+            or (self.state == "unavailable") != (not self.items)
+            or any(
+                a.period.end > b.period.start
+                for a, b in zip(self.items, self.items[1:], strict=False)
+            )
+        ):
+            raise ValueError("budget_daily_costs_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetHistoryResultV1:
+    """Metadata, bounded source page and at most thirty derived daily totals."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.11.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     report: BudgetReportViewV1
     reported_spend: BudgetReportedSpendV1
     as_of: datetime
     page: QueryPageV1[BudgetHistoryRowV1]
+    daily_costs: BudgetDailyCostsV1 | None = None
 
 
 class BudgetHistoryPortV1(Protocol):

@@ -88,3 +88,55 @@ def test_never_served_resource_and_stable_ties_ignore_input_order() -> None:
     )
     assert ordered_budget_work((recent, second, first)) == (first, second, recent)
     assert ordered_budget_work((first, second, recent)) == (first, second, recent)
+
+
+@pytest.mark.parametrize("contexts_per_range", [3, 6])
+def test_two_rounds_visit_all_eligible_contexts_despite_newer_manual_arrivals(
+    contexts_per_range: int,
+) -> None:
+    """New requests cannot erase a context's previously recorded service age."""
+    from dataclasses import replace
+
+    from agentmonitor.composition.budget_dispatch import (
+        BudgetWorkV1,
+        ordered_budget_work,
+    )
+
+    now = datetime(2026, 11, 12, 12, tzinfo=UTC)
+    work = tuple(
+        BudgetWorkV1(
+            (("claude", "codex", "ollama")[index % 3], str(index), range_key),
+            None,
+            now - timedelta(minutes=index + 1),
+            OpaqueIdV1(f"manual-{index}-{range_key}") if index % 2 else None,
+            index % 2 == 0,
+        )
+        for range_key in ("7d", "30d")
+        for index in range(contexts_per_range)
+    )
+    eligible = {item.key for item in work}
+    rounds: list[set[tuple[str, str, str]]] = []
+    for round_index in range(2):
+        served: set[tuple[str, str, str]] = set()
+        for offset in range(len(eligible)):
+            # Input order and a fresh manual request on the just-served key
+            # cannot overtake any eligible key that has waited longer.
+            selected = ordered_budget_work(tuple(reversed(work)))[0]
+            assert selected.key not in served, "eligible_context_starved"
+            served.add(selected.key)
+            started = now + timedelta(seconds=round_index * len(eligible) + offset)
+            work = tuple(
+                replace(
+                    item,
+                    last_started_at=started,
+                    ready_since=started + timedelta(microseconds=1),
+                    queued_run_id=OpaqueIdV1(f"newer-{round_index}-{offset}"),
+                    scheduled_due=False,
+                )
+                if item.key == selected.key
+                else item
+                for item in work
+            )
+        assert served == eligible
+        rounds.append(served)
+    assert rounds == [eligible, eligible]

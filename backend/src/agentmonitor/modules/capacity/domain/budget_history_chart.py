@@ -23,7 +23,14 @@ def _series(row: BudgetHistoryRowV1) -> tuple[str, str, CanonicalDecimalV1]:
         unit = row.usage.quantity.unit
         amount = row.usage.quantity.amount
         dimensions = row.usage.dimensions
-    identity = (row.kind, unit, tuple((d.kind, d.value) for d in dimensions))
+    identity = (
+        row.kind,
+        unit,
+        tuple(
+            (d.kind, d.value, True) if d.is_remainder else (d.kind, d.value)
+            for d in dimensions
+        ),
+    )
     key = hashlib.sha256(
         json.dumps(identity, separators=(",", ":")).encode()
     ).hexdigest()
@@ -32,7 +39,14 @@ def _series(row: BudgetHistoryRowV1) -> tuple[str, str, CanonicalDecimalV1]:
             "Cost" if row.kind == "cost" else "Usage",
             unit,
             *(
-                f"{d.kind}: {d.value if d.value is not None else 'Not reported'}"
+                f"{d.kind}: "
+                + (
+                    "Provider-reported remainder"
+                    if d.is_remainder
+                    else d.value
+                    if d.value is not None
+                    else "Not reported"
+                )
                 for d in dimensions
             ),
         )

@@ -1,15 +1,28 @@
 import assert from "node:assert/strict";
+import * as presentation from "../../src/features/accounts/cloudUsageCollectPresentation.ts";
 import { cloudUsageContext, sameCloudUsageContext, restoreCloudUsageIntent, matchesCloudUsageEligibility, matchesCloudUsageRun, cloudUsageReason, cloudUsageReadRequired, cloudUsageRetryAllowed, cloudUsageScope, cloudUsageRequestRefused } from "../../src/features/accounts/cloudUsageCollectPresentation.ts";
 
 // Pure intent/identity decisions; these values never cross an I/O boundary.
 const context = cloudUsageContext("2026-11-05T00:00:00Z", "2026-11-12T00:00:00Z");
 assert.deepEqual(context, { scope: "self", range_key: "7d", interval_start: "2026-11-05T00:00:00Z", interval_end: "2026-11-12T00:00:00Z" });
+const modelContext = cloudUsageContext(context.interval_start, context.interval_end, "team", ["model"]);
+assert.deepEqual(modelContext, { ...context, scope: "team", grouping: ["model"] }, "model grouping is part of admitted collection identity");
+assert.equal(sameCloudUsageContext(context, { ...context, grouping: [] }), true, "legacy omitted grouping remains aggregate");
+assert.equal(sameCloudUsageContext(context, { ...context, grouping: ["model"] }), false);
+assert.equal(sameCloudUsageContext(modelContext, { ...modelContext }), true);
+for (const grouping of [null, "model", ["model", "model"], ["workspace"], ["model", "token_category"]]) {
+  assert.throws(() => cloudUsageContext(context.interval_start, context.interval_end, "self", grouping));
+  assert.equal(sameCloudUsageContext(context, { ...context, grouping }), false);
+}
 assert.equal(cloudUsageContext("2026-10-13T00:00:00Z", context.interval_end).range_key, "30d");
 for (const start of ["2026-11-05T00:00:00.000001Z", "2026-02-30T00:00:00Z", "2026-11-04T00:00:00Z"]) assert.throws(() => cloudUsageContext(start, context.interval_end));
 assert.equal(sameCloudUsageContext(context, { ...context, interval_start: "2026-11-05T00:00:00.000000Z" }), true);
 for (const change of [{ scope: "team" }, { range_key: "30d" }, { interval_end: "2026-11-13T00:00:00Z" }]) assert.equal(sameCloudUsageContext(context, { ...context, ...change }), false);
 const intent = { accountId: "account", resourceId: "resource", accountVersion: 3, targetVersion: 2, bindingGeneration: 4, idempotencyKey: "a".repeat(32), reportContext: context, runId: null, deadlineAt: null, handled: false, retryRequiresEligibility: false };
 assert.deepEqual(restoreCloudUsageIntent(JSON.stringify(intent), "account", "resource"), intent);
+const modelIntent = { ...intent, reportContext: modelContext };
+assert.deepEqual(restoreCloudUsageIntent(JSON.stringify(modelIntent), "account", "resource"), modelIntent, "reload retains the original model request without posting");
+assert.equal(restoreCloudUsageIntent(JSON.stringify({ ...intent, reportContext: { ...context, grouping: ["model", "model"] } }), "account", "resource"), null);
 assert.equal(restoreCloudUsageIntent(JSON.stringify(intent), "other", "resource"), null);
 for (const change of [{ bindingGeneration: null }, { accountVersion: 0 }, { unexpected: "secret" }, { handled: true }, { runId: "run" }, { reportContext: { ...context, scope: "invalid" } }]) assert.equal(restoreCloudUsageIntent(JSON.stringify({ ...intent, ...change }), "account", "resource"), null);
 const eligibility = { account_id: "account", resource_id: "resource", account_record_version: 3, target_record_version: 2, binding_generation: 4, report_context: context, can_collect: false };
@@ -20,6 +33,8 @@ const run = { account_id: "account", resource_id: "resource", run_id: "run", rep
 assert.equal(matchesCloudUsageRun(admitted, run), true);
 for (const change of [{ report_context: null }, { account_id: "other" }, { resource_id: "other" }, { run_id: "other" }]) assert.equal(matchesCloudUsageRun(admitted, { ...run, ...change }), false);
 assert.equal(cloudUsageReadRequired(admitted, run, context), true);
+assert.equal(cloudUsageReadRequired(admitted, run, { ...context, grouping: ["model"] }), false, "aggregate completion cannot refresh a model view");
+assert.equal(matchesCloudUsageRun(admitted, { ...run, report_context: { ...context, grouping: ["model"] } }), false);
 assert.equal(cloudUsageReadRequired({ ...admitted, handled: true }, run, context), false, "reloaded terminal intent cannot advance read twice");
 assert.equal(cloudUsageReadRequired(admitted, { ...run, state: "partial" }, context), true);
 assert.equal(cloudUsageReadRequired(admitted, { ...run, state: "failed" }, context), false);
@@ -41,6 +56,19 @@ assert.equal(cloudUsageScope(undefined), "self");
 assert.equal(cloudUsageScope("team_requests_and_cost"), "team");
 assert.equal(cloudUsageScope("self_requests_and_cost"), "self");
 assert.equal(cloudUsageScope("owner-team-label"), "self");
+assert.equal(cloudUsageScope(undefined, "team"), "team", "first team selection must not require a stored team report");
+assert.equal(cloudUsageScope("team_requests_and_cost", "team"), "team");
+assert.equal(cloudUsageScope("self_requests_and_cost", "team"), null, "a pinned self report cannot authorize a team action");
+assert.equal(cloudUsageScope("team_requests_and_cost", "self"), null);
+assert.equal(cloudUsageScope(undefined, "invalid"), null);
+assert.equal(typeof presentation.cloudUsageGrouping, "function");
+assert.deepEqual(presentation.cloudUsageGrouping(undefined, "model"), ["model"]);
+assert.deepEqual(presentation.cloudUsageGrouping(["model"]), ["model"], "historic grouped metadata selects its own breakdown");
+assert.deepEqual(presentation.cloudUsageGrouping([]), []);
+assert.equal(presentation.cloudUsageGrouping([], "model"), null, "an aggregate pinned report cannot become a model report");
+assert.equal(presentation.cloudUsageGrouping(["workspace"]), null);
+assert.equal(presentation.cloudUsageGrouping(undefined, "workspace"), null);
+assert.deepEqual(restoreCloudUsageIntent(JSON.stringify(admitted), "account", "resource"), admitted, "scope navigation preserves the original self request");
 assert.equal(cloudUsageContext(context.interval_start, context.interval_end, "team").scope, "team");
 assert.equal(cloudUsageReadRequired(admitted, run, { ...context, scope: "team" }), false);
 assert.equal(cloudUsageRetryAllowed(intent, { ...eligibility, binding_generation: null }), false);

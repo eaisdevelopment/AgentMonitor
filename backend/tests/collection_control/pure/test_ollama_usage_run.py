@@ -86,3 +86,39 @@ def test_stale_native_interval_rejected_before_dispatch() -> None:
         ValueError, match="ollama_usage_interval_no_longer_dispatchable"
     ):
         usage_request_for_run(run, dispatched_at=NOW + timedelta(days=1))
+
+
+def test_adapter_upgrade_partitions_schedule_without_resetting_budget() -> None:
+    import hashlib
+
+    from agentmonitor.contracts.common_v1 import OpaqueIdV1
+
+    run = _build()
+    target = hashlib.sha256(
+        "\0".join(
+            (
+                "ollama-usage-target-v1",
+                run.cloud_target.account_id.value,
+                run.cloud_target.resource_id.value,
+                run.cloud_target.profile_id.value,
+                run.cloud_target.access_target_id.value,
+                run.report_context.scope,
+                run.report_context.range_key,
+                run.source_id,
+            )
+        ).encode()
+    ).hexdigest()
+    legacy = OpaqueIdV1("ollama-usage-" + target[:40])
+    assert run.target_key_digest != target, (
+        "versioned schedules need distinct unique target keys"
+    )
+    assert run.schedule_id != legacy, "upgraded adapter must not reuse legacy schedule"
+    assert (
+        run.budget_scope_digest
+        == hashlib.sha256(("ollama-usage-budget-v1\0" + target).encode()).hexdigest()
+    ), "adapter upgrade must preserve the existing request budget"
+    from agentmonitor.composition.ollama_usage_run import usage_schedule_for_adapter
+
+    assert usage_schedule_for_adapter(legacy, "1.0.0") == legacy
+    assert usage_schedule_for_adapter(legacy, run.adapter_version) == run.schedule_id
+    assert usage_schedule_for_adapter(legacy, "1.3.0") != run.schedule_id

@@ -48,4 +48,36 @@ assert.notEqual(latestBudgetWindow(7, refreshed.as_of).period_end, refreshed.per
 const refreshedSelection = selectedFinancialReport(budgetWindowSearch(selectedUrl, refreshed, "resource"));
 assert.equal(refreshedSelection.resourceId, "resource");
 assert.equal(refreshedSelection.reportId, null);
+const teamSearch = `${selectedUrl}&budget_scope=team`;
+for (const window of [previous, thirty, refreshed, latest]) {
+  const search = budgetWindowSearch(`${teamSearch}&budget_grouping=model`, window, "resource");
+  assert.equal(new URLSearchParams(search).get("budget_grouping"), "model", "model selection survives window and snapshot changes");
+  assert.equal(new URLSearchParams(search).get("budget_scope"), "team");
+}
+assert.equal(new URLSearchParams(budgetWindowSearch(`${teamSearch}&budget_grouping=model`, previous, "other")).has("budget_grouping"), false);
+assert.equal(new URLSearchParams(budgetWindowSearch(`${teamSearch}&budget_grouping=model&budget_grouping=model`, previous, "resource")).has("budget_grouping"), false);
+for (const window of [previous, thirty, refreshed, latest]) {
+  const nextSearch = budgetWindowSearch(teamSearch, window, "resource");
+  assert.equal(new URLSearchParams(nextSearch).get("budget_scope"), "team", "explicit scope survives window navigation/refresh");
+  assert.equal(new URLSearchParams(nextSearch).get("budget_report"), null);
+}
+assert.equal(new URLSearchParams(budgetWindowSearch(teamSearch, previous, "other")).has("budget_scope"), false, "scope is resource-bound");
+assert.equal(new URLSearchParams(budgetWindowSearch(teamSearch, previous, null)).has("budget_scope"), false);
+assert.equal(new URLSearchParams(budgetWindowSearch(`${teamSearch}&budget_scope=self`, previous, "resource")).has("budget_scope"), false);
+
+
+const reportSelection = new URLSearchParams("budget_resource=r&budget_category=usage&budget_grouping=model&budget_report=old");
+const selectedWindow = { period_start: "2026-11-05T00:00:00Z", period_end: "2026-11-12T00:00:00Z", as_of: "2026-11-12T12:00:00Z" };
+const kept = new URLSearchParams(budgetWindowSearch(reportSelection.toString(), selectedWindow, "r"));
+assert.equal(kept.get("budget_category"), "usage");
+assert.equal(kept.get("budget_grouping"), "model");
+assert.equal(kept.has("budget_report"), false);
+const dropped = new URLSearchParams(budgetWindowSearch(reportSelection.toString(), selectedWindow, "another"));
+assert.equal(dropped.has("budget_category"), false);
+assert.equal(dropped.has("budget_grouping"), false);
+
+const cloudPinned = new URLSearchParams(budgetWindowSearch("budget_resource=r&budget_scope=team&budget_category=team_requests_and_cost", selectedWindow, "r"));
+assert.equal(cloudPinned.get("budget_scope"), "team");
+assert.equal(cloudPinned.has("budget_category"), false, "cloud scope must not acquire billing category navigation");
+
 console.log("budget-window-navigation: passed");

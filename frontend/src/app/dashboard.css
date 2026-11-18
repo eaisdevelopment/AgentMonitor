@@ -249,7 +249,7 @@ td { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 /* Account workspace: ownership and operational answers before diagnostics. */
-.account-page { gap: 1.2rem; }
+.account-page { grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
 .account-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: .3rem 0 .4rem; }
 .account-page-heading h1 { margin: .6rem 0 .5rem; font-size: clamp(1.65rem, 3vw, 2.2rem); letter-spacing: -.035em; overflow-wrap: anywhere; }
 .account-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; color: #acbeca; font-size: .84rem; }

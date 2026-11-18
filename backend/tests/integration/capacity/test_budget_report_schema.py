@@ -27,7 +27,7 @@ def test_real_budget_schema_has_report_coverage_and_signed_money(
         ref, application_schema_range(), "runtime_read_write"
     )
     assert result.state == "compatible"
-    assert result.current_revision == "v1_0734"
+    assert result.current_revision == load_migration_catalog().head
     with open_sqlite_database(ref, "runtime_read_only") as handle:
         with handle.connect() as connection:
             tables = set(
@@ -68,6 +68,8 @@ def test_actual_setup_schema_upgrades_without_manufacturing_reports(
         ("v1_0732", "migration_existing"),
         ("v1_0733", "migration_existing"),
         ("v1_0734", "migration_existing"),
+        ("v1_0735", "migration_existing"),
+        ("v1_0736", "migration_existing"),
     )
     for target, mode in transitions:
         with open_sqlite_database(ref, mode) as handle:
@@ -88,7 +90,7 @@ def test_actual_setup_schema_upgrades_without_manufacturing_reports(
                     ).scalar_one()
                     == 0
                 )
-                if target in {"v1_0732", "v1_0733", "v1_0734"}:
+                if target in {"v1_0732", "v1_0733", "v1_0734", "v1_0735", "v1_0736"}:
                     assert (
                         connection.exec_driver_sql(
                             "SELECT COUNT(*) FROM capacity_budget_report"
@@ -101,7 +103,7 @@ def test_actual_setup_schema_upgrades_without_manufacturing_reports(
                         ).scalar_one()
                         == 0
                     )
-                if target == "v1_0734":
+                if target in {"v1_0734", "v1_0735", "v1_0736"}:
                     for table in (
                         "reg_financial_pool",
                         "reg_financial_pool_membership",
@@ -117,4 +119,4 @@ def test_actual_setup_schema_upgrades_without_manufacturing_reports(
         ref, application_schema_range(), "runtime_read_write"
     )
     assert result.state == "compatible"
-    assert result.current_revision == "v1_0734"
+    assert result.current_revision == catalog.head

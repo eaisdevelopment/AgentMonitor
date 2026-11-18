@@ -7,7 +7,11 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from agentmonitor.adapters.providers.codex.openai_api import policy as policy_module
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, CapacitySubjectV2
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetDimensionKindV1,
+    BudgetPeriodV1,
+    CapacitySubjectV2,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
@@ -33,6 +37,19 @@ def request(days: int = 7) -> policy_module.OpenAICostRequestV1:
         period=policy_module.completed_period(instant, days),
         requested_at=instant,
     )
+
+
+@pytest.mark.parametrize(
+    "dimension,field", [("project", "project_id"), ("api_key_id", "api_key_id")]
+)
+def test_openai_cost_single_dimension_query_is_captured(
+    dimension: BudgetDimensionKindV1, field: str
+) -> None:
+    selected = replace(request(), grouping=(dimension,))
+    query = parse_qs(urlsplit(policy_module.request_path(selected, None)).query)
+    # OpenAI's REST client uses bracket-encoded arrays, including one item.
+    assert query["group_by[]"] == [field]
+    assert "group_by" not in query
 
 
 @pytest.mark.parametrize("days", [7, 30])

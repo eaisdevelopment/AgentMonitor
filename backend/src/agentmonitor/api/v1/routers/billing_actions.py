@@ -15,11 +15,14 @@ from agentmonitor.api.v1.schemas.billing_actions import (
     BillingCheckInputV1,
     BillingCheckRunV1,
     BillingCollectInputV1,
+    BillingCollectInputV2,
     BillingCollectionEligibilityWireV1,
+    BillingCollectionEligibilityWireV2,
     BillingMonitoringResultV1,
     BillingMonitoringStatusV1,
-    BillingReportContextV1,
+    BillingReportContextV2,
     BudgetRunStatusV1,
+    BudgetRunStatusV2,
     SetBillingMonitoringInputV1,
 )
 from agentmonitor.api.v1.serialization import technical_wire
@@ -140,8 +143,49 @@ def collect_billing(
     return _submit_billing(body, request, response, account_id, resource_id)
 
 
+@router.post(
+    "/accounts/{account_id}/billing-connections/{resource_id}/collections/v2",
+    response_model=BillingCheckRunV1,
+    status_code=202,
+    operation_id="billing_collect_now_v2",
+    responses=ERROR_RESPONSES,
+    openapi_extra={
+        "security": [{"BrowserSessionCookieV1": [], "BrowserCsrfHeaderV1": []}],
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
+        "x-agentmonitor-required-permission": "write:accounts",
+        "x-agentmonitor-application-port": "BillingCheckPortV1.collect",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "parameters": [
+            {
+                "name": "If-Match",
+                "in": "header",
+                "required": True,
+                "schema": {"type": "string", "maxLength": 160},
+                "description": "Current account ETag.",
+            },
+            {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": True,
+                "schema": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+                "description": "Stable key for retrying this collection.",
+            },
+        ],
+    },
+)
+def collect_billing_v2(
+    body: BillingCollectInputV2,
+    request: Request,
+    response: Response,
+    account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+    resource_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+) -> BillingCheckRunV1:
+    return _submit_billing(body, request, response, account_id, resource_id)
+
+
 def _submit_billing(
-    body: BillingCheckInputV1 | BillingCollectInputV1,
+    body: BillingCheckInputV1 | BillingCollectInputV1 | BillingCollectInputV2,
     request: Request,
     response: Response,
     account_id: str,
@@ -169,7 +213,7 @@ def _submit_billing(
             OpaqueIdV1(command_id),
             datetime.now(UTC),
         )
-        if isinstance(body, BillingCollectInputV1):
+        if isinstance(body, (BillingCollectInputV1, BillingCollectInputV2)):
             context = body.report_context
             command = BillingCollectCommandV1(
                 command.account_id,
@@ -225,6 +269,25 @@ def get_billing_run_status(
     response: Response,
     run_id: str = Path(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9._:-]+$"),
 ) -> BudgetRunStatusV1:
+    result = get_billing_run_status_v2(request, response, run_id)
+    context = result.report_context
+    if context is not None and (context.source_category != "cost" or context.grouping):
+        raise ProblemError(409, "billing_report_v2_required")
+    return BudgetRunStatusV1.model_validate(result.model_dump())
+
+
+@router.get(
+    "/collection-runs/{run_id}/budget/v2",
+    response_model=BudgetRunStatusV2,
+    operation_id="billing_get_run_status_v2",
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "BillingCheckPortV1.get_status"),
+)
+def get_billing_run_status_v2(
+    request: Request,
+    response: Response,
+    run_id: str = Path(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9._:-]+$"),
+) -> BudgetRunStatusV2:
     authorize_request(request, "read:telemetry")
     if request.query_params:
         raise ProblemError(400, "invalid_filter")
@@ -244,10 +307,10 @@ def get_billing_run_status(
     except ValueError:
         raise ProblemError(503, "billing_check_unavailable") from None
     response.headers["Cache-Control"] = "no-store, private"
-    return BudgetRunStatusV1(
+    return BudgetRunStatusV2(
         report_context=None
         if context is None
-        else BillingReportContextV1.model_validate(technical_wire(context)),
+        else BillingReportContextV2.model_validate(technical_wire(context)),
         run_id=run.run_id.value,
         account_id=run.account_id.value,
         resource_id=run.resource_id.value,
@@ -284,9 +347,65 @@ def get_collection_eligibility(
     reject_unknown_query(
         request, frozenset({"range_key", "interval_start", "interval_end"})
     )
+    result = get_collection_eligibility_v2(
+        request,
+        response,
+        range_key,
+        interval_start,
+        interval_end,
+        "cost",
+        None,
+        account_id,
+        resource_id,
+    )
+    return BillingCollectionEligibilityWireV1.model_validate(result.model_dump())
+
+
+@router.get(
+    "/accounts/{account_id}/billing-connections/{resource_id}/collection-eligibility/v2",
+    response_model=BillingCollectionEligibilityWireV2,
+    operation_id="billing_get_collection_eligibility_v2",
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy(
+        "read:telemetry", "BillingCheckPortV1.get_collect_eligibility"
+    ),
+)
+def get_collection_eligibility_v2(
+    request: Request,
+    response: Response,
+    range_key: Annotated[Literal["7d", "30d"], Query()],
+    interval_start: Annotated[datetime, Query()],
+    interval_end: Annotated[datetime, Query()],
+    source_category: Annotated[
+        str, Query(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
+    ] = "cost",
+    grouping: Annotated[
+        Literal["workspace", "project", "api_key_id", "model", "token_category"] | None,
+        Query(),
+    ] = None,
+    account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+    resource_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+) -> BillingCollectionEligibilityWireV2:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(
+        request,
+        frozenset(
+            {
+                "range_key",
+                "interval_start",
+                "interval_end",
+                "source_category",
+                "grouping",
+            }
+        ),
+    )
     try:
         context = BillingBudgetReportContextV1(
-            range_key, interval_start, interval_end, "cost"
+            range_key,
+            interval_start,
+            interval_end,
+            source_category,
+            () if grouping is None else (grouping,),
         )
     except ValueError:
         raise ProblemError(422, "invalid_request_fields") from None
@@ -302,7 +421,7 @@ def get_collection_eligibility(
     if result is None:
         raise ProblemError(404, "billing_check_target_unavailable")
     response.headers["Cache-Control"] = "no-store, private"
-    return BillingCollectionEligibilityWireV1.model_validate(technical_wire(result))
+    return BillingCollectionEligibilityWireV2.model_validate(technical_wire(result))
 
 
 _MONITORING_ERRORS = {

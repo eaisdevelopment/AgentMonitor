@@ -12,6 +12,7 @@ import sqlite3
 import stat
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import TracebackType
@@ -157,10 +158,18 @@ def _apply_policy(
             # Immutable inspection ignores journals and reports DELETE. Its
             # separate file preflight verifies the persisted WAL header instead.
             expected = "delete" if immutable and name == "journal_mode" else value
-            if name != "journal_mode" or not read_only:
-                cursor.execute(f"PRAGMA {name}={value}")
             cursor.execute(f"PRAGMA {name}")
             row = cursor.fetchone()
+            # Every checkout still verifies every setting. Reapplying already
+            # correct PRAGMAs multiplies driver work during concurrent reads.
+            if (
+                row is not None
+                and row[0] != expected
+                and (name != "journal_mode" or not read_only)
+            ):
+                cursor.execute(f"PRAGMA {name}={value}")
+                cursor.execute(f"PRAGMA {name}")
+                row = cursor.fetchone()
             if row is None or row[0] != expected:
                 raise SqlitePolicyError("database_policy_incompatible")
     finally:
@@ -172,6 +181,7 @@ class SqliteDatabaseHandleV1:
     """Adapter-only engine lifetime; connections never enter domain contracts."""
 
     _engine: Engine = field(repr=False)
+    _dispose_on_close: bool = field(default=True, repr=False)
     _closed: bool = field(default=False, init=False)
     _active: int = field(default=0, init=False, repr=False)
 
@@ -194,7 +204,8 @@ class SqliteDatabaseHandleV1:
     def close(self) -> None:
         if self._active:
             raise SqlitePolicyError("database_connections_active") from None
-        self._engine.dispose()
+        if self._dispose_on_close:
+            self._engine.dispose()
         self._closed = True
 
     def __enter__(self) -> "SqliteDatabaseHandleV1":
@@ -211,6 +222,41 @@ class SqliteDatabaseHandleV1:
         self.close()
 
 
+@dataclass(slots=True)
+class _ReadQueryScope:
+    reference: DatabaseRefV1
+    engine: Engine | None = None
+    identity: tuple[int, int] | None = None
+
+
+_READ_QUERY_SCOPE: ContextVar[_ReadQueryScope | None] = ContextVar(
+    "agentmonitor_sqlite_read_query", default=None
+)
+
+
+@contextmanager
+def sqlite_read_query_scope(reference: DatabaseRefV1) -> Iterator[None]:
+    """Reuse read-only connections for one synchronous query, never its rows.
+
+    Composition enters inside the query's worker thread. Each repository still
+    gets a separate handle/transaction, and each checkout verifies file identity
+    and connection policy. Nested query calls share only this explicit root.
+    Writable handles and other databases retain their own lifetimes.
+    """
+    current = _READ_QUERY_SCOPE.get()
+    if current is not None and current.reference == reference:
+        yield
+        return
+    scope = _ReadQueryScope(reference)
+    token = _READ_QUERY_SCOPE.set(scope)
+    try:
+        yield
+    finally:
+        _READ_QUERY_SCOPE.reset(token)
+        if scope.engine is not None:
+            scope.engine.dispose()
+
+
 def open_sqlite_database(
     database_ref: DatabaseRefV1, mode: DatabaseOpenModeV1
 ) -> SqliteDatabaseHandleV1:
@@ -223,6 +269,20 @@ def open_sqlite_database(
     if not isinstance(database_ref, DatabaseRefV1) or mode not in _MODES:
         raise SqlitePolicyError("database_reference_invalid") from None
     identity = database_ref.validate(missing_ok=mode == "migration_initialize")
+    scope = _READ_QUERY_SCOPE.get() if mode == "runtime_read_only" else None
+    if scope is not None and scope.reference != database_ref:
+        scope = None
+    if scope is not None and scope.engine is not None:
+        if identity != scope.identity:
+            raise SqlitePolicyError("database_identity_changed") from None
+        handle = SqliteDatabaseHandleV1(scope.engine, _dispose_on_close=False)
+        try:
+            with handle.connect():
+                pass
+        except BaseException:
+            handle.close()
+            raise
+        return handle
     if mode == "migration_initialize":
         if identity is not None:
             raise SqlitePolicyError("database_already_exists") from None
@@ -283,7 +343,10 @@ def open_sqlite_database(
         _apply_policy(driver, read_only=read_only)
 
     event.listen(engine, "checkout", verify_checkout)
-    handle = SqliteDatabaseHandleV1(engine)
+    if scope is not None:
+        scope.engine = engine
+        scope.identity = identity
+    handle = SqliteDatabaseHandleV1(engine, _dispose_on_close=scope is None)
     try:
         with handle.connect():
             pass

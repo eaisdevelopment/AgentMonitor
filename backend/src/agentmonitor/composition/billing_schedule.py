@@ -22,7 +22,10 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
-from agentmonitor.composition.billing_context import completed_billing_cost_context
+from agentmonitor.composition.billing_context import (
+    billing_scheduled_categories,
+    completed_billing_cost_context,
+)
 from agentmonitor.composition.billing_run import (
     ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
     anthropic_cost_manifest_fingerprint,
@@ -63,7 +66,11 @@ def _digest(*values: str) -> str:
 
 
 def billing_schedule_intent(
-    target: BillingAccessTargetV1, as_of: datetime, *, range_key: str = "7d"
+    target: BillingAccessTargetV1,
+    as_of: datetime,
+    *,
+    range_key: str = "7d",
+    source_category: str = "cost",
 ) -> BillingScheduleIntentV1:
     """Stable window identity does not replace the actual admission timestamp."""
     if (
@@ -74,12 +81,16 @@ def billing_schedule_intent(
         raise ValueError("billing_schedule_target_invalid")
     if range_key not in {"7d", "30d"}:
         raise ValueError("billing_schedule_range_invalid")
+    if source_category not in billing_scheduled_categories(
+        target.connection.provider_key
+    ):
+        raise ValueError("billing_schedule_category_invalid")
     connection = target.connection
     window = as_of.replace(minute=(as_of.minute // 15) * 15, second=0, microsecond=0)
     identity = _digest(
-        f"anthropic-scheduled-cost-{range_key}-v1"
+        f"anthropic-scheduled-{source_category}-{range_key}-v1"
         if connection.provider_key == "claude"
-        else f"openai-scheduled-cost-{range_key}-v1",
+        else f"openai-scheduled-{source_category}-{range_key}-v1",
         ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1
         if connection.provider_key == "claude"
         else OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
@@ -104,18 +115,28 @@ def billing_schedule_intent(
         OpaqueIdV1("billing-periodic-retry-" + tick[:40]),
         OpaqueIdV1("billing-periodic-producer-" + tick[:40]),
         OpaqueIdV1("billing-periodic-correlation-" + tick[:40]),
-        completed_billing_cost_context(as_of, range_key=range_key),
+        completed_billing_cost_context(
+            as_of, range_key=range_key, source_category=source_category
+        ),
     )
 
 
 def due_billing_targets(
-    candidates: tuple[tuple[BillingAccessTargetV1, str, datetime | None], ...],
+    candidates: tuple[
+        tuple[BillingAccessTargetV1, str, datetime | None]
+        | tuple[BillingAccessTargetV1, str, datetime | None, str],
+        ...,
+    ],
     as_of: datetime,
 ) -> tuple[BillingScheduleIntentV1, ...]:
     """Oldest attempt first; a Check also consumes this window's refresh."""
     selected: list[tuple[datetime, str, BillingScheduleIntentV1]] = []
-    for target, range_key, latest in candidates:
-        intent = billing_schedule_intent(target, as_of, range_key=range_key)
+    for candidate in candidates:
+        target, range_key, latest = candidate[:3]
+        source_category = candidate[3] if len(candidate) == 4 else "cost"
+        intent = billing_schedule_intent(
+            target, as_of, range_key=range_key, source_category=source_category
+        )
         if latest is not None and (
             latest.utcoffset() != timedelta(0) or latest > as_of
         ):
@@ -210,23 +231,32 @@ class BillingScheduleV1:
     def due_intents(
         self, targets: tuple[BillingAccessTargetV1, ...], *, as_of: datetime
     ) -> tuple[BillingScheduleIntentV1, ...]:
-        candidates: list[tuple[BillingAccessTargetV1, str, datetime | None]] = []
+        candidates: list[tuple[BillingAccessTargetV1, str, datetime | None, str]] = []
         for target in targets:
             if target.purpose != "monitoring":
                 continue
             connection = target.connection
-            for range_key in ("7d", "30d"):
-                context = completed_billing_cost_context(as_of, range_key=range_key)
-                latest = self._runs.get_latest_budget_run(
-                    connection.account_id,
-                    connection.resource_id,
-                    connection.scope_generation,
-                    as_of,
-                    report_context=context,
-                )
-                candidates.append(
-                    (target, range_key, None if latest is None else latest.requested_at)
-                )
+            categories = billing_scheduled_categories(connection.provider_key)
+            for category in categories:
+                for range_key in ("7d", "30d"):
+                    context = completed_billing_cost_context(
+                        as_of, range_key=range_key, source_category=category
+                    )
+                    latest = self._runs.get_latest_budget_run(
+                        connection.account_id,
+                        connection.resource_id,
+                        connection.scope_generation,
+                        as_of,
+                        report_context=context,
+                    )
+                    candidates.append(
+                        (
+                            target,
+                            range_key,
+                            None if latest is None else latest.requested_at,
+                            category,
+                        )
+                    )
         return due_billing_targets(tuple(candidates), as_of)
 
     def enqueue_due(
@@ -267,7 +297,10 @@ class BillingScheduleV1:
         requested_at = datetime.now(UTC)
         if (
             billing_schedule_intent(
-                current, requested_at, range_key=intent.report_context.range_key
+                current,
+                requested_at,
+                range_key=intent.report_context.range_key,
+                source_category=intent.report_context.source_category,
             )
             != intent
         ):

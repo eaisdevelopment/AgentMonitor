@@ -24,10 +24,13 @@ def test_financial_selection_requires_explicit_deploy_revision() -> None:
             auto_m7.validate_selection(*selection)
 
 
-def test_financial_rehearsal_uses_real_installed_predecessor(tmp_path: Path) -> None:
+def test_financial_rehearsal_uses_real_installed_predecessor(
+    tmp_path: Path, financial_checkout: tuple[Path, str]
+) -> None:
     workspace = tmp_path / "schema-rehearsal"
+    checkout, _ = financial_checkout
     result = m7_setup_activation._candidate_process(
-        ROOT,
+        checkout,
         Path(sys.executable),
         ["-c", m7_setup_activation._REHEARSAL, str(workspace), "financial"],
         timeout=180,
@@ -98,6 +101,19 @@ def financial_checkout(tmp_path: Path) -> tuple[Path, str]:
             str(ROOT),
             str(checkout),
         ],
+        check=True,
+        capture_output=True,
+    )
+    # Keep the genuine historical0734 catalog/binary for this older transition.
+    subprocess.run(
+        [
+            "/usr/bin/git",
+            "checkout",
+            "--quiet",
+            "--detach",
+            "42d87bd97abac0eee3a9d225233ef8deb8ed3d0d",
+        ],
+        cwd=checkout,
         check=True,
         capture_output=True,
     )

@@ -163,6 +163,7 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "billing_check_service_unavailable": (
         "The billing worker is unavailable. Check service status."
     ),
+    "billing_report_v2_required": "This report requires the V2 billing endpoint.",
     "capacity_v2_required": "This capacity reading requires the V2 endpoint.",
     "credential_update_in_progress": "Another account update is in progress.",
     "ollama_cloud_connection_unavailable": "Ollama cloud connection is unavailable.",

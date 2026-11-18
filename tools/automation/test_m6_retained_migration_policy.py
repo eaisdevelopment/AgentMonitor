@@ -13,6 +13,9 @@ from tools.automation.implementations.m6_cutover import _retained_migration_sour
         ("v1_0731", "v1_0720"),
         ("v1_0732", "v1_0731"),
         ("v1_0733", "v1_0731"),
+        ("v1_0734", "v1_0733"),
+        ("v1_0735", "v1_0734"),
+        ("v1_0736", "v1_0735"),
     ],
 )
 def test_only_reviewed_retained_schema_predecessors(target: str, source: str) -> None:
@@ -20,7 +23,7 @@ def test_only_reviewed_retained_schema_predecessors(target: str, source: str) ->
 
 
 @pytest.mark.parametrize(
-    "target", ["", "v1_0718", "v1_0721", "v1_0734", "v1_07200", "v1_0720 "]
+    "target", ["", "v1_0718", "v1_0721", "v1_0737", "v1_07200", "v1_0720 "]
 )
 def test_unknown_target_does_not_infer_upgrade_permission(target: str) -> None:
     assert _retained_migration_source(target) is None

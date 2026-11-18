@@ -101,6 +101,55 @@ def _prior_current(reference: DatabaseRefV1) -> GetAccountBudgetCurrentV1:
     )
 
 
+def test_financial_overview_bounds_physical_database_connections(
+    tmp_path: Path,
+) -> None:
+    """One real financial read must not reconnect for every repository lookup."""
+    reference = _private_real_copy(tmp_path)
+    config = tmp_path / "isolated.env"
+    config.write_text("")
+    config.chmod(0o600)
+    app = create_iam_application(config, tmp_path, lifecycle=LifecycleHooksV1())
+    port = app.state.observation_ports.list_budget_overview
+    query = _query()
+    connections = 0
+    drivers: list[sqlite3.Connection] = []
+
+    def connected(driver: object, record: object) -> None:
+        nonlocal connections
+        assert isinstance(driver, sqlite3.Connection)
+        connections += 1
+        drivers.append(driver)
+
+    event.listen(Engine, "connect", connected)
+    try:
+        actual = port(query)
+    finally:
+        event.remove(Engine, "connect", connected)
+    assert actual.page.availability.state == "available"
+    assert actual.page.items, "genuine_financial_inventory_required"
+    assert 0 < connections <= 2, f"financial_read_reconnects: {connections}"
+    # The scope must release resources at the end of this call, not become a
+    # process-wide connection/result cache.
+    for driver in drivers:
+        try:
+            driver.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            pass
+        else:
+            raise AssertionError("financial_read_connection_not_closed")
+    registry = SqliteRegistryRepositoryV1(reference)
+    expected = ListBudgetOverviewV1(
+        ListAccountsV1(registry),
+        _prior_current(reference),
+        ListAccountResourcesV1(registry),
+        SqliteFinancialPoolRepositoryV1(reference),
+        GetOrganizationV1(registry),
+    )(query)
+    if actual != expected:
+        raise AssertionError("financial_read_scope_changed_observations")
+
+
 def test_overview_removes_redundant_billing_reads_without_changing_snapshot(
     tmp_path: Path,
 ) -> None:
@@ -222,3 +271,36 @@ def test_resource_read_does_not_assign_journal_mode(tmp_path: Path) -> None:
         raise AssertionError("resource_read_changed_metadata")
     assert inspected > 0, "actual_policy_reads_not_observed"
     assert assignments == 0, "read_only_resources_assign_journal_mode"
+
+
+def test_account_read_does_not_assign_journal_mode(tmp_path: Path) -> None:
+    """Exact genuine account DTOs and missing-account behavior survive read-only I/O."""
+    reference = _private_real_copy(tmp_path)
+    registry = SqliteRegistryRepositoryV1(reference)
+    accounts = registry.list_accounts(page_size=200)
+    assert accounts, "genuine_registry_required"
+    assignments = 0
+    inspected = 0
+
+    def inspect_statement(statement: str) -> None:
+        nonlocal assignments, inspected
+        normalized = "".join(statement.upper().split())
+        if normalized.startswith("PRAGMAJOURNAL_MODE"):
+            inspected += 1
+            assignments += "=" in normalized
+
+    def connected(driver: object, record: object) -> None:
+        assert isinstance(driver, sqlite3.Connection)
+        driver.set_trace_callback(inspect_statement)
+
+    event.listen(Engine, "connect", connected)
+    try:
+        actual = tuple(registry.get_account(a.account_id) for a in accounts)
+        missing = registry.get_account(OpaqueIdV1("missing-read-efficiency-account"))
+    finally:
+        event.remove(Engine, "connect", connected)
+    if actual != accounts:
+        raise AssertionError("account_read_changed_metadata")
+    assert missing is None
+    assert inspected > 0, "actual_account_policy_reads_not_observed"
+    assert assignments == 0, "read_only_account_assigns_journal_mode"

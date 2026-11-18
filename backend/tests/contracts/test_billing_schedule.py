@@ -192,3 +192,38 @@ def test_distinct_schedules_do_not_alias_the_unique_target_or_reset_budget() -> 
         assert first.target_key_digest != second.target_key_digest
         assert first.budget_scope_digest == second.budget_scope_digest
         assert request(first).period == request(second).period
+
+
+def test_usage_schedule_has_distinct_identity_and_exact_context() -> None:
+    from agentmonitor.composition.billing_schedule import billing_schedule_intent
+
+    target = _target(purpose="monitoring")
+    now = datetime(2026, 11, 11, 12, 1, tzinfo=UTC)
+    cost = billing_schedule_intent(target, now)
+    usage = billing_schedule_intent(target, now, source_category="usage")
+    assert usage.run_id != cost.run_id
+    assert usage.schedule_id != cost.schedule_id
+    assert usage.report_context.source_category == "usage"
+    assert usage.report_context.interval_start == cost.report_context.interval_start
+    assert usage == billing_schedule_intent(
+        target, now + timedelta(seconds=10), source_category="usage"
+    )
+
+
+def test_dispatch_inventory_covers_both_sources_without_duplicate_operations() -> None:
+    from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
+        SOURCE_ID,
+        USAGE_SOURCE_ID,
+    )
+    from agentmonitor.composition.billing_context import billing_source_operations
+
+    items = billing_source_operations("claude")
+    assert {item[:2] for item in items} == {
+        ("api.cost", SOURCE_ID),
+        ("api.usage", USAGE_SOURCE_ID),
+    }
+    cost, usage = [set(item[2]) for item in items]
+    assert not cost & usage
+    assert len(cost) == len(usage) == 10
+    assert "billing.anthropic.usage.30d" in usage
+    assert "billing.anthropic.cost_tokens.7d.token_category" in cost

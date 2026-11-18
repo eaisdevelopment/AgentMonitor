@@ -46,7 +46,7 @@ from agentmonitor.modules.identity_access.application.errors import (
 )
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import Response
@@ -224,9 +224,18 @@ def create_application(
         app.openapi = iam_openapi  # type: ignore[method-assign]
 
         @app.get("/openapi.json", include_in_schema=False)
-        def authenticated_openapi(request: Request) -> JSONResponse:
+        def authenticated_openapi(request: Request) -> FileResponse:
             authenticate_documentation_request(request)
-            return JSONResponse(app.openapi())
+            # Publish the same checked contract used by the generated client.
+            # Runtime generation competes with dashboard reads on first access;
+            # generation/drift validation belongs to the release build instead.
+            contract = (
+                Path(__file__).resolve().parents[4]
+                / "contracts/openapi/agentmonitor-v1.json"
+            )
+            if not contract.is_file():
+                raise ProblemError(500, "internal_error")
+            return FileResponse(contract, media_type="application/json")
 
         @app.get("/docs", include_in_schema=False)
         def authenticated_swagger(request: Request) -> HTMLResponse:

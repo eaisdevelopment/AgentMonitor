@@ -25,7 +25,9 @@ from backend.tests.live.ollama.test_cloud_registry_revision_admission import (
 )
 
 
-@pytest.mark.parametrize("probe", ("source_history", "history_chart", "forecast"))
+@pytest.mark.parametrize(
+    "probe", ("source_history", "history_chart", "forecast", "cloud_scope")
+)
 def test_source_history_built_browser_on_genuine_private_snapshot(
     tmp_path: Path,
     probe: str,
@@ -47,7 +49,7 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
             report is not None
             and report.report.usage_buckets
             and (
-                probe != "forecast"
+                probe not in {"forecast", "history_chart"}
                 or report.report.cost_buckets
                 and report.report.completeness == "complete"
                 and report.report.currency is not None
@@ -68,6 +70,8 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
         ),
         "as_of": now.isoformat().replace("+00:00", "Z"),
     }
+    if probe == "history_chart":
+        selection["report_id"] = selected.report_id.value
     config = tmp_path / "isolated.env"
     config.write_text("")
     config.chmod(0o600)
@@ -101,6 +105,8 @@ def test_source_history_built_browser_on_genuine_private_snapshot(
                 if probe == "source_history"
                 else "M7 FORECAST BROWSER: PASSED"
                 if probe == "forecast"
+                else "M7 CLOUD SCOPE BROWSER: PASSED"
+                if probe == "cloud_scope"
                 else "M7 HISTORY CHART BROWSER: PASSED"
             )
             assert output.startswith(expected.encode()), "browser_output_invalid"

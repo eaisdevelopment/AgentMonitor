@@ -53,9 +53,22 @@ class BillingCollectCommandV1(BillingCheckCommandV1):
 
 
 @dataclass(frozen=True, slots=True)
+class BillingReportOptionV1(TechnicalValueV1):
+    """One admitted source view; label distinguishes token-only charges."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    source_id: str
+    source_category: str
+    grouping: tuple[str, ...]
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
 class BillingCollectionEligibilityV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
-    CONTRACT_VERSION: ClassVar[str] = "2.4.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.8.0"
     OWNER: ClassVar[str] = "PLAN-M04"
     account_id: OpaqueIdV1
     resource_id: OpaqueIdV1
@@ -68,6 +81,7 @@ class BillingCollectionEligibilityV1(TechnicalValueV1):
     reason_code: str
     next_allowed_at: datetime | None
     checked_at: datetime
+    collection_options: tuple[BillingReportOptionV1, ...] = ()
 
 
 class BillingCheckPortV1(Protocol):

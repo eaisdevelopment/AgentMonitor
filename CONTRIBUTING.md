@@ -1,53 +1,67 @@
-# Contributing to AgentMonitor
+# Contributing
 
-AgentMonitor is source-available under the [AgentMonitor Personal Use License 1.0](LICENSE). Personal, non-commercial use is free; organizational, professional and commercial use requires a separate written licence from [Essential AI Solutions Ltd (EAIS)](https://essentialai.uk/). Public source access does not grant redistribution or relicensing rights.
+AgentMonitor is source-available under the [Personal Use License](LICENSE).
+Personal, non-commercial use is free; organizational, professional and
+commercial use requires a written licence from
+[Essential AI Solutions Ltd](https://essentialai.uk/).
 
-## Before proposing work
+## Before changing behavior
 
-1. Read [AGENTS.md](AGENTS.md), the [documentation index](docs/README.md), and the [AgentMonitor engineering skill](.agents/skills/agentmonitor-engineering/SKILL.md).
-2. Identify requirement/acceptance IDs and exactly one primary owning module.
-3. Confirm the relevant discovery is complete and the module/change plan is approved.
-4. Confirm public contract versions, permitted paths/imports, and live-test needs.
-5. Do not begin implementation merely because a requirement or roadmap item exists.
+Agree the scope, owning module, contract impact and verification with the
+maintainer before implementing production changes. Reuse an existing applicable
+approval; do not invent extra approvals or claim an assumption is a requirement.
+Read [AGENTS.md](AGENTS.md), [architecture](docs/architecture/system-architecture.md)
+and [security](docs/architecture/security.md).
 
-## Development policy
+Keep changes within the agreed scope. Changes to public contracts, stored data,
+credential custody or dependencies need explicit impact review. Record a
+compatibility and migration path for breaking changes.
 
-- Follow the [SDLC](docs/engineering/sdlc.md), [coding standards](docs/engineering/coding-standards.md), and [review checklists](docs/engineering/review-checklists.md).
-- Use strict red-green-refactor TDD and the [real-system testing policy](docs/engineering/testing-strategy.md).
-- Do not introduce mocks, fakes, recorded provider responses, demo accounts, seeded telemetry, or placeholder metrics.
-- Keep module ownership and dependency direction intact. Propose contract changes before crossing a boundary.
-- Treat migrations, configuration, OpenAPI, internal events, and provider protocols as versioned contracts.
-- Add no dependency before the [dependency and license review](docs/engineering/dependency-and-license-policy.md).
-- Update requirements, traceability, contracts, runbooks, risks, and evidence with behavior changes.
+## Development inputs
 
-## Sensitive systems and data
+Use the versions and lock files in `.python-version`, `.node-version`,
+`backend/pyproject.toml`, `backend/uv.lock`, `frontend/package.json` and
+`frontend/package-lock.json`. The current backend requires Python 3.12;
+frontend engines and package-manager versions are pinned in its manifest.
+Do not silently substitute dependencies or regenerate a lock to make a local
+environment pass.
 
-Never commit, paste, upload, or include in artifacts:
+With the reviewed backend environment at `backend/.venv` and locked frontend
+dependencies at `frontend/node_modules`, the existing checks are:
 
-- `.env` or any secret/token/password/OTP/MFA value;
-- provider OAuth/auth files or raw API/CLI responses;
-- account email/identity unless explicitly approved and masked;
-- prompts, responses, tool activity/arguments, source content, arbitrary process environments, or terminal transcripts;
-- live database, logs, diagnostics, screenshots, or test evidence not explicitly sanitized.
+```bash
+python3 tools/automation/run.py AUTO-QUALITY
+python3 tools/automation/run.py AUTO-BUILD
+```
 
-Do not log out, rewrite, relocate, or modify a default provider profile. Do not interrupt/control running agent processes in V1. The owner performs interactive provider authentication.
+These check source boundaries, types, pinned inputs, generated contracts and
+the frontend build. They do not establish provider access or a complete live
+deployment. Operational and milestone-verification commands may depend on the
+maintainer's configured service, private historical inputs and governance
+records; they are not general-purpose installation commands. Those private
+records are intentionally excluded from this public source distribution.
 
-## Change proposal and review
+## Testing
 
-Use the templates under [docs/templates](docs/templates/README.md). A reviewable change identifies:
+Use red-green-refactor: observe a meaningful expected failure, implement the
+smallest correction, then verify the result. External boundaries use real
+storage, HTTP, browsers, processes and provider data. Do not use mocks, fakes,
+replayed provider responses, seeded telemetry or placeholder account values.
+Constructed inputs are allowed only for pure calculations without I/O.
 
-- requirement, acceptance, plan, module, and contract versions;
-- scope/non-goals and file ownership;
-- architecture/API/data/configuration/migration impact;
-- security/privacy/license/operations impact;
-- meaningful Red, Green, and refactor evidence;
-- real database, API, built-browser, platform, and provider evidence as applicable;
-- every Failed, Blocked, and Not Run scenario;
-- documentation and exact integration/rollback steps.
+Select checks appropriate to the changed boundary. Live tests require explicit
+real-system prerequisites and must report missing access or unexecuted cases
+honestly. An empty provider report is not a populated-data test. A passed unit
+test is not proof that an installed dashboard works.
 
-Branch, commit-message, merge-request, and release commands will be finalized by the repository-foundation plan and documented only after they exist. Do not invent commands or bypass protected-branch/CI policy.
+## Pull requests
 
-## Reporting security issues
+Explain the problem and resulting behavior, affected modules/contracts, tests
+and their actual results, operational or compatibility effects, and limitations.
+Update the relevant operator/API documentation with behavior changes. Preserve
+the licence and third-party notices.
 
-Follow [SECURITY.md](SECURITY.md). Never place a credential or sensitive provider artifact in an issue, merge request, commit, chat, or email body.
-
+Never commit `.env`, provider profiles, credentials, session cookies, raw
+responses, account databases, prompts, source content from monitored projects
+or unredacted screenshots. Use [the private reporting route](SECURITY.md) for
+security issues.

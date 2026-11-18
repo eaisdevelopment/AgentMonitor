@@ -1,4 +1,5 @@
-import type { AccountBillingConnectionsV1, BillingConnectionViewV1, BudgetRunStatusV1, BillingMonitoringStatusV1 } from "../../shared/api/client";
+import type { AccountBillingConnectionsV1, BillingConnectionViewV1, BudgetRunStatusV2, BillingMonitoringStatusV1 } from "../../shared/api/client";
+import type { SelectedFinancialReport } from "./financialReadPresentation";
 
 export type BillingCheckIntent = Readonly<{
   accountId: string;
@@ -105,12 +106,14 @@ export function pendingRun(state: string): boolean {
 
 export function matchesCheckRun(
   intent: Pick<BillingCheckIntent, "accountId" | "resourceId" | "runId">,
-  run: Pick<BudgetRunStatusV1, "account_id" | "resource_id" | "run_id">,
+  run: Pick<BudgetRunStatusV2, "account_id" | "resource_id" | "run_id">,
 ): boolean {
   return run.account_id === intent.accountId && run.resource_id === intent.resourceId && run.run_id === intent.runId;
 }
 
-export function advanceFinancialRead<T extends Readonly<{ period_start: string; period_end: string; as_of: string }>>(query: T, now: Date) {
+export function advanceFinancialRead<T extends Readonly<{ period_start: string; period_end: string; as_of: string }>>(query: T, now: Date, selection?: SelectedFinancialReport) {
+  if (selection?.kind === "selected" || selection?.kind === "period") return { ...query, ...selection.query };
+  if (selection?.kind === "invalid") return { ...query };
   return { ...query, as_of: now.toISOString() };
 }
 

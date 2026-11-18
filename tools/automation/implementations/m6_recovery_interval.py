@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -114,6 +115,21 @@ def _dashboard_probe(revision: str) -> datetime:
         check=False,
     )
     if result.returncode or len(result.stdout) > 4096:
+        diagnostic = result.stderr.decode("utf-8", errors="replace").strip()
+        if diagnostic in {
+            "M6 DASHBOARD PROBE: " + stage
+            for stage in (
+                "revision_input",
+                "browser_connect",
+                "browser_context",
+                "page_create",
+                "navigation",
+                "authenticated_shell",
+                "revision_read",
+                "revision_match",
+            )
+        }:
+            print(diagnostic, file=sys.stderr, flush=True)
         raise ValueError("m6_recovery_dashboard_unavailable")
     value = json.loads(result.stdout)
     if (
@@ -185,7 +201,16 @@ def _runs(
     scope: CollectionRecoveryScopeV1 | None = None,
 ) -> tuple[CollectionRecoveryRunV1, ...]:
     result = repository.read_recovery_runs(
-        CollectionRecoveryQueryV1(provider, start, end, scope, 500)
+        CollectionRecoveryQueryV1(
+            provider,
+            start,
+            end,
+            scope,
+            500,
+            capability_id="subscription.quota"
+            if provider in {"claude", "codex"}
+            else None,
+        )
     )
     if result.has_more:
         raise ValueError("m6_recovery_history_incomplete")

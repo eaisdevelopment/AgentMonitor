@@ -5,17 +5,15 @@ from datetime import UTC, datetime
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
 )
-from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
-    SOURCE_ID as ANTHROPIC_SOURCE,
-)
-from agentmonitor.adapters.providers.codex.openai_api.policy import (
-    SOURCE_ID as OPENAI_SOURCE,
-)
 from agentmonitor.adapters.providers.ollama.api.policy import SOURCE_ID as OLLAMA_SOURCE
-from agentmonitor.composition.billing_context import billing_cost_operation_families
+from agentmonitor.composition.billing_context import (
+    billing_report_operation_families,
+    billing_source_operations,
+)
 from agentmonitor.composition.billing_run import (
     ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
     anthropic_billing_budget_scope_digest,
+    anthropic_billing_operation_family,
     anthropic_cost_manifest_fingerprint,
 )
 from agentmonitor.composition.billing_schedule import (
@@ -30,6 +28,7 @@ from agentmonitor.composition.ollama_usage_run import (
 from agentmonitor.composition.openai_billing_run import (
     OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
     openai_billing_budget_scope_digest,
+    openai_billing_operation_family,
     openai_cost_manifest_fingerprint,
 )
 from agentmonitor.contracts.collection_control_v1 import (
@@ -43,10 +42,12 @@ Key = tuple[str, str, str]
 
 def prepare_financial_dispatch(
     runs: SqliteCollectionRepositoryV1,
-    scheduler: BillingScheduleV1,
+    scheduler: BillingScheduleV1 | None,
     cloud_runs: tuple[CloudBudgetCollectionRunAdmissionV1, ...],
     *,
     deadline_monotonic: float,
+    as_of: datetime | None = None,
+    proposed_cloud_run: CloudBudgetCollectionRunAdmissionV1 | None = None,
 ) -> tuple[
     tuple[BudgetWorkV1, ...],
     dict[Key, BillingScheduleIntentV1],
@@ -56,32 +57,41 @@ def prepare_financial_dispatch(
 
     Queued work wins only within its source budget/operation. Across keys, actual
     prior service age governs both automatic and owner-requested work.
+    A None billing scheduler gives a read-only cloud snapshot. A proposed cloud
+    intent participates in the same ordering before durable manual admission.
     """
-    targets = scheduler.read_targets(deadline_monotonic=deadline_monotonic)
-    now = datetime.now(UTC)
-    intents = scheduler.due_intents(targets, as_of=now)
+    now = as_of or datetime.now(UTC)
+    targets = (
+        ()
+        if scheduler is None
+        else scheduler.read_targets(deadline_monotonic=deadline_monotonic)
+    )
+    intents = () if scheduler is None else scheduler.due_intents(targets, as_of=now)
     # Canonical budget identity is shared by manual and scheduled paths.
     billing_keys: dict[tuple[OpaqueIdV1, str], Key] = {}
     keys: set[Key] = set()
     key: Key
+    provider: str
     for target in targets:
         provider = target.connection.provider_key
+        assert scheduler is not None
         service = scheduler.service_target(target)
         scope = (
             anthropic_billing_budget_scope_digest
             if provider == "claude"
             else openai_billing_budget_scope_digest
         )(target, ProviderTargetRefV1("cloud_service", service.access_target_id))
-        for operation in billing_cost_operation_families(provider):
+        for operation in billing_report_operation_families(provider):
             key = (provider, scope, operation)
             keys.add(key)
-            billing_keys[
-                target.connection.resource_id, operation.rsplit(".", 1)[-1]
-            ] = key
+            billing_keys[target.connection.resource_id, operation] = key
     billing_due: dict[Key, BillingScheduleIntentV1] = {}
     for intent in intents:
         key = billing_keys[
-            intent.target.connection.resource_id, intent.report_context.range_key
+            intent.target.connection.resource_id,
+            anthropic_billing_operation_family(intent.report_context)
+            if intent.target.connection.provider_key == "claude"
+            else openai_billing_operation_family(intent.report_context),
         ]
         billing_due.setdefault(key, intent)
     usage_due: dict[Key, CloudBudgetCollectionRunAdmissionV1] = {}
@@ -90,31 +100,52 @@ def prepare_financial_dispatch(
         keys.add(key)
         if run.report_context.scope == "self":
             usage_due.setdefault(key, run)
+    proposed_key = None
+    if proposed_cloud_run is not None:
+        proposed_key = (
+            "ollama",
+            proposed_cloud_run.budget_scope_digest,
+            proposed_cloud_run.operation_family,
+        )
+        keys.add(proposed_key)
     selected: list[BudgetWorkV1] = []
-    for provider, capability, source, fingerprint, policy in (
-        (
-            "claude",
-            "api.cost",
-            ANTHROPIC_SOURCE,
-            anthropic_cost_manifest_fingerprint(),
-            ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
-        ),
-        (
-            "codex",
-            "api.cost",
-            OPENAI_SOURCE,
-            openai_cost_manifest_fingerprint(),
-            OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
-        ),
+    source_inventory = [
+        (provider, capability, source, fingerprint, policy, operations)
+        for provider, fingerprint, policy in (
+            (
+                "claude",
+                anthropic_cost_manifest_fingerprint(),
+                ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
+            ),
+            (
+                "codex",
+                openai_cost_manifest_fingerprint(),
+                OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
+            ),
+        )
+        for capability, source, operations in billing_source_operations(provider)
+    ]
+    source_inventory.append(
         (
             "ollama",
             "api.usage",
             OLLAMA_SOURCE,
             usage_manifest_fingerprint(),
             POLICY_VERSION,
-        ),
-    ):
-        source_keys = sorted(key for key in keys if key[0] == provider)
+            tuple(key[2] for key in keys if key[0] == "ollama"),
+        )
+    )
+    for (
+        provider,
+        capability,
+        source,
+        fingerprint,
+        policy,
+        operations,
+    ) in source_inventory:
+        source_keys = sorted(
+            key for key in keys if key[0] == provider and key[2] in operations
+        )
         if not source_keys:
             continue
         snapshot = runs.read_budget_dispatch_snapshot(
@@ -135,7 +166,7 @@ def prepare_financial_dispatch(
                     key=lambda item: item.value,
                 )
             ),
-            as_of=datetime.now(UTC),
+            as_of=now,
         )
         states = {
             (item.budget_scope_digest, item.operation_family): item
@@ -154,13 +185,11 @@ def prepare_financial_dispatch(
                     ready = max(
                         timing.next_due_at, timing.not_before_at or timing.next_due_at
                     )
-                    if ready <= datetime.now(UTC):
+                    if ready <= now:
                         due_at = ready
             if (
                 due_at is not None
-                and runs.get_budget_next_allowed_at(
-                    key[1], "request", "count", datetime.now(UTC)
-                )
+                and runs.get_budget_next_allowed_at(key[1], "request", "count", now)
                 is not None
             ):
                 due_at = None
@@ -169,6 +198,7 @@ def prepare_financial_dispatch(
                 for value in (
                     due_at,
                     None if state is None else state.queued_requested_at,
+                    now if key == proposed_key else None,
                 )
                 if value is not None
             )

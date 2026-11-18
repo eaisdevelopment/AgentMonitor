@@ -3,12 +3,14 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, cast
 
 import pytest
 from agentmonitor.adapters.providers.claude.anthropic_api.manifest import (
     ADAPTER_ID,
-    ADAPTER_VERSION,
+)
+from agentmonitor.adapters.providers.claude.anthropic_api.manifest import (
+    ANALYTICS_VERSION as ADAPTER_VERSION,
 )
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     API_VERSION,
@@ -35,6 +37,7 @@ from agentmonitor.contracts.capacity_v1 import (
     BudgetReportInputV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetReportContextV1,
     BudgetCollectionRunAdmissionV1,
     CollectionFailedV1,
     CollectionTriggerV1,
@@ -100,7 +103,9 @@ def _target(
 
 
 def _admission(
-    *, purpose: BillingAccessPurposeV1 = "verification"
+    *,
+    purpose: BillingAccessPurposeV1 = "verification",
+    context: BillingBudgetReportContextV1 | None = None,
 ) -> BudgetCollectionRunAdmissionV1:
     trigger: CollectionTriggerV1 = (
         "reauth_verification" if purpose == "verification" else "scheduled"
@@ -117,6 +122,7 @@ def _admission(
         correlation_id=OpaqueIdV1("correlation-1"),
         causation_id=None,
         trigger=trigger,
+        report_context=context,
         request_principal_id=(
             OpaqueIdV1("principal-1") if purpose == "verification" else None
         ),
@@ -383,3 +389,96 @@ def test_success_with_changed_report_identity_fails_closed() -> None:
     assert outcome.state == "internal_adapter_error"
     assert outcome.error is not None
     assert outcome.error.code == "anthropic_cost_result_invalid"
+
+
+@pytest.mark.parametrize(
+    "category,grouping",
+    [
+        (category, grouping)
+        for category in ("cost", "usage")
+        for grouping in ((), ("workspace",), ("api_key_id",), ("model",))
+    ]
+    + [("cost_tokens", ("token_category",)), ("usage_tokens", ("token_category",))],
+)
+@pytest.mark.parametrize("days", [7, 30])
+def test_analytics_admission_roundtrips_exact_context_and_shared_budget(
+    category: str, grouping: tuple[str, ...], days: int
+) -> None:
+    from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
+        USAGE_SOURCE_ID,
+        AnthropicUsageRequestV1,
+    )
+    from agentmonitor.adapters.providers.claude.anthropic_api.source import (
+        AnthropicUsageResultV1,
+    )
+    from agentmonitor.adapters.providers.claude.anthropic_api.usage_policy import (
+        build_analytics_report,
+    )
+
+    end = NOW.replace(hour=0)
+    context = BillingBudgetReportContextV1(
+        cast(Literal["7d", "30d"], f"{days}d"),
+        end - timedelta(days=days),
+        end,
+        category,
+        grouping,
+    )
+    admission = _admission(context=context)
+    request = anthropic_billing_request(admission)
+    usage = category.startswith("usage")
+    assert isinstance(request, AnthropicUsageRequestV1) == usage
+    assert request.grouping == grouping
+    assert request.period.start == context.interval_start
+    assert admission.capability_id == ("api.usage" if usage else "api.cost")
+    assert admission.source_id == (USAGE_SOURCE_ID if usage else SOURCE_ID)
+    assert admission.budget_scope_digest == _admission().budget_scope_digest
+    assert admission.budget_units == _admission().budget_units
+    assert admission.collection_policy_version == "1.2.0"
+    assert admission.operation_family == f"billing.anthropic.{category}.{days}d" + (
+        "." + grouping[0] if grouping else ""
+    )
+    report = build_analytics_report(request, (), end, None, NOW + timedelta(seconds=2))
+    result_type = AnthropicUsageResultV1 if usage else AnthropicCostResultV1
+    outcome = anthropic_billing_outcome(
+        admission,
+        result_type("success", "ignored", report, 1, 200),
+        NOW + timedelta(seconds=3),
+    )
+    assert outcome.state == "success"
+    assert outcome.provenance is not None
+    assert outcome.provenance.capability_id == admission.capability_id
+    assert outcome.provenance.source_id == admission.source_id
+    assert outcome.provenance.adapter_version == "1.1.1"
+    assert outcome.provenance.decision_reference == "ANTHROPIC-ANALYTICS-1.1"
+    assert outcome.provenance.confidence_reason_code == (
+        "provider_reported_usage" if usage else "provider_reported_cost"
+    )
+    commit = normalize_anthropic_billing_outcome(
+        admission, outcome, NOW + timedelta(seconds=3)
+    )
+    assert isinstance(commit, BudgetCollectionInputV1)
+    assert commit.payload == report
+    assert commit.payload.source_category == category
+    assert commit.payload.currency == (None if usage else "USD")
+
+
+@pytest.mark.parametrize(
+    "category,grouping",
+    [
+        ("cost", ("token_category",)),
+        ("usage", ("token_category",)),
+        ("cost_tokens", ()),
+        ("usage_tokens", ("model",)),
+        ("usage", ("project",)),
+        ("unknown", ()),
+    ],
+)
+def test_analytics_admission_rejects_unreviewed_selection(
+    category: str, grouping: tuple[str, ...]
+) -> None:
+    end = NOW.replace(hour=0)
+    context = BillingBudgetReportContextV1(
+        "7d", end - timedelta(days=7), end, category, grouping
+    )
+    with pytest.raises(ValueError):
+        _admission(context=context)

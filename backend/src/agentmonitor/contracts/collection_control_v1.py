@@ -1851,18 +1851,21 @@ class CloudBudgetReportContextV1(TechnicalValueV1):
     """Immutable requested coverage; recovery never substitutes today's range."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
-    CONTRACT_VERSION: ClassVar[str] = "2.2.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.9.0"
     OWNER: ClassVar[str] = "PLAN-M04"
 
     scope: Literal["self", "team"]
     range_key: Literal["7d", "30d"]
     interval_start: datetime
     interval_end: datetime
+    grouping: tuple[Literal["model"], ...] = ()
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
         if (
-            self.scope not in {"self", "team"}
+            type(self.grouping) is not tuple
+            or self.grouping not in ((), ("model",))
+            or self.scope not in {"self", "team"}
             or self.range_key not in {"7d", "30d"}
             or not _utc(self.interval_start)
             or not _utc(self.interval_end)

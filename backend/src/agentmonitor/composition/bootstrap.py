@@ -114,6 +114,7 @@ from agentmonitor.composition.billing_monitoring import BillingMonitoringActions
 from agentmonitor.composition.billing_worker_supervisor import BillingWorkerSupervisorV1
 from agentmonitor.composition.budget_analysis import StoredBudgetSourceEvidenceV1
 from agentmonitor.composition.budget_funds import StoredAccountBudgetFundsV1
+from agentmonitor.composition.budget_retention import BudgetRetentionTaskV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
@@ -151,6 +152,7 @@ from agentmonitor.composition.provider_dashboard_connections import (
     ProviderDashboardConnectionsV1,
     ProviderVerifiedQuotaIdentitiesV1,
 )
+from agentmonitor.composition.sqlite_read_queries import scoped_sqlite_read
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
@@ -666,16 +668,26 @@ def _observation_ports(
             on_queued=billing_worker.wake,
             can_dispatch=billing_worker.is_monitoring_available,
         ),
-        get_account_budget_current=account_budget_current,
-        list_budget_overview=ListBudgetOverviewV1(
-            ListAccountsV1(registry),
-            account_budget_current,
-            ListAccountResourcesV1(registry),
-            financial_pools=SqliteFinancialPoolRepositoryV1(reference),
-            organization=GetOrganizationV1(registry),
+        get_account_budget_current=scoped_sqlite_read(
+            reference, account_budget_current
+        ),
+        list_budget_overview=scoped_sqlite_read(
+            reference,
+            ListBudgetOverviewV1(
+                ListAccountsV1(registry),
+                account_budget_current,
+                ListAccountResourcesV1(registry),
+                financial_pools=SqliteFinancialPoolRepositoryV1(reference),
+                organization=GetOrganizationV1(registry),
+            ),
         ),
         get_selected_budget_report=selected_budget_report,
-        list_budget_history=ListBudgetHistoryV1(selected_budget_report),
+        list_budget_history=ListBudgetHistoryV1(
+            selected_budget_report,
+            StoredBudgetSourceEvidenceV1(
+                SqliteBudgetReportRepositoryV1(reference).get_report_provenance
+            ),
+        ),
         get_budget_forecast=GetBudgetForecastV1(
             selected_budget_report,
             StoredBudgetSourceEvidenceV1(
@@ -733,6 +745,7 @@ def create_iam_application(
     claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
     codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
+    budget_retention = BudgetRetentionTaskV1(reference, data_root / "budget-retention")
     lifecycle = replace(
         lifecycle,
         tasks=lifecycle.tasks
@@ -745,6 +758,7 @@ def create_iam_application(
             claude_connections.run,
             codex_connections.run,
             alert_delivery.run,
+            budget_retention.run,
         ),
         # A Codex request is bounded at 30 seconds and owned-child TERM/KILL
         # cleanup can consume four more. Leave bounded scheduling/SQLite margin

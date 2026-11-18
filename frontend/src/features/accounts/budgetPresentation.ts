@@ -15,6 +15,11 @@ export function exactUsageText(quantity: BudgetReportWireV1["usage_buckets"][num
   return `${decimal(BigInt(quantity.coefficient), quantity.scale)} ${quantity.unit}`;
 }
 
+export function budgetDimensionText(dimension: BudgetReportWireV1["cost_buckets"][number]["dimensions"][number]): string {
+  const kind = dimension.kind.replaceAll("_", " ");
+  return `${kind.charAt(0).toUpperCase()}${kind.slice(1)}: ${dimension.is_remainder === true ? "Provider-reported remainder" : dimension.value ?? "Not reported"}`;
+}
+
 export function displayMoney(money: ExactMoneyWireV1): string {
   if (money.currency !== "USD") return exactMoneyText(money);
   const coefficient = BigInt(money.coefficient);

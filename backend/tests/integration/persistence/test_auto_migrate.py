@@ -67,6 +67,70 @@ def _run(root: Path, *, expected: str = "v1_0603") -> subprocess.CompletedProces
     )
 
 
+@pytest.mark.parametrize("source", ["v1_0734", "v1_0735"])
+def test_auto_migrate_retention_preserves_schema_and_verified_backup(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    reference = _prior_database(tmp_path, source)
+    with open_sqlite_inspection(reference) as connection:
+        before = connection.exec_driver_sql(
+            "SELECT type,name,sql FROM sqlite_schema ORDER BY type,name"
+        ).fetchall()
+    result = _run(tmp_path, expected=source)
+    assert result.returncode == 0, "real marker migration operator refused"
+    view = InspectSchemaCompatibilityV1(
+        reference, application_schema_range(), "runtime_read_write"
+    )
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
+    with open_sqlite_inspection(reference) as connection:
+        after = connection.exec_driver_sql(
+            "SELECT type,name,sql FROM sqlite_schema ORDER BY type,name"
+        ).fetchall()
+        assert set(before) < set(after)
+        assert all(
+            "capacity_budget_expired_report" in row[1]
+            for row in set(after) - set(before)
+        )
+        assert (
+            connection.exec_driver_sql(
+                "SELECT count(*) FROM capacity_budget_expired_report"
+            ).scalar_one()
+            == 0
+        )
+    manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
+    assert len(manifests) == 1
+    manifest = json.loads(manifests[0].read_text())
+    assert manifest["source_revision"] == source
+    assert manifest["target_revision"] == "v1_0736"
+    backup_path = manifests[0].parent / "agentmonitor.db"
+    assert sha256(backup_path.read_bytes()).hexdigest() == manifest["database_sha256"]
+    backup = DatabaseRefV1(backup_path, backup_path.parent)
+    backup_view = InspectSchemaCompatibilityV1(
+        backup, application_schema_range(), "runtime_read_write"
+    )
+    assert backup_view.state == "upgrade_required"
+    assert backup_view.current_revision == source
+    assert _run(tmp_path, expected=source).returncode == 0
+    assert len(list((tmp_path / "backups").glob("migration-preflight-*"))) == 1
+    assert sha256(backup_path.read_bytes()).hexdigest() == manifest["database_sha256"]
+
+
+def test_auto_migrate_retention_refuses_wrong_source_without_backup(
+    tmp_path: Path,
+) -> None:
+    reference = _prior_database(tmp_path, "v1_0735")
+    before = sha256((tmp_path / "agentmonitor.db").read_bytes()).hexdigest()
+    result = _run(tmp_path, expected="v1_0734")
+    assert result.returncode == 3
+    assert not list((tmp_path / "backups").glob("migration-preflight-*"))
+    assert sha256((tmp_path / "agentmonitor.db").read_bytes()).hexdigest() == before
+    view = InspectSchemaCompatibilityV1(
+        reference, application_schema_range(), "runtime_read_write"
+    )
+    assert view.current_revision == "v1_0735" and view.state == "upgrade_required"
+
+
 def test_auto_migrate_0733_to_pools_preserves_verified_backup_and_reopens(
     tmp_path: Path,
 ) -> None:
@@ -93,16 +157,16 @@ def test_auto_migrate_0733_to_pools_preserves_verified_backup_and_reopens(
 
     result = _run(tmp_path, expected="v1_0733")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v1_0733 to v1_0734" in result.stdout
+    assert "v1_0733 to v1_0736" in result.stdout
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.current_revision == "v1_0734" and view.state == "compatible"
+    assert view.current_revision == "v1_0736" and view.state == "compatible"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0733"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     backup_path = manifests[0].parent / "agentmonitor.db"
     backup_digest = sha256(backup_path.read_bytes()).hexdigest()
     assert backup_digest == manifest["database_sha256"]
@@ -155,7 +219,7 @@ def test_auto_migrate_0733_to_pools_preserves_verified_backup_and_reopens(
             )
     retry = _run(tmp_path, expected="v1_0733")
     assert retry.returncode == 0, retry.stdout + retry.stderr
-    assert "already at v1_0734" in retry.stdout
+    assert "already at v1_0736" in retry.stdout
     assert len(list((tmp_path / "backups").glob("migration-preflight-*"))) == 1
     assert sha256(backup_path.read_bytes()).hexdigest() == backup_digest
 
@@ -164,8 +228,8 @@ def test_offline_preflight_admits_actual_pool_migration_tail() -> None:
     from tools.automation.implementations.auto_migrate import _preflight_catalog
 
     catalog, tail = _preflight_catalog("v1_0733")
-    assert catalog.head == "v1_0734"
-    assert tail == ("v1_0734",)
+    assert catalog.head == "v1_0736"
+    assert tail == ("v1_0734", "v1_0735", "v1_0736")
 
 
 def test_auto_migrate_upgrades_m6_to_financial_schema_with_verified_backup(
@@ -178,12 +242,12 @@ def test_auto_migrate_upgrades_m6_to_financial_schema_with_verified_backup(
         reference, application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0734"
+    assert view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0720"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     copy = DatabaseRefV1(manifests[0].parent / "agentmonitor.db", manifests[0].parent)
     assert (
         sha256((manifests[0].parent / "agentmonitor.db").read_bytes()).hexdigest()
@@ -196,7 +260,7 @@ def test_auto_migrate_upgrades_m6_to_financial_schema_with_verified_backup(
     assert prior.state == "upgrade_required"
     retry = _run(tmp_path, expected="v1_0720")
     assert retry.returncode == 0, retry.stdout + retry.stderr
-    assert "already at v1_0734" in retry.stdout
+    assert "already at v1_0736" in retry.stdout
     assert len(list((tmp_path / "backups").glob("migration-preflight-*"))) == 1
 
 
@@ -211,12 +275,12 @@ def test_auto_migrate_upgrades_billing_setup_to_financial_schema(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == source
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     backup = manifests[0].parent / "agentmonitor.db"
     assert sha256(backup.read_bytes()).hexdigest() == manifest["database_sha256"]
     prior = InspectSchemaCompatibilityV1(
@@ -240,7 +304,7 @@ def test_auto_migrate_upgrades_billing_setup_to_financial_schema(
                 )
     retry = _run(tmp_path, expected=source)
     assert retry.returncode == 0, retry.stdout + retry.stderr
-    assert "already at v1_0734" in retry.stdout
+    assert "already at v1_0736" in retry.stdout
     assert len(list((tmp_path / "backups").glob("migration-preflight-*"))) == 1
 
 
@@ -254,12 +318,12 @@ def test_auto_migrate_keeps_verified_prior_backup_and_reaches_exact_m4_head(
         reference, application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0734"
+    assert view.current_revision == "v1_0736"
     backups = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(backups) == 1
     manifest = json.loads(backups[0].read_text())
     assert manifest["source_revision"] == "v1_0603"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     backup_root = backups[0].parent
     assert (
         manifest["database_sha256"]
@@ -273,7 +337,7 @@ def test_auto_migrate_keeps_verified_prior_backup_and_reaches_exact_m4_head(
     assert prior_view.current_revision == "v1_0603"
     retry = _run(tmp_path)
     assert retry.returncode == 0, retry.stdout + retry.stderr
-    assert "already at v1_0734" in retry.stdout
+    assert "already at v1_0736" in retry.stdout
     assert len(list((tmp_path / "backups").glob("migration-preflight-*"))) == 1
 
 
@@ -289,12 +353,12 @@ def test_auto_migrate_upgrades_installed_v1_0707_with_verified_backup(
         reference, application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0734"
+    assert view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0707"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     copy = DatabaseRefV1(manifests[0].parent / "agentmonitor.db", manifests[0].parent)
     prior = InspectSchemaCompatibilityV1(
         copy, application_schema_range(), "runtime_read_write"
@@ -421,12 +485,12 @@ def test_auto_migrate_upgrades_v1_0708_to_binding_schema_with_backup(
         reference, application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0734"
+    assert view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0708"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     copy = DatabaseRefV1(manifests[0].parent / "agentmonitor.db", manifests[0].parent)
     prior = InspectSchemaCompatibilityV1(
         copy, application_schema_range(), "runtime_read_write"
@@ -443,12 +507,12 @@ def test_auto_migrate_upgrades_v1_0709_to_source_period_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0709"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0710_to_cloud_journal_with_backup(
@@ -460,12 +524,12 @@ def test_auto_migrate_upgrades_v1_0710_to_cloud_journal_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0710"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0711_to_cloud_failure_with_backup(
@@ -477,12 +541,12 @@ def test_auto_migrate_upgrades_v1_0711_to_cloud_failure_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0711"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0712_to_cloud_targets_with_backup(
@@ -494,12 +558,12 @@ def test_auto_migrate_upgrades_v1_0712_to_cloud_targets_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0712"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0713_to_cloud_capacity_with_backup(
@@ -511,12 +575,12 @@ def test_auto_migrate_upgrades_v1_0713_to_cloud_capacity_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0713"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0714_to_cloud_capacity_with_backup(
@@ -528,12 +592,12 @@ def test_auto_migrate_upgrades_v1_0714_to_cloud_capacity_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0714"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0715_to_cloud_replay_with_backup(
@@ -545,12 +609,12 @@ def test_auto_migrate_upgrades_v1_0715_to_cloud_replay_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0715"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0717_to_verification_history_with_backup(
@@ -562,12 +626,12 @@ def test_auto_migrate_upgrades_v1_0717_to_verification_history_with_backup(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible" and view.current_revision == "v1_0734"
+    assert view.state == "compatible" and view.current_revision == "v1_0736"
     manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0717"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
 
 
 def test_auto_migrate_upgrades_v1_0718_without_coverage_backfill(
@@ -579,7 +643,7 @@ def test_auto_migrate_upgrades_v1_0718_without_coverage_backfill(
     view = InspectSchemaCompatibilityV1(
         reference, application_schema_range(), "runtime_read_write"
     )
-    assert view.current_revision == "v1_0734"
+    assert view.current_revision == "v1_0736"
     assert view.state == "compatible"
     manifest_paths = list(
         (tmp_path / "backups").glob("migration-preflight-*/manifest.json")
@@ -587,7 +651,7 @@ def test_auto_migrate_upgrades_v1_0718_without_coverage_backfill(
     assert len(manifest_paths) == 1
     manifest = json.loads(manifest_paths[0].read_text())
     assert manifest["source_revision"] == "v1_0718"
-    assert manifest["target_revision"] == "v1_0734"
+    assert manifest["target_revision"] == "v1_0736"
     backup_root = manifest_paths[0].parent
     prior = InspectSchemaCompatibilityV1(
         DatabaseRefV1(backup_root / "agentmonitor.db", backup_root),
@@ -802,4 +866,119 @@ def test_same_schema_update_source_preflight_with_active_wal(tmp_path: Path) -> 
         reader.execute("BEGIN")
         reader.execute("SELECT count(*) FROM sqlite_schema").fetchone()
         assert (tmp_path / "agentmonitor.db-wal").exists()
-        _verify_active_source_schema(reference, "v1_0734")
+        _verify_active_source_schema(reference, "v1_0736")
+
+
+def test_auto_migrate_retention_preserves_genuine_financial_rows(
+    tmp_path: Path,
+) -> None:
+    """Actual offline operator over a private genuine 0735 copy, never live writes."""
+    import sqlite3
+    from contextlib import closing
+
+    from agentmonitor.adapters.persistence.capacity.sqlite.budget_repository import (
+        SqliteBudgetReportRepositoryV1,
+    )
+
+    from backend.tests.live.ollama.test_budget_monetary_persistence import (
+        _monetary_report,
+        _receipt,
+        _require,
+    )
+    from backend.tests.live.ollama.test_cloud_registry_revision_admission import (
+        _LIVE_DATABASE,
+    )
+    from backend.tests.live.ollama.test_model_remainder_migration import (
+        _retained_digest,
+    )
+    from tools.automation.implementations.auto_migrate import _create_sqlite_backup
+
+    # An actual retained pre-upgrade backup may be selected after deployment.
+    # No marker is rewritten to recreate an earlier database revision.
+    source = Path(
+        os.environ.get("AGENTMONITOR_M7_RETENTION_PRIOR_DATABASE", str(_LIVE_DATABASE))
+    )
+    _require(
+        source.is_absolute() and source.resolve() == source,
+        "retention_prior_path_invalid",
+    )
+    tmp_path.chmod(0o700)
+    copied = tmp_path / "agentmonitor.db"
+    # SQLite online backup reads the current WAL consistently. Immutable
+    # inspection is only used for the closed private copy and verified backup.
+    with closing(
+        sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True, timeout=5)
+    ) as driver:
+        driver.execute("PRAGMA query_only=ON")
+        _create_sqlite_backup(driver, copied)
+    reference = DatabaseRefV1(copied, tmp_path)
+    with open_sqlite_inspection(reference) as connection:
+        revision = connection.exec_driver_sql(
+            "SELECT version_num FROM alembic_version"
+        ).scalar_one()
+    _require(revision == "v1_0735", "genuine_retention_predecessor_required")
+    before = _retained_digest(reference)
+    run, report = _monetary_report(reference)
+    assert run.account_id is not None and run.report_id is not None
+
+    result = _run(tmp_path, expected="v1_0735")
+    _require(result.returncode == 0, "retention_populated_operator_refused")
+    view = InspectSchemaCompatibilityV1(
+        reference, application_schema_range(), "runtime_read_write"
+    )
+    _require(
+        view.state == "compatible" and view.current_revision == "v1_0736",
+        "retention_migration_current_schema_invalid",
+    )
+
+    _require(
+        _retained_digest(reference) == before,
+        "retention_migration_financial_rows_changed",
+    )
+    reread = SqliteBudgetReportRepositoryV1(reference).get_report(
+        run.account_id, run.report_id
+    )
+    _require(reread == report, "retention_migration_report_changed")
+    receipt = _receipt(reference, run)
+    _require(
+        receipt.report_id == report.report_id
+        and receipt.payload_digest == run.payload_digest,
+        "retention_migration_receipt_identity_changed",
+    )
+    manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
+    _require(len(manifests) == 1, "retention_migration_backup_missing")
+    manifest = json.loads(manifests[0].read_text())
+    _require(
+        manifest["source_revision"] == "v1_0735"
+        and manifest["target_revision"] == "v1_0736",
+        "retention_migration_backup_revision_invalid",
+    )
+    backup_path = manifests[0].parent / "agentmonitor.db"
+    _require(
+        sha256(backup_path.read_bytes()).hexdigest() == manifest["database_sha256"],
+        "retention_migration_backup_hash_invalid",
+    )
+    backup = DatabaseRefV1(backup_path, backup_path.parent)
+    _require(
+        _retained_digest(backup) == before, "retention_migration_backup_rows_changed"
+    )
+    with closing(
+        sqlite3.connect(f"{backup_path.as_uri()}?mode=ro&immutable=1", uri=True)
+    ) as connection:
+        _require(
+            connection.execute("SELECT version_num FROM alembic_version").fetchone()
+            == ("v1_0735",),
+            "retention_migration_backup_source_changed",
+        )
+        _require(
+            connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)],
+            "retention_migration_backup_integrity_failed",
+        )
+        _require(
+            connection.execute("PRAGMA foreign_key_check").fetchall() == [],
+            "retention_migration_backup_foreign_keys_failed",
+        )
+    _require(
+        sha256(backup_path.read_bytes()).hexdigest() == manifest["database_sha256"],
+        "retention_migration_backup_changed_after_read",
+    )

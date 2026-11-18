@@ -40,8 +40,23 @@ export function budgetWindowSearch(search: string, query: BudgetWindow, resource
   budgetWindowDays(query);
   if (resourceId !== null && !/^[A-Za-z0-9._:-]{1,256}$/.test(resourceId)) throw new Error("budget_window_invalid");
   const params = new URLSearchParams(search);
+  const scope = params.get("budget_scope");
+  const keepScope = resourceId !== null && params.getAll("budget_resource").length === 1 && params.get("budget_resource") === resourceId &&
+    params.getAll("budget_scope").length === 1 && (scope === "self" || scope === "team");
+  const category = params.get("budget_category"), grouping = params.get("budget_grouping");
+  const keepCloudGrouping = keepScope && category === null && params.getAll("budget_grouping").length === 1 && grouping === "model";
+  const keepReportSelection = scope === null && resourceId !== null && params.get("budget_resource") === resourceId &&
+    params.getAll("budget_resource").length === 1 && params.getAll("budget_category").length === 1 &&
+    category !== null && /^[a-z][a-z0-9_]{0,63}$/.test(category) && params.getAll("budget_grouping").length <= 1 &&
+    (grouping === null || ["workspace", "project", "api_key_id", "model", "token_category"].includes(grouping));
   for (const key of [...params.keys()]) if (key.startsWith("budget_")) params.delete(key);
   if (resourceId !== null) params.set("budget_resource", resourceId);
+  if (keepScope) params.set("budget_scope", scope!);
+  if (keepCloudGrouping) params.set("budget_grouping", "model");
+  if (keepReportSelection) {
+    params.set("budget_category", category!);
+    if (grouping !== null) params.set("budget_grouping", grouping);
+  }
   params.set("budget_start", query.period_start);
   params.set("budget_end", query.period_end);
   params.set("budget_as_of", query.as_of);
